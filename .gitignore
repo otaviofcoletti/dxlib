@@ -1,0 +1,8 @@
+.idea/
+.vscode/
+
+dxlib/
+dxlib.egg-info/
+dist/
+build/
+
