@@ -26,11 +26,14 @@ class AlphaVantageAPI:
 
             response = requests.get(self.base_url, params=params)
             data = response.json()
-            exchange_rate_data = data['Realtime Currency Exchange Rate']
-            exchange_rates.append({
-                'Currency': currency,
-                'Exchange Rate': exchange_rate_data['5. Exchange Rate'],
-                'Last Refreshed': exchange_rate_data['6. Last Refreshed']
-            })
 
+            try:
+                exchange_rate_data = data['Realtime Currency Exchange Rate']
+                exchange_rates.append({
+                    'Currency': currency,
+                    'Exchange Rate': exchange_rate_data['5. Exchange Rate'],
+                    'Last Refreshed': exchange_rate_data['6. Last Refreshed']
+                })
+            except KeyError:
+                print(data)
         return pandas.DataFrame(exchange_rates)

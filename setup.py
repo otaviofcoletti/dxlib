@@ -1,21 +1,21 @@
-# Always prefer setuptools over distutils
+import os
+from os import path
+from codecs import open
 from setuptools import setup, find_packages
 
-# To use a consistent encoding
-from codecs import open
-from os import path
-
-# The directory containing this file
 HERE = path.abspath(path.dirname(__file__))
 
-# Get the long description from the README file
 with open(path.join(HERE, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
-# This call to self.setup() does all the work
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
+
+version = os.getenv("DXLIB_VERSION", "0.1.0")
+
 setup(
     name="dxlib",
-    version="0.1.202",
+    version=version,
     description="Quantitative Methods for Finance",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -35,7 +35,7 @@ setup(
         "Programming Language :: Python :: 3.10",
         "Operating System :: OS Independent"
     ],
-    packages=["dxlib"],
+    packages=find_packages(),
     include_package_data=True,
-    install_requires=["numpy", "matplotlib"]
+    install_requires=requirements,
 )

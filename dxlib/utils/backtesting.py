@@ -212,10 +212,8 @@ def test_position(portfolio, starting_cash=10e3):
 def main():
     starting_cash = 10e3
     portfolio = Portfolio()
-    # test_position(portfolio, starting_cash)
 
     strategy = ForecastRebalance(name="Forecast&Rebalance", portfolio=portfolio)
-    str
     strategy.run()
     plt.plot(strategy.position.get_value())
     plt.show()

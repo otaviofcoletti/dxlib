@@ -1,6 +1,6 @@
 from .logger import CustomLogger
 from .terminal import Terminal
-from .data.AlphaVantage import AlphaVantageAPI
+from .alphavantage import AlphaVantageAPI
 from .utils import append_to_csv
 import time
 from rich.table import Table
@@ -26,7 +26,7 @@ def print_currency_exchange_table(terminal, dataframe):
 def main():
     logger = CustomLogger()
     terminal = Terminal()
-    api_key = 'A7MUFCXLS779G7EZ'
+    api_key = ''
     api = AlphaVantageAPI(api_key)
 
     try:
