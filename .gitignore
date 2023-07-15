@@ -5,3 +5,4 @@ dxlib.egg-info/
 dist/
 build/
 
+*.pyc
