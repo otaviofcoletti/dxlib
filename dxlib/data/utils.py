@@ -1,5 +1,17 @@
 import csv
+import os
 import pandas
+
+
+def read_data(symbol):
+    if os.path.exists(f"{symbol}.csv"):
+        try:
+            security = pandas.read_csv(f"{symbol}.csv", index_col=0, parse_dates=True)
+            security.index = pandas.to_datetime(security.index)
+            return security
+        except pandas.errors.EmptyDataError:
+            pass
+    return None
 
 
 def append_to_csv(data, csv_file='stock_data.csv'):

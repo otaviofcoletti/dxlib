@@ -3,5 +3,4 @@ matplotlib==3.7.2
 pandas==2.0.3
 requests~=2.31.0
 yfinance==0.2.24
-bt~=0.2.9
 pmdarima~=2.0.3
