@@ -1,18 +1,3 @@
-# AmericanPricing <- function(type, underlying, strike, risk_free_rate, dividendYield, maturity, volatility) {
-#   value <- AmericanOption("call", underlying, strike, dividendYield, risk_free_rate, maturity, volatility)
-#   value <- c("price" = value[["value"]], "divRho" <- value[["divRho"]])
-#
-
-#
-#   value["delta"] <- delta(underlying) * 1 # 1 change in underlying
-#   value["gamma"] <- gamma(underlying) * underlying # 1 change in underlying
-#   value["vega"] <- vega(volatility) / 100 # 1% change in volatility
-#   value["theta"] <- theta(maturity) / 365 # 1 day in year change
-#   value["rho"] <- rho(risk_free_rate) / (100) # 1bps curve change
-#
-#   return(value)
-# }
-#
 import enum
 
 from datetime import date
@@ -164,7 +149,6 @@ class PricingEngine:
         #     return((f(x + h) - f(x)) / h)
         #   }
 
-
     @classmethod
     def binomial_three(cls, option: Option, volatility: float):
         return volatility
@@ -226,6 +210,16 @@ class PricingEngine:
                         numpy.exp(-risk_free_rate * maturity) *
                         norm.pdf(-d_2))
 
+        # AmericanPricing <- function(type, underlying, strike, risk_free_rate, dividendYield, maturity, volatility) {
+        #   value <- AmericanOption("call", underlying, strike, dividendYield, risk_free_rate, maturity, volatility)
+        #   value <- c("price" = value[["value"]], "divRho" <- value[["divRho"]])
+        #
+        #   value["delta"] <- delta(underlying) * 1 # 1 change in underlying
+        #   value["gamma"] <- gamma(underlying) * underlying # 1 change in underlying
+        #   value["vega"] <- vega(volatility) / 100 # 1% change in volatility
+        #   value["theta"] <- theta(maturity) / 365 # 1 day in year change
+        #   value["rho"] <- rho(risk_free_rate) / (100) # 1bps curve change
+        #
         value = {
             "price": price,
             "delta": delta(),
@@ -240,9 +234,16 @@ class PricingEngine:
 
 def main():
     security = Security("PETR4 BR Index", price=40.5)
-    underlying = GenericOption(security, risk_free_rate=10 / 100, dividend_yield=30 / 100, exercise_style=ExerciseStyle.european)
-    option = Option("PETR4 BR 2023/7/20 C40", underlying,
-                    strike=40, maturity=date(2023, 7, 20),
+
+    underlying = GenericOption(security,
+                               risk_free_rate=10 / 100,
+                               dividend_yield=30 / 100,
+                               exercise_style=ExerciseStyle.european)
+
+    option = Option("PETR4 BR 2023/7/20 C40",
+                    underlying,
+                    strike=40,
+                    maturity=date(2023, 7, 20),
                     price=8)
 
     option.implied_volatility = 4 / 100
