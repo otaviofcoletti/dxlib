@@ -3,7 +3,7 @@ from enum import Enum
 from .core import Api
 
 
-class AlpacaMarkets(Api):
+class AlpacaMarketsAPI(Api):
     def __init__(self, api_key, api_secret):
         super().__init__(api_key, api_secret, 'https://data.alpaca.markets', 'v2')
 
