@@ -16,4 +16,10 @@ class AlpacaMarketsAPI(Api):
     def get_trades(self, ticker):
         url = self.form_url(f'{self.Endpoints.stocks.value}/trades/latest?symbols={ticker}')
         response = self.get(url)
-        print(response)
+        return response
+
+    def get_historical(self, ticker):
+        url = self.form_url(
+            f'{self.Endpoints.stocks.value}/trades?symbols={ticker}&start=2021-01-03&end=2023-01-03')
+        response = self.get(url)
+        return response
