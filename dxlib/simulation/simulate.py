@@ -1,8 +1,7 @@
 import numpy as np
-from portfolio import Portfolio
+from ..core import Portfolio
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
-import seaborn
 
 
 class Simulation:
@@ -10,7 +9,8 @@ class Simulation:
         self.portfolio = portfolio
         self.price_data = price_data
 
-    def momentum(self, security, T):
+    @classmethod
+    def momentum(cls, security, T):
         momentum_T = security.copy()
         momentum_T[0:T] = 0
 
@@ -19,25 +19,29 @@ class Simulation:
 
         return momentum_T
 
-    def price_size(self, security, T):
+    @classmethod
+    def price_size(cls, security, T):
         pcs = security / security.rolling(T).sum()
 
         return pcs.fillna(method='bfill')
 
-    def vol_rolling(self, security, T):
+    @classmethod
+    def vol_rolling(cls, security, T):
         vol = security.pct_change().rolling(T).std(ddof=0)
 
         return vol.fillna(method='bfill')
 
-    def train_test_split(self, features, labels, percentage):
+    @classmethod
+    def train_test_split(cls, features, labels, percentage):
         size = int(len(features) * percentage)
 
-        train = {"x": features[10:size], "y": labels[10:size].flatten()}
+        train = {"x": features[:size], "y": labels[:size].flatten()}
         test = {"x": features[size:], "y": labels[size:].flatten()}
 
         return train, test
 
-    def simulate_trade_allocation(self, title, y_pred, basis):
+    @classmethod
+    def simulate_trade_allocation(cls, title, y_pred, basis, symbol, symbol2):
         y_pred_portfolio = np.array([1 - y_pred, y_pred]).T
         basis['BUY-PRED'] = np.argmin(y_pred_portfolio, axis=1)
         basis['SELL-PRED'] = np.argmax(y_pred_portfolio, axis=1)
@@ -45,16 +49,15 @@ class Simulation:
         basis['BUY-PRED'] = basis['BUY-PRED'].shift(1).fillna(1)
         basis['SELL-PRED'] = basis['SELL-PRED'].shift(1).fillna(0)
 
-        basis['PRED-PERCENTAGE'] = basis['PETR4.SA'].to_numpy().flatten() * basis['BUY-PRED'].to_numpy() + \
-                                   basis['AGRO3.SAO'].to_numpy().flatten() * basis['SELL-PRED'].to_numpy()
+        basis['PRED-PERCENTAGE'] = basis[symbol].to_numpy().flatten() * basis['BUY-PRED'].to_numpy() + basis[
+            symbol2].to_numpy().flatten() * basis['SELL-PRED'].to_numpy()
         basis['PRED-CHANGES'] = (1 + basis['PRED-PERCENTAGE'].fillna(0).to_numpy()).cumprod()
 
         print(title)
-        seaborn.lineplot(100 * basis[['PRED-CHANGES', "PETR4.SA", "AGRO3.SAO"]])
         return basis["PRED-CHANGES"], \
             (basis["PRED-CHANGES"].iloc[-1] - basis["PRED-CHANGES"].iloc[0]) / basis["PRED-CHANGES"].iloc[0]
 
-    def run(self, operations=None):
+    def run(self, symbol, symbol2, operations=None):
         for i, prices in enumerate(self.price_data):
             if i > 0:
                 self.portfolio.portfolio.loc[i] = self.portfolio.portfolio.loc[i - 1]
@@ -74,9 +77,9 @@ class Simulation:
 
         basis = self.portfolio.portfolio[self.portfolio.symbols].copy()
         basis = basis.pct_change()
-        basis['1T'] = self.momentum(basis['PETR4.SA'], 30)
-        basis['3T'] = self.momentum(basis['PETR4.SA'], 90)
-        basis['6T'] = self.momentum(basis['PETR4.SA'], 180)
+        basis['1T'] = self.momentum(basis[symbol], 30)
+        basis['3T'] = self.momentum(basis[symbol], 90)
+        basis['6T'] = self.momentum(basis[symbol], 180)
 
         basis["BUY"] = np.argmin(basis[self.portfolio.symbols].to_numpy(), axis=1)
 
@@ -93,14 +96,13 @@ class Simulation:
         y_pred = clf.predict(features)
 
         pred_changes, returns = self.simulate_trade_allocation("RandomForest for 1, 3 and 6 months Momentum class",
-                                                               y_pred, basis)
+                                                               y_pred, basis, symbol, symbol2)
         print(pred_changes, f"\nReturns: {returns}")
         print("Accuracy train:", accuracy_score(train["y"], y_pred_train))
         print("Accuracy validation:", accuracy_score(test["y"], y_pred_val))
 
 
-# Example usage:
-if __name__ == "__main__":
+def main():
     symbols = ['AAPL', 'GOOGL', 'MSFT']
     price_data = np.array([
         [150.0, 2500.0, 300.0],
@@ -110,19 +112,24 @@ if __name__ == "__main__":
         [157.0, 2540.0, 306.0],
     ])
 
-    portfolio = Portfolio(symbols)
-    simulation = Simulation(portfolio, price_data)
+    test_portfolio = Portfolio(symbols)
+    simulation = Simulation(test_portfolio, price_data)
 
     class BuyOnCondition:
         def __init__(self):
             pass
 
-        def execute(self, portfolio, current_day):
-            if current_day > 0 and current_day < 4:
+        @classmethod
+        def execute(cls, portfolio, current_day):
+            if 0 < current_day < 4:
                 portfolio.buy_stock('GOOGL', 2, portfolio.portfolio.loc[current_day, 'GOOGL'])
             elif current_day == 4:
                 portfolio.sell_stock('MSFT', 50, portfolio.portfolio.loc[current_day, 'MSFT'])
 
-
     operations = [BuyOnCondition()]
-    simulation.run(operations)
+    simulation.run('GOOGL', 'MSFT', operations)
+
+
+# Example usage:
+if __name__ == "__main__":
+    main()
