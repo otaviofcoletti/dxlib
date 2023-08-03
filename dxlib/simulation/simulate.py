@@ -1,13 +1,49 @@
+import logging
+from abc import ABC
+
 import numpy as np
-from ..core import Portfolio
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
+import pandas
+
+from ..core import Portfolio, TradeType, Signal
+from .. import no_logger
+# from sklearn.ensemble import RandomForestClassifier
+# from sklearn.metrics import accuracy_score
+
+
+class Strategy(ABC):
+    def __init__(self):
+        pass
+
+    def execute(self, row, idx, history) -> Signal:
+        pass
+
+
+class BuyOnCondition(Strategy):
+    def __init__(self):
+        super().__init__()
+        self.signal_history = []
+
+    def execute(self, row, idx, history):
+        if 0 < idx < 4:
+            signal = Signal(TradeType.BUY, 2, row[0])
+            self.signal_history.append(signal)
+        elif idx > 5:
+            signal = Signal(TradeType.SELL, 59, row[1])
+            self.signal_history.append(signal)
+        else:
+            signal = Signal(TradeType.WAIT)
+        return signal
 
 
 class Simulation:
-    def __init__(self, portfolio, price_data):
+    def __init__(self, portfolio: Portfolio, strategy: Strategy, logger: logging.Logger = None):
         self.portfolio = portfolio
-        self.price_data = price_data
+        self.strategy = strategy
+
+        if logger is None:
+            self.logger = no_logger(__name__)
+        else:
+            self.logger = logger
 
     @classmethod
     def momentum(cls, security, T):
@@ -57,49 +93,14 @@ class Simulation:
         return basis["PRED-CHANGES"], \
             (basis["PRED-CHANGES"].iloc[-1] - basis["PRED-CHANGES"].iloc[0]) / basis["PRED-CHANGES"].iloc[0]
 
-    def run(self, symbol, symbol2, operations=None):
-        for i, prices in enumerate(self.price_data):
-            if i > 0:
-                self.portfolio.portfolio.loc[i] = self.portfolio.portfolio.loc[i - 1]
-            self.portfolio.portfolio.loc[i, self.portfolio.symbols] = prices
+    def run(self):
+        signal_history = []
+        for idx, row in self.portfolio.history.df.iterrows():
+            signal = self.strategy.execute(row, idx, self.portfolio.history)
+            signal_history.append(signal)
 
-            if operations is not None:
-                for operation in operations:
-                    operation.execute(self.portfolio, i)
-
-        returns = self.portfolio.calculate_returns()
-        max_drawdown = self.portfolio.calculate_max_drawdown()
-
-        self.portfolio.print_portfolio_summary()
-        print("\nReturns:")
-        print(returns)
-        print("Max Drawdown:", max_drawdown)
-
-        basis = self.portfolio.portfolio[self.portfolio.symbols].copy()
-        basis = basis.pct_change()
-        basis['1T'] = self.momentum(basis[symbol], 30)
-        basis['3T'] = self.momentum(basis[symbol], 90)
-        basis['6T'] = self.momentum(basis[symbol], 180)
-
-        basis["BUY"] = np.argmin(basis[self.portfolio.symbols].to_numpy(), axis=1)
-
-        features = basis[["1T", "3T", "6T"]].to_numpy()
-        labels = basis[["BUY"]].to_numpy()
-
-        train, test = self.train_test_split(features, labels, 0.5)
-
-        clf = RandomForestClassifier()
-        clf.fit(train["x"], train["y"])
-
-        y_pred_train = clf.predict(train["x"])
-        y_pred_val = clf.predict(test["x"])
-        y_pred = clf.predict(features)
-
-        pred_changes, returns = self.simulate_trade_allocation("RandomForest for 1, 3 and 6 months Momentum class",
-                                                               y_pred, basis, symbol, symbol2)
-        print(pred_changes, f"\nReturns: {returns}")
-        print("Accuracy train:", accuracy_score(train["y"], y_pred_train))
-        print("Accuracy validation:", accuracy_score(test["y"], y_pred_val))
+            self.logger.info(f"Executing {signal}")
+        return signal_history
 
 
 def main():
@@ -112,22 +113,18 @@ def main():
         [157.0, 2540.0, 306.0],
     ])
 
-    test_portfolio = Portfolio(symbols)
-    simulation = Simulation(test_portfolio, price_data)
+    price_data = pandas.DataFrame(price_data, columns=symbols)
 
-    class BuyOnCondition:
-        def __init__(self):
-            pass
+    portfolio = Portfolio()
+    portfolio.set_history(price_data)
+    portfolio.add_cash(10000)
+    strategy = BuyOnCondition()
 
-        @classmethod
-        def execute(cls, portfolio, current_day):
-            if 0 < current_day < 4:
-                portfolio.buy_stock('GOOGL', 2, portfolio.portfolio.loc[current_day, 'GOOGL'])
-            elif current_day == 4:
-                portfolio.sell_stock('MSFT', 50, portfolio.portfolio.loc[current_day, 'MSFT'])
+    simulation = Simulation(portfolio, strategy)
+    signal_history = simulation.run()
 
-    operations = [BuyOnCondition()]
-    simulation.run('GOOGL', 'MSFT', operations)
+    returns = portfolio.calculate_returns(signal_history)
+    print(returns)
 
 
 # Example usage:
