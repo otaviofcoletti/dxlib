@@ -54,7 +54,6 @@ class SimulationManager:
     def execute(self, signals: pandas.DataFrame = None):
         if signals is None:
             signals = self.generate_signals()
-
         for idx, row in signals.iterrows():
             if self.portfolio.history is not None:
                 self.portfolio.history.add_row(self.history.df.iloc[idx])
@@ -63,8 +62,8 @@ class SimulationManager:
 
             for symbol, signal in row.items():
                 try:
-                    self.portfolio.trade(str(symbol), signal)
                     if signal.trade_type != TradeType.WAIT:
+                        self.portfolio.trade(str(symbol), signal)
                         self.logger.info(f"Executed {signal} for {symbol}")
                 except ValueError:
                     pass

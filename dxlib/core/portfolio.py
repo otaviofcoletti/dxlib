@@ -12,12 +12,17 @@ class TradeType(Enum):
     WAIT = 0
     SELL = -1
 
+    def __eq__(self, other):
+        if isinstance(other, TradeType):
+            return self.value == other.value
+        return False
+
 
 class Transaction:
     _cost = 1e-2
 
     def __init__(self,
-                 attributed_security: Security = None,
+                 security: Security = None,
                  quantity=None,
                  price=None,
                  trade_type=TradeType.BUY,
@@ -26,14 +31,14 @@ class Transaction:
         self._price = None
         self._value = None
 
-        self.attributed_security = attributed_security
+        self.security = security
         self.trade_type = trade_type
         self.quantity = quantity
         self.price = price
         self.timestamp = timestamp
 
     def __repr__(self):
-        return f"{self.trade_type.name}: {self.attributed_security.symbol} {self.quantity} @ {self.price}"
+        return f"{self.trade_type.name}: {self.security.symbol} {self.quantity} @ {self.price}"
 
     @property
     def price(self):
@@ -85,6 +90,8 @@ class Portfolio:
         self._current_assets_value = 0
         self.current_cash = 0
 
+        self.security_manager = SecurityManager()
+
         if logger is None:
             self.logger = no_logger(__name__)
         else:
@@ -118,22 +125,22 @@ class Portfolio:
         )
 
     def print_transaction_history(self):
-        print("Transaction cost (per trade):", Transaction.get_cost())
         for idx, transaction in enumerate(self._transaction_history):
             print(transaction.timestamp if transaction.timestamp else idx, transaction)
+        print("Transaction cost (per trade):", Transaction.get_cost())
 
     def add_cash(self, amount: float, idx=-1):
         self.current_cash += amount
-        cash = SecurityManager.get_cash()
+        cash = self.security_manager.get_cash()
         self.record_transaction(Transaction(cash, amount, 1), is_asset=False, idx=idx)
 
     def _use_cash(self, amount: float, idx=-1):
         self.current_cash -= amount
-        cash = SecurityManager.get_cash()
+        cash = self.security_manager.get_cash()
         self.record_transaction(Transaction(cash, amount, 1, TradeType.SELL), is_asset=False, idx=idx)
 
     def set_history(self, history: History | pandas.DataFrame | numpy.ndarray):
-        SecurityManager.add_securities(history.columns)
+        self.security_manager.add_securities(history.columns)
 
         if isinstance(history, pandas.DataFrame):
             history = History(history)
@@ -148,7 +155,7 @@ class Portfolio:
             if self._history is not None:
                 idx = max(0, min(len(self._history), len(self._history) + idx))
                 transaction.attributed_histories[self._history] = idx
-            if transaction.attributed_security and transaction.value and is_asset:
+            if transaction.security and transaction.value and is_asset:
                 self._update_current_assets(transaction)
 
         else:
@@ -156,10 +163,10 @@ class Portfolio:
             transaction.attributed_histories[self._history] = idx
 
     def _update_current_assets(self, transaction: Transaction):
-        if transaction.attributed_security in self._current_assets:
-            self._current_assets[transaction.attributed_security] += transaction.quantity
+        if transaction.security in self._current_assets:
+            self._current_assets[transaction.security] += transaction.quantity
         else:
-            self._current_assets[transaction.attributed_security] = transaction.quantity
+            self._current_assets[transaction.security] = transaction.quantity
         self._current_assets_value += transaction.value
 
     def trade(self,
@@ -170,20 +177,18 @@ class Portfolio:
         if signal.trade_type == TradeType.WAIT:
             return
         if isinstance(security, str):
-            security = SecurityManager.get_security(security)
+            security = self.security_manager.get_security(security)
 
         price = signal.price
         if self._history is not None and signal.price is None:
             price = self._history.df[security.symbol].iloc[-1]
-
         transaction = Transaction(security, signal.quantity, price, signal.trade_type, timestamp)
 
         if signal.trade_type == TradeType.BUY:
             if transaction.value + transaction.get_cost() > self.current_cash:
                 raise ValueError("Not enough cash to execute the order.")
-
         elif signal.trade_type.SELL:
-            if signal.quantity > self._current_assets[security]:
+            if not self._current_assets or signal.quantity > self._current_assets[security]:
                 raise ValueError("Not enough of the security to sell.")
 
         self._use_cash(transaction.value + transaction.get_cost())
@@ -191,7 +196,7 @@ class Portfolio:
 
     def _associate_transaction_with_history(self, transaction: Transaction):
         for history_symbol, history_df in self._history.df.items():
-            if transaction.attributed_security.symbol == history_symbol:
+            if transaction.security.symbol == history_symbol:
                 closest_index = history_df.index.get_loc(transaction.timestamp, method='nearest')
                 transaction.attributed_histories[history_symbol] = closest_index
                 break
@@ -206,11 +211,11 @@ class Portfolio:
                                                      columns=self.history.df.columns)
 
         for transaction in self.transaction_history:
-            if transaction.attributed_security.symbol not in self.history.df.columns:
+            if transaction.security.symbol not in self.history.df.columns:
                 continue
 
             time_index = transaction.get_time(self.history)
-            security_weights = self._historical_quantity[transaction.attributed_security.symbol]
+            security_weights = self._historical_quantity[transaction.security.symbol]
 
             if transaction.trade_type == TradeType.BUY:
                 security_weights.iloc[time_index:] += transaction.quantity

@@ -4,32 +4,37 @@ class Security:
         self.source = source
 
 
-class SecurityManager:
-    securities: dict[str, Security] = {"cash": Security("cash")}
+class SingletonMeta(type):
+    _instances = {}
 
-    @classmethod
-    def add_security(cls, security: Security | str):
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(SingletonMeta, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+class SecurityManager(metaclass=SingletonMeta):
+    def __init__(self):
+        self.securities: dict[str, Security] = {"cash": Security("cash")}
+
+    def add_security(self, security: Security | str):
         if isinstance(security, str):
             security = Security(security)
 
-        if security.symbol in cls.securities:
+        if security.symbol in self.securities:
             return
 
-        cls.securities[security.symbol] = security
+        self.securities[security.symbol] = security
 
-    @classmethod
-    def add_securities(cls, securities: list[Security | str]):
+    def add_securities(self, securities: list[Security | str]):
         for security in securities:
-            cls.add_security(security)
+            self.add_security(security)
 
-    @classmethod
-    def get_security(cls, symbol):
-        return cls.securities[symbol]
+    def get_security(self, symbol):
+        return self.securities[symbol]
 
-    @classmethod
-    def get_cash(cls):
-        return cls.securities["cash"]
+    def get_cash(self):
+        return self.securities["cash"]
 
-    @classmethod
-    def get_securities(cls):
-        return cls.securities.values()
+    def get_securities(self):
+        return self.securities.values()
