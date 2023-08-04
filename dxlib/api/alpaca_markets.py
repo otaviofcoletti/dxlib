@@ -1,6 +1,6 @@
 from enum import Enum
 
-from .core import Api
+from .request import Api
 
 
 class AlpacaMarketsAPI(Api):

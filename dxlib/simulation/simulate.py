@@ -4,8 +4,10 @@ from abc import ABC
 import numpy as np
 import pandas
 
-from ..core import Portfolio, TradeType, Signal
+from .. import Portfolio, TradeType, Signal, History, info_logger
 from .. import no_logger
+
+
 # from sklearn.ensemble import RandomForestClassifier
 # from sklearn.metrics import accuracy_score
 
@@ -24,48 +26,35 @@ class BuyOnCondition(Strategy):
         self.signal_history = []
 
     def execute(self, row, idx, history):
-        if 0 < idx < 4:
+        row_signal = pandas.Series(index=range(len(row)))
+        if 0 < idx < 3:
             signal = Signal(TradeType.BUY, 2, row[0])
-            self.signal_history.append(signal)
-        elif idx > 5:
-            signal = Signal(TradeType.SELL, 59, row[1])
-            self.signal_history.append(signal)
-        else:
-            signal = Signal(TradeType.WAIT)
-        return signal
+            row_signal[0] = signal
+        elif idx > 2:
+            signal = Signal(TradeType.SELL, 6, row[0])
+            row_signal[0] = signal
+        row_signal[pandas.isna(row_signal)] = Signal(TradeType.WAIT)
+
+        self.signal_history.append(row_signal)
+        return row_signal
 
 
-class Simulation:
-    def __init__(self, portfolio: Portfolio, strategy: Strategy, logger: logging.Logger = None):
+class SimulationManager:
+    def __init__(self,
+                 portfolio: Portfolio,
+                 strategy: Strategy,
+                 history: History | pandas.DataFrame,
+                 logger: logging.Logger = None):
         self.portfolio = portfolio
         self.strategy = strategy
+
+        if isinstance(history, pandas.DataFrame):
+            self.history = History(history)
 
         if logger is None:
             self.logger = no_logger(__name__)
         else:
             self.logger = logger
-
-    @classmethod
-    def momentum(cls, security, T):
-        momentum_T = security.copy()
-        momentum_T[0:T] = 0
-
-        for i in range(T, len(momentum_T.values)):
-            momentum_T.iloc[i] = security.iloc[i] / security.iloc[i - T]
-
-        return momentum_T
-
-    @classmethod
-    def price_size(cls, security, T):
-        pcs = security / security.rolling(T).sum()
-
-        return pcs.fillna(method='bfill')
-
-    @classmethod
-    def vol_rolling(cls, security, T):
-        vol = security.pct_change().rolling(T).std(ddof=0)
-
-        return vol.fillna(method='bfill')
 
     @classmethod
     def train_test_split(cls, features, labels, percentage):
@@ -76,31 +65,32 @@ class Simulation:
 
         return train, test
 
-    @classmethod
-    def simulate_trade_allocation(cls, title, y_pred, basis, symbol, symbol2):
-        y_pred_portfolio = np.array([1 - y_pred, y_pred]).T
-        basis['BUY-PRED'] = np.argmin(y_pred_portfolio, axis=1)
-        basis['SELL-PRED'] = np.argmax(y_pred_portfolio, axis=1)
-
-        basis['BUY-PRED'] = basis['BUY-PRED'].shift(1).fillna(1)
-        basis['SELL-PRED'] = basis['SELL-PRED'].shift(1).fillna(0)
-
-        basis['PRED-PERCENTAGE'] = basis[symbol].to_numpy().flatten() * basis['BUY-PRED'].to_numpy() + basis[
-            symbol2].to_numpy().flatten() * basis['SELL-PRED'].to_numpy()
-        basis['PRED-CHANGES'] = (1 + basis['PRED-PERCENTAGE'].fillna(0).to_numpy()).cumprod()
-
-        print(title)
-        return basis["PRED-CHANGES"], \
-            (basis["PRED-CHANGES"].iloc[-1] - basis["PRED-CHANGES"].iloc[0]) / basis["PRED-CHANGES"].iloc[0]
-
-    def run(self):
+    def generate_signals(self):
         signal_history = []
-        for idx, row in self.portfolio.history.df.iterrows():
-            signal = self.strategy.execute(row, idx, self.portfolio.history)
+        for idx, row in self.history:
+            signal = self.strategy.execute(row, idx, self.history[:idx])
             signal_history.append(signal)
+        signals = pandas.DataFrame(signal_history)
+        signals.columns = self.history.df.columns
+        return signals
 
-            self.logger.info(f"Executing {signal}")
-        return signal_history
+    def execute(self, signals: pandas.DataFrame = None):
+        if signals is None:
+            signals = self.generate_signals()
+
+        for idx, row in signals.iterrows():
+            if self.portfolio.history is not None:
+                self.portfolio.history.add_row(self.history.df.iloc[idx])
+            else:
+                self.portfolio.set_history(self.history.df.iloc[:1])
+
+            for symbol, signal in row.items():
+                try:
+                    self.portfolio.trade(str(symbol), signal)
+                    self.logger.info(f"Executed {signal} for {symbol}")
+                except ValueError as e:
+                    self.logger.info(f"Skipping {signal} for {symbol}")
+        return self.portfolio.calculate_returns()
 
 
 def main():
@@ -116,15 +106,13 @@ def main():
     price_data = pandas.DataFrame(price_data, columns=symbols)
 
     portfolio = Portfolio()
-    portfolio.set_history(price_data)
-    portfolio.add_cash(10000)
     strategy = BuyOnCondition()
+    portfolio.add_cash(10000)
 
-    simulation = Simulation(portfolio, strategy)
-    signal_history = simulation.run()
-
-    returns = portfolio.calculate_returns(signal_history)
+    simulation = SimulationManager(portfolio, strategy, price_data, info_logger())
+    returns = simulation.execute()
     print(returns)
+    print(portfolio.current_value)
 
 
 # Example usage:
