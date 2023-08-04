@@ -80,11 +80,10 @@ class Portfolio:
         self._is_value_updated = True
         self._history: History | None = None
 
+        self._historical_quantity = None
         self._current_assets: dict[Security, float] = {}
         self._current_assets_value = 0
         self.current_cash = 0
-
-        self.security_manager = SecurityManager()
 
         if logger is None:
             self.logger = no_logger(__name__)
@@ -125,16 +124,16 @@ class Portfolio:
 
     def add_cash(self, amount: float, idx=-1):
         self.current_cash += amount
-        cash = self.security_manager.get_cash()
+        cash = SecurityManager.get_cash()
         self.record_transaction(Transaction(cash, amount, 1), is_asset=False, idx=idx)
 
     def _use_cash(self, amount: float, idx=-1):
         self.current_cash -= amount
-        cash = self.security_manager.get_cash()
+        cash = SecurityManager.get_cash()
         self.record_transaction(Transaction(cash, amount, 1, TradeType.SELL), is_asset=False, idx=idx)
 
     def set_history(self, history: History | pandas.DataFrame | numpy.ndarray):
-        self.security_manager.add_securities(history.columns)
+        SecurityManager.add_securities(history.columns)
 
         if isinstance(history, pandas.DataFrame):
             history = History(history)
@@ -171,7 +170,7 @@ class Portfolio:
         if signal.trade_type == TradeType.WAIT:
             return
         if isinstance(security, str):
-            security = self.security_manager.get_security(security)
+            security = SecurityManager.get_security(security)
 
         price = signal.price
         if self._history is not None and signal.price is None:
@@ -197,29 +196,37 @@ class Portfolio:
                 transaction.attributed_histories[history_symbol] = closest_index
                 break
 
-    def calculate_returns(self):
+    @property
+    def historical_quantity(self):
+        if self.history is None:
+            return None
+        self._historical_quantity = numpy.zeros_like(self.history.df)
+        self._historical_quantity = pandas.DataFrame(self._historical_quantity,
+                                                     index=self.history.df.index,
+                                                     columns=self.history.df.columns)
+
+        for transaction in self.transaction_history:
+            if transaction.attributed_security.symbol not in self.history.df.columns:
+                continue
+
+            time_index = transaction.get_time(self.history)
+            security_weights = self._historical_quantity[transaction.attributed_security.symbol]
+
+            if transaction.trade_type == TradeType.BUY:
+                security_weights.iloc[time_index:] += transaction.quantity
+            elif transaction.trade_type == TradeType.SELL:
+                security_weights.iloc[time_index:] -= transaction.quantity
+
+        return self._historical_quantity
+
+    def historical_returns(self, historical_quantity=None):
         if self.history is None:
             return None
 
         returns = self.history.df.pct_change()
         returns.iloc[0] = 0
 
-        weights = numpy.zeros_like(returns)
-        weights = pandas.DataFrame(weights, index=returns.index, columns=returns.columns)
-
-        for transaction in self.transaction_history:
-            if transaction.attributed_security.symbol not in weights:
-                continue
-
-            time_index = transaction.get_time(self.history)
-            security_history = weights[transaction.attributed_security.symbol]
-
-            if transaction.trade_type == TradeType.BUY:
-                security_history.iloc[time_index:] += transaction.quantity
-            elif transaction.trade_type == TradeType.SELL:
-                security_history.iloc[time_index:] -= transaction.quantity
-
-        return returns * weights
+        return returns * (self.historical_quantity if historical_quantity is None else historical_quantity)
 
 
 def main():
@@ -243,8 +250,7 @@ def main():
     portfolio.print_transaction_history()
     print(portfolio.current_cash)
     print(portfolio.current_assets_value)
-
-    print(portfolio.calculate_returns())
+    print(portfolio.historical_returns())
 
 
 # Example usage:

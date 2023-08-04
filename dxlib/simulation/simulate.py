@@ -1,42 +1,19 @@
 import logging
 from abc import ABC
 
-import numpy as np
+import numpy
 import pandas
 
 from .. import Portfolio, TradeType, Signal, History, info_logger
 from .. import no_logger
 
 
-# from sklearn.ensemble import RandomForestClassifier
-# from sklearn.metrics import accuracy_score
-
-
 class Strategy(ABC):
     def __init__(self):
         pass
 
-    def execute(self, row, idx, history) -> Signal:
+    def execute(self, row, idx, history) -> list[Signal]:
         pass
-
-
-class BuyOnCondition(Strategy):
-    def __init__(self):
-        super().__init__()
-        self.signal_history = []
-
-    def execute(self, row, idx, history):
-        row_signal = pandas.Series(index=range(len(row)))
-        if 0 < idx < 3:
-            signal = Signal(TradeType.BUY, 2, row[0])
-            row_signal[0] = signal
-        elif idx > 2:
-            signal = Signal(TradeType.SELL, 6, row[0])
-            row_signal[0] = signal
-        row_signal[pandas.isna(row_signal)] = Signal(TradeType.WAIT)
-
-        self.signal_history.append(row_signal)
-        return row_signal
 
 
 class SimulationManager:
@@ -87,15 +64,17 @@ class SimulationManager:
             for symbol, signal in row.items():
                 try:
                     self.portfolio.trade(str(symbol), signal)
-                    self.logger.info(f"Executed {signal} for {symbol}")
-                except ValueError as e:
-                    self.logger.info(f"Skipping {signal} for {symbol}")
-        return self.portfolio.calculate_returns()
+                    if signal.trade_type != TradeType.WAIT:
+                        self.logger.info(f"Executed {signal} for {symbol}")
+                except ValueError:
+                    pass
+                    # self.logger.info(f"Skipping {signal} for {symbol}")
+        return self.portfolio.historical_quantity
 
 
 def main():
     symbols = ['AAPL', 'GOOGL', 'MSFT']
-    price_data = np.array([
+    history = numpy.array([
         [150.0, 2500.0, 300.0],
         [152.0, 2550.0, 305.0],
         [151.5, 2510.0, 302.0],
@@ -103,16 +82,37 @@ def main():
         [157.0, 2540.0, 306.0],
     ])
 
-    price_data = pandas.DataFrame(price_data, columns=symbols)
+    history = pandas.DataFrame(history, columns=symbols)
 
+    starting_cash = 1e6
     portfolio = Portfolio()
-    strategy = BuyOnCondition()
-    portfolio.add_cash(10000)
+    portfolio.add_cash(starting_cash)
 
-    simulation = SimulationManager(portfolio, strategy, price_data, info_logger())
-    returns = simulation.execute()
-    print(returns)
-    print(portfolio.current_value)
+    class BuyOnCondition(Strategy):
+        def __init__(self):
+            super().__init__()
+            self.signal_history = []
+
+        def execute(self, row, idx, history):
+            row_signal = pandas.Series(index=range(len(row)))
+            if 0 < idx < 3:
+                signal = Signal(TradeType.BUY, 2, row[0])
+                row_signal[0] = signal
+            elif idx > 2:
+                signal = Signal(TradeType.SELL, 6, row[0])
+                row_signal[0] = signal
+            row_signal[pandas.isna(row_signal)] = Signal(TradeType.WAIT)
+
+            self.signal_history.append(row_signal)
+            return row_signal
+
+    strategy = BuyOnCondition()
+    simulation = SimulationManager(portfolio, strategy, history, info_logger())
+
+    historical_quantity = simulation.execute()
+    portfolio.print_transaction_history()
+    print(portfolio.historical_returns(historical_quantity))
+    print("Profit:", str(portfolio.current_value - starting_cash))
 
 
 # Example usage:
