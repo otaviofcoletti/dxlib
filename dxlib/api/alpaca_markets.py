@@ -77,6 +77,10 @@ class AlpacaMarketsAPI(Api):
         url = self.form_url(
             f'{self.Endpoints.stocks.value}/bars?symbols='
             f'{ticker_str}&start={start}&end={end}&adjustment=raw&timeframe={timeframe}')
+
+
+        print(url)
+
         response = self.get(url)
 
         formatted_data = []
