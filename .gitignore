@@ -5,5 +5,7 @@ dxlib.egg-info/
 dist/
 build/
 
+tests/config.py
+
 *.pyc
 __pycache__/
