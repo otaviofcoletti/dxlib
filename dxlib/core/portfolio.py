@@ -1,10 +1,9 @@
-import numpy
-import pandas
+import numpy as np
+import pandas as pd
 from enum import Enum
 
 from .history import History
 from .security import Security, SecurityManager
-from .logger import no_logger
 
 
 class TradeType(Enum):
@@ -54,9 +53,9 @@ class Transaction:
     def value(self):
         return self._value
 
-    @classmethod
-    def get_cost(cls):
-        return cls._cost
+    @property
+    def cost(self):
+        return self._cost
 
     def get_time(self, history: History | None):
         if history is not None:
@@ -66,7 +65,9 @@ class Transaction:
 
 
 class Signal:
-    def __init__(self, trade_type: TradeType, quantity: int = None, price: float = None):
+    def __init__(self, trade_type: TradeType | str, quantity: int = None, price: float = None):
+        if isinstance(trade_type, str):
+            trade_type = TradeType[trade_type.upper()]
         self.trade_type = trade_type
         self.quantity = quantity
         self.price = price
@@ -79,35 +80,43 @@ class Signal:
 
 
 class Portfolio:
-    def __init__(self, name: str = None, logger=None):
+    def __init__(self, history=None, name: str = None, logger=None):
         self._name: str = name
         self._transaction_history: list[Transaction] = []
-        self._is_value_updated = True
         self._history: History | None = None
 
         self._historical_quantity = None
         self._current_assets: dict[Security, float] = {}
-        self._current_assets_value = 0
+        self._current_assets_value: dict[Security, float] = {}
+        self._current_assets_weights: dict[Security, float] = {}
+        self._is_assets_value_updated = True
+        self._is_assets_weights_updated = None
         self.current_cash = 0
 
         self.security_manager = SecurityManager()
+        self.logger = logger if logger else None
 
-        if logger is None:
-            self.logger = no_logger(__name__)
-        else:
-            self.logger = logger
+        if history is not None:
+            self.history = history
 
     @property
     def current_value(self):
-        self._update_assets_value()
-        return self.current_cash + self.current_assets_value
+        return self.current_cash + sum(self.current_assets_value.values())
 
     @property
     def current_assets_value(self):
+        if not self._is_assets_value_updated:
+            self._update_assets_value()
         return self._current_assets_value
 
     @property
-    def transaction_history(self):
+    def current_weights(self):
+        if not self._is_assets_weights_updated:
+            self._update_current_assets_weights()
+        return self._current_assets_weights
+
+    @property
+    def transaction_history(self) -> list[Transaction]:
         return self._transaction_history
 
     @property
@@ -120,14 +129,22 @@ class Portfolio:
 
     def _update_assets_value(self):
         current_value = self.history.last()
-        self._current_assets_value = sum(
-            [self._current_assets[security] * current_value[security.symbol] for security in self._current_assets]
-        )
+        self._current_assets_value = {security: self._current_assets[security] * current_value[security.symbol]
+                                      for security in self._current_assets}
+
+        self._is_assets_value_updated = True
+
+    def _update_current_assets_weights(self):
+        if not self._is_assets_value_updated:
+            self._update_assets_value()
+        self._current_assets_weights = {security: self._current_assets_value[security] / self.current_value
+                                        for security in self._current_assets}
+        self._is_assets_weights_updated = True
 
     def print_transaction_history(self):
         for idx, transaction in enumerate(self._transaction_history):
             print(transaction.timestamp if transaction.timestamp else idx, transaction)
-        print("Transaction cost (per trade):", Transaction.get_cost())
+        print("Transaction cost (per trade):", Transaction.cost)
 
     def add_cash(self, amount: float, idx=-1):
         self.current_cash += amount
@@ -139,14 +156,17 @@ class Portfolio:
         cash = self.security_manager.get_cash()
         self.record_transaction(Transaction(cash, amount, 1, TradeType.SELL), is_asset=False, idx=idx)
 
-    def set_history(self, history: History | pandas.DataFrame | numpy.ndarray):
+    @history.setter
+    def history(self, history: History | pd.DataFrame | np.ndarray):
         self.security_manager.add_securities(history.columns)
 
-        if isinstance(history, pandas.DataFrame):
+        if isinstance(history, pd.DataFrame):
             history = History(history)
-        elif isinstance(history, numpy.ndarray):
-            history = History(pandas.DataFrame(history))
-        self.logger.info("History set for: " + self.name)
+        elif isinstance(history, np.ndarray):
+            history = History(pd.DataFrame(history))
+
+        if self.logger:
+            self.logger.info("History set for: " + self.name)
         self._history = history
 
     def record_transaction(self, transaction: Transaction, is_asset=True, idx: int = -1):
@@ -162,16 +182,18 @@ class Portfolio:
             # TODO: update value and assets to reflect historical transaction
             transaction.attributed_histories[self._history] = idx
 
+        self._is_assets_weights_updated = False
+
     def _update_current_assets(self, transaction: Transaction):
         if transaction.security in self._current_assets:
             self._current_assets[transaction.security] += transaction.quantity
         else:
             self._current_assets[transaction.security] = transaction.quantity
-        self._current_assets_value += transaction.value
+        self._is_assets_value_updated = False
 
     def trade(self,
               security: Security | str,
-              signal: Signal,
+              signal: Signal | str,
 
               timestamp=None):
         if signal.trade_type == TradeType.WAIT:
@@ -184,15 +206,27 @@ class Portfolio:
             price = self._history.df[security.symbol].iloc[-1]
         transaction = Transaction(security, signal.quantity, price, signal.trade_type, timestamp)
 
+        error = None
         if signal.trade_type == TradeType.BUY:
-            if transaction.value + transaction.get_cost() > self.current_cash:
-                raise ValueError("Not enough cash to execute the order.")
+            if transaction.value + transaction.cost > self.current_cash:
+                error = (f"Not enough cash to execute the order. "
+                         f"Trying to buy {transaction.value} but only have {self.current_cash}.")
         elif signal.trade_type.SELL:
             if not self._current_assets or signal.quantity > self._current_assets[security]:
-                raise ValueError("Not enough of the security to sell.")
+                error = (f"Not enough of the security {security.symbol} to sell. "
+                         f"Trying to sell {signal.quantity} but only have {self._current_assets[security]}.")
 
-        self._use_cash(transaction.value + transaction.get_cost())
+        if error:
+            if self.logger:
+                self.logger.error(error)
+            else:
+                raise ValueError(error)
+
+        self._use_cash(transaction.value + transaction.cost)
         self.record_transaction(transaction)
+
+    def allocate(self, weights: list):
+        print(self.history.last())
 
     def _associate_transaction_with_history(self, transaction: Transaction):
         for history_symbol, history_df in self._history.df.items():
@@ -205,10 +239,10 @@ class Portfolio:
     def historical_quantity(self):
         if self.history is None:
             return None
-        self._historical_quantity = numpy.zeros_like(self.history.df)
-        self._historical_quantity = pandas.DataFrame(self._historical_quantity,
-                                                     index=self.history.df.index,
-                                                     columns=self.history.df.columns)
+        self._historical_quantity = np.zeros_like(self.history.df)
+        self._historical_quantity = pd.DataFrame(self._historical_quantity,
+                                                 index=self.history.df.index,
+                                                 columns=self.history.df.columns)
 
         for transaction in self.transaction_history:
             if transaction.security.symbol not in self.history.df.columns:
@@ -236,19 +270,19 @@ class Portfolio:
 
 def main():
     symbols: list[str] = ['AAPL', 'GOOGL', 'MSFT']
-    price_data = numpy.array([
+    price_data = np.array([
         [150.0, 2500.0, 300.0],
         [152.0, 2550.0, 305.0],
         [151.5, 2510.0, 302.0],
         [155.0, 2555.0, 308.0],
         [157.0, 2540.0, 306.0],
     ])
-    price_data = pandas.DataFrame(price_data, columns=symbols)
+    price_data = pd.DataFrame(price_data, columns=symbols)
 
     portfolio = Portfolio()
     portfolio.add_cash(1000, 0)
 
-    portfolio.set_history(price_data)
+    portfolio.history = price_data
 
     portfolio.trade("AAPL", Signal(TradeType.BUY, 1))
     portfolio.trade("MSFT", Signal(TradeType.BUY, 2))

@@ -1,8 +1,7 @@
 import logging
 from abc import ABC
 
-import numpy
-import pandas
+import pandas as pd
 
 from .. import Portfolio, TradeType, Signal, History, info_logger
 from .. import no_logger
@@ -20,13 +19,15 @@ class SimulationManager:
     def __init__(self,
                  portfolio: Portfolio,
                  strategy: Strategy,
-                 history: History | pandas.DataFrame,
+                 history: History | pd.DataFrame,
                  logger: logging.Logger = None):
         self.portfolio = portfolio
         self.strategy = strategy
 
-        if isinstance(history, pandas.DataFrame):
+        if isinstance(history, pd.DataFrame):
             self.history = History(history)
+        else:
+            self.history = history
 
         if logger is None:
             self.logger = no_logger(__name__)
@@ -47,11 +48,11 @@ class SimulationManager:
         for idx, row in self.history:
             signal = self.strategy.execute(row, idx, self.history[:idx])
             signal_history.append(signal)
-        signals = pandas.DataFrame(signal_history)
+        signals = pd.DataFrame(signal_history)
         signals.columns = self.history.df.columns
         return signals
 
-    def execute(self, signals: pandas.DataFrame = None):
+    def execute(self, signals: pd.DataFrame = None):
         if signals is None:
             signals = self.generate_signals()
         for idx, row in signals.iterrows():
@@ -72,8 +73,10 @@ class SimulationManager:
 
 
 def main():
+    import numpy as np
+
     symbols = ['AAPL', 'GOOGL', 'MSFT']
-    history = numpy.array([
+    history = np.array([
         [150.0, 2500.0, 300.0],
         [152.0, 2550.0, 305.0],
         [151.5, 2510.0, 302.0],
@@ -81,7 +84,7 @@ def main():
         [157.0, 2540.0, 306.0],
     ])
 
-    history = pandas.DataFrame(history, columns=symbols)
+    history = pd.DataFrame(history, columns=symbols)
 
     starting_cash = 1e6
     portfolio = Portfolio()
@@ -93,14 +96,14 @@ def main():
             self.signal_history = []
 
         def execute(self, row, idx, history):
-            row_signal = pandas.Series(index=range(len(row)))
+            row_signal = pd.Series(index=range(len(row)))
             if 0 < idx < 3:
                 signal = Signal(TradeType.BUY, 2, row[0])
                 row_signal[0] = signal
             elif idx > 2:
                 signal = Signal(TradeType.SELL, 6, row[0])
                 row_signal[0] = signal
-            row_signal[pandas.isna(row_signal)] = Signal(TradeType.WAIT)
+            row_signal[pd.isna(row_signal)] = Signal(TradeType.WAIT)
 
             self.signal_history.append(row_signal)
             return row_signal

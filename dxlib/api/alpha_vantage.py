@@ -1,14 +1,15 @@
 import requests
 import pandas
 
+from .data_api import DataApi
 
-class AlphaVantageAPI:
+
+class AlphaVantageAPI(DataApi):
     def __init__(self, api_key):
-        self.api_key = api_key
-        self.base_url = 'https://www.alphavantage.co/query?'
+        super().__init__('https://www.alphavantage.co/query?', api_key)
 
     def fetch_quote(self, symbol):
-        url = f'{self.base_url}function=GLOBAL_QUOTE&symbol={symbol}&apikey={self.api_key}'
+        url = f'{self.base_url}function=GLOBAL_QUOTE&symbol={symbol}&apikey={self.__api_key}'
         response = requests.get(url)
         data = response.json()
         return data['Global Quote']
@@ -21,7 +22,7 @@ class AlphaVantageAPI:
                 'function': 'CURRENCY_EXCHANGE_RATE',
                 'from_currency': 'USD',
                 'to_currency': currency,
-                'apikey': self.api_key
+                'apikey': self.__api_key
             }
 
             response = requests.get(self.base_url, params=params)

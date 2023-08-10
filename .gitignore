@@ -8,4 +8,5 @@ build/
 tests/config.py
 
 *.pyc
+*.csv
 __pycache__/

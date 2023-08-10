@@ -1,15 +1,15 @@
 import csv
 import os
-import pandas
+import pandas as pd
 
 
 def read_data(symbol):
     if os.path.exists(f"{symbol}.csv"):
         try:
-            security = pandas.read_csv(f"{symbol}.csv", index_col=0, parse_dates=True)
-            security.index = pandas.to_datetime(security.index)
+            security = pd.read_csv(f"{symbol}.csv", index_col=0, parse_dates=True)
+            security.index = pd.to_datetime(security.index)
             return security
-        except pandas.errors.EmptyDataError:
+        except pd.errors.EmptyDataError:
             pass
     return None
 
@@ -57,7 +57,7 @@ def append_to_csv(data, csv_file='stock_data.csv'):
                 writer.writeheader()
             writer.writerow({field: value for field, value in zip(existing_fieldnames, ordered_data)})
 
-    elif isinstance(data, pandas.DataFrame):
+    elif isinstance(data, pd.DataFrame):
         data.to_csv(csv_file, mode='a', header=False, index=False)
 
     else:

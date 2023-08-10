@@ -3,7 +3,7 @@ import enum
 from datetime import date
 from dateutil.utils import today
 
-import numpy
+import numpy as np
 from scipy.stats import norm
 
 
@@ -161,53 +161,53 @@ class PricingEngine:
 
         risk_free_rate = underlying.risk_free_rate
 
-        d_1 = (numpy.log(underlying.security.price / strike) + ((numpy.power(volatility, 2) / 2) * maturity) /
-               (volatility * numpy.sqrt(maturity)))
-        d_2 = d_1 - (volatility * numpy.sqrt(maturity))
+        d_1 = (np.log(underlying.security.price / strike) + ((np.power(volatility, 2) / 2) * maturity) /
+               (volatility * np.sqrt(maturity)))
+        d_2 = d_1 - (volatility * np.sqrt(maturity))
 
         if option.exercise_type == "call":
-            price = numpy.exp(-risk_free_rate * maturity) * (
+            price = np.exp(-risk_free_rate * maturity) * (
                     underlying.security.price * norm.pdf(d_1) - strike * norm.pdf(d_2))
         else:
-            price = numpy.exp(-risk_free_rate * maturity) * (
+            price = np.exp(-risk_free_rate * maturity) * (
                     underlying.security.price * norm.pdf(-d_1) + strike * norm.pdf(-d_2))
 
         def delta():
             if option.exercise_type == "call":
-                return numpy.exp(-risk_free_rate * maturity) * norm.pdf(d_1)
+                return np.exp(-risk_free_rate * maturity) * norm.pdf(d_1)
             else:
-                return -numpy.exp(-risk_free_rate * maturity) * norm.pdf(-d_1)
+                return -np.exp(-risk_free_rate * maturity) * norm.pdf(-d_1)
 
         def gamma():
-            return numpy.exp(-risk_free_rate * maturity) / (
-                    underlying.security.price * volatility * numpy.sqrt(maturity)) * norm.cdf(d_1)
+            return np.exp(-risk_free_rate * maturity) / (
+                    underlying.security.price * volatility * np.sqrt(maturity)) * norm.cdf(d_1)
 
         def vega():
-            return numpy.exp(-risk_free_rate * maturity) * norm.cdf(
-                d_1) * underlying.security.price * numpy.sqrt(maturity)
+            return np.exp(-risk_free_rate * maturity) * norm.cdf(
+                d_1) * underlying.security.price * np.sqrt(maturity)
 
         def theta():
             if option.exercise_type == ExerciseType.call:
                 return -(underlying.security.price *
                          volatility *
-                         numpy.exp(-risk_free_rate * maturity) *
+                         np.exp(-risk_free_rate * maturity) *
                          norm.cdf(d_1)) / (
-                        2 * numpy.sqrt(maturity)) + risk_free_rate * underlying.security.price * numpy.exp(
-                    -risk_free_rate * maturity) * norm.pdf(d_1) - risk_free_rate * strike * numpy.exp(
+                        2 * np.sqrt(maturity)) + risk_free_rate * underlying.security.price * np.exp(
+                    -risk_free_rate * maturity) * norm.pdf(d_1) - risk_free_rate * strike * np.exp(
                     -risk_free_rate * maturity) * norm.pdf(d_2)
             else:
-                return (-(underlying.security.price * volatility * numpy.exp(-risk_free_rate * maturity) * norm.cdf(
-                    d_1)) / (2 * numpy.sqrt(maturity)) - risk_free_rate * underlying.security.price * numpy.exp(
-                    -risk_free_rate * maturity) * norm.pdf(-d_1) + risk_free_rate * strike * numpy.exp(
+                return (-(underlying.security.price * volatility * np.exp(-risk_free_rate * maturity) * norm.cdf(
+                    d_1)) / (2 * np.sqrt(maturity)) - risk_free_rate * underlying.security.price * np.exp(
+                    -risk_free_rate * maturity) * norm.pdf(-d_1) + risk_free_rate * strike * np.exp(
                     -risk_free_rate * maturity) * norm.pdf(-d_2))
 
         def rho():
             if option.exercise_type == ExerciseType.call:
-                return strike * maturity * numpy.exp(-risk_free_rate * maturity) * norm.pdf(d_2)
+                return strike * maturity * np.exp(-risk_free_rate * maturity) * norm.pdf(d_2)
             else:
                 return (-strike *
                         maturity *
-                        numpy.exp(-risk_free_rate * maturity) *
+                        np.exp(-risk_free_rate * maturity) *
                         norm.pdf(-d_2))
 
         # AmericanPricing <- function(type, underlying, strike, risk_free_rate, dividendYield, maturity, volatility) {

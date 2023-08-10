@@ -1,14 +1,15 @@
 import datetime
+import os
 from enum import Enum
 
-import pandas
+import pandas as pd
 
-from .request import Api
+from .data_api import DataApi
 
 
-class AlpacaMarketsAPI(Api):
+class AlpacaMarketsAPI(DataApi):
     def __init__(self, api_key, api_secret):
-        super().__init__(api_key, api_secret, 'https://data.alpaca.markets', 'v2')
+        super().__init__('https://data.alpaca.markets', api_key, api_secret, 'v2')
 
     class Endpoints(Enum):
         stocks = 'stocks'
@@ -35,12 +36,9 @@ class AlpacaMarketsAPI(Api):
         return formatted_data
 
     def get_historical_trades(self, tickers, start: datetime.date = None, end: datetime.date = None):
-        if start is None:
-            start = datetime.date.today() - datetime.timedelta(days=365)
-        if end is None:
-            end = datetime.date.today()
-
-        end -= datetime.timedelta(days=1)
+        if isinstance(tickers, str):
+            tickers = [tickers]
+        start, end = self.date_to_str(self.default_date_interval(start, end))
 
         ticker_str = ','.join(tickers)
         url = self.form_url(
@@ -65,21 +63,13 @@ class AlpacaMarketsAPI(Api):
 
         return formatted_data
 
-    def get_historical_bars(self, tickers, timeframe="1Day", start: datetime.date = None, end: datetime.date = None):
-        if start is None:
-            start = datetime.date.today() - datetime.timedelta(days=365)
-        if end is None:
-            end = datetime.date.today()
-
-        end -= datetime.timedelta(days=1)
-
+    def _query_historical_bars(self, tickers, timeframe, start, end):
         ticker_str = ','.join(tickers)
         url = self.form_url(
             f'{self.Endpoints.stocks.value}/bars?symbols='
-            f'{ticker_str}&start={start}&end={end}&adjustment=raw&timeframe={timeframe}')
+            f'{ticker_str}&start={start}&end={end}&adjustment=all&timeframe={timeframe}')
 
         response = self.get(url)
-
         formatted_data = []
 
         for ticker, bars in response['bars'].items():
@@ -96,18 +86,28 @@ class AlpacaMarketsAPI(Api):
                     'VWAP': bar['vw']
                 }
                 formatted_data.append(formatted_bar)
+        formatted_df = pd.DataFrame(formatted_data)
 
-        return pandas.DataFrame(formatted_data)
+        pivoted_df = formatted_df.pivot_table(index='Time', columns='Ticker',
+                                              values=['Open', 'High', 'Low', 'Close', 'Volume', 'NumTrades', 'VWAP'])
+        return pivoted_df
 
-    def get_close_bars(self, tickers: list[str] | str = None, bars: pandas.DataFrame = None, values='Close'):
-        if tickers is None and bars is None:
-            raise ValueError("Must provide either tickers or bars")
-        if isinstance(tickers, str):
-            tickers = [tickers]
-        if bars is None:
-            bars = self.get_historical_bars(tickers)
+    def get_historical_bars(self,
+                            tickers,
+                            start: datetime.date = None,
+                            end: datetime.date = None,
+                            timeframe="1Day",
+                            cache=True):
+        tickers = self.format_tickers(tickers)
+        start, end = self.date_to_str(self.default_date_interval(start, end))
 
-        close_bars = bars.pivot_table(index='Time', columns='Ticker', values=values, aggfunc='mean')
-        close_bars.reset_index(drop=True, inplace=True)
-        close_bars.columns.name = None
-        return close_bars
+        cache_filename = self.cache_filename(tickers, start, end, timeframe, "alpaca_market_bars")
+        if os.path.exists(cache_filename) and cache:
+            return pd.read_csv(cache_filename, header=[0, 1], index_col=0, parse_dates=True)
+
+        historical_bars = self._query_historical_bars(tickers, timeframe, start, end)
+
+        if cache:
+            historical_bars.to_csv(cache_filename)
+
+        return historical_bars
