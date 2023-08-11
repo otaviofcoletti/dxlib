@@ -1,18 +1,10 @@
 import logging
-from abc import ABC
 
 import pandas as pd
 
 from .. import Portfolio, TradeType, Signal, History, info_logger
+from ..strategies import Strategy
 from .. import no_logger
-
-
-class Strategy(ABC):
-    def __init__(self):
-        pass
-
-    def execute(self, row, idx, history) -> list[Signal]:
-        pass
 
 
 class SimulationManager:
@@ -43,11 +35,11 @@ class SimulationManager:
 
         return train, test
 
-    def generate_signals(self):
+    def generate_signals(self) -> pd.DataFrame:
         signal_history = []
         for idx, row in self.history:
-            signal = self.strategy.execute(row, idx, self.history[:idx])
-            signal_history.append(signal)
+            signal_dict = self.strategy.execute(row, idx, self.history[:idx])
+            signal_history.append(signal_dict)
         signals = pd.DataFrame(signal_history)
         signals.columns = self.history.df.columns
         return signals
@@ -59,7 +51,7 @@ class SimulationManager:
             if self.portfolio.history is not None:
                 self.portfolio.history.add_row(self.history.df.iloc[idx])
             else:
-                self.portfolio.set_history(self.history.df.iloc[:1])
+                self.portfolio.history = self.history.df.iloc[:1]
 
             for symbol, signal in row.items():
                 try:

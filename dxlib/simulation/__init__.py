@@ -1,1 +1,1 @@
-from .simulate import SimulationManager, Strategy
+from .simulate import SimulationManager
