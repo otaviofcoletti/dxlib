@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+from .indicators import TechnicalIndicators
 
 
 class Bar:
@@ -9,6 +10,7 @@ class Bar:
 
 class History:
     def __init__(self, df: pd.DataFrame):
+        self._technical_indicators = TechnicalIndicators(self)
         self.df = df
 
     def add_symbol(self, symbol, data):
@@ -35,10 +37,15 @@ class History:
     def shape(self):
         return self.df.shape
 
-    def add_row(self, rows: pd.DataFrame | pd.Series):
+    @property
+    def indicators(self):
+        return self._technical_indicators
+
+    def add_row(self, rows: pd.DataFrame | pd.Series, index: pd.Index = None):
         if isinstance(rows, pd.Series):
             rows = pd.DataFrame(rows).T
-        self.df = pd.concat([self.df, rows], ignore_index=True)
+            rows.index = index
+        self.df = pd.concat([self.df, rows])
 
     def last(self):
         return self.df.iloc[-1]
@@ -76,15 +83,15 @@ class History:
 
         return np.log(relative_change)
 
-    def volatility(self, periods=252, progressive=False, min_interval: int = None):
+    def volatility(self, window=252, progressive=False, min_interval: int = None):
         if progressive and min_interval is None:
-            min_interval = int(np.sqrt(periods))
+            min_interval = int(np.sqrt(window))
         log_returns = self.log_change()
-        rolling_volatility = log_returns.rolling(periods).std(ddof=0) * np.sqrt(periods)
+        rolling_volatility = log_returns.rolling(window).std(ddof=0) * np.sqrt(window)
 
         if progressive:
-            for i in range(min_interval, periods):
-                rolling_volatility.iloc[i] = (log_returns.rolling(i).std(ddof=0) * np.sqrt(periods)).iloc[i]
+            for i in range(min_interval, window):
+                rolling_volatility.iloc[i] = (log_returns.rolling(i).std(ddof=0) * np.sqrt(window)).iloc[i]
 
         return rolling_volatility
 

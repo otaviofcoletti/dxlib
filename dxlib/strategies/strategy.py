@@ -1,11 +1,17 @@
 from abc import ABC
 
-from .. import Signal
+import pandas
+import pandas as pd
+
+from .. import History
 
 
 class Strategy(ABC):
     def __init__(self):
         pass
 
-    def execute(self, row, idx, history) -> list[Signal]:
+    def fit(self, history: History):
+        pass
+
+    def execute(self, idx, row: pd.Series, history: History) -> pandas.Series:  # expected element type: Signal
         pass

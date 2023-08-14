@@ -134,7 +134,7 @@ const _displayNextItem = (
 
 /**
  * Default splitQuery function. Can be overridden in ``sphinx.search`` with a
- * custom function per language.
+ * custom_strategies function per language.
  *
  * The regular expression works by splitting the string on consecutive characters
  * that are not Unicode letters, numbers, underscores, or emoji characters.
@@ -282,7 +282,7 @@ const Search = {
     // lookup as search terms in fulltext
     results.push(...Search.performTermsSearch(searchTerms, excludedTerms));
 
-    // let the scorer override scores with a custom scoring function
+    // let the scorer override scores with a custom_strategies scoring function
     if (Scorer.score) results.forEach((item) => (item[4] = Scorer.score(item)));
 
     // now sort the results by score (in opposite order of appearance, since the
@@ -372,7 +372,7 @@ const Search = {
 
       const descr = objName + _(", in ") + title;
 
-      // add custom score for some objects according to scorer
+      // add custom_strategies score for some objects according to scorer
       if (Scorer.objPrio.hasOwnProperty(match[2]))
         score += Scorer.objPrio[match[2]];
       else score += Scorer.objPrioDefault;

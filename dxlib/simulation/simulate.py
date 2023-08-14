@@ -1,30 +1,55 @@
 import logging
 
+import numpy as np
+import pandas
 import pandas as pd
 
-from .. import Portfolio, TradeType, Signal, History, info_logger
+from .. import Portfolio, TradeType, Signal, History, GenericManager
 from ..strategies import Strategy
-from .. import no_logger
+from ..api import endpoint
 
 
-class SimulationManager:
+class SimulationManager(GenericManager):
     def __init__(self,
                  portfolio: Portfolio,
                  strategy: Strategy,
                  history: History | pd.DataFrame,
+                 use_server=False,
+                 port=None,
                  logger: logging.Logger = None):
+        super().__init__(use_server, port, logger)
         self.portfolio = portfolio
         self.strategy = strategy
+        self._history: History | None = None
+        self._current_step: int = 0
+
+        self.history = history
+
+    @property
+    def finished(self):
+        return self._current_step >= len(self.history.df)
+
+    @property
+    def current_step(self):
+        return self._current_step
+
+    @property
+    def history(self):
+        return self._history
+
+    @history.setter
+    def history(self, history: History | pd.DataFrame | np.ndarray):
+        self.portfolio.security_manager.add_securities(history.columns)
 
         if isinstance(history, pd.DataFrame):
-            self.history = History(history)
-        else:
-            self.history = history
+            history = History(history)
+        elif isinstance(history, np.ndarray):
+            history = History(pd.DataFrame(history))
 
-        if logger is None:
-            self.logger = no_logger(__name__)
-        else:
-            self.logger = logger
+        if self.portfolio.history is None:
+            self.portfolio.history = History(pandas.DataFrame(columns=history.df.columns))
+
+        self._history = history
 
     @classmethod
     def train_test_split(cls, features, labels, percentage):
@@ -35,33 +60,32 @@ class SimulationManager:
 
         return train, test
 
-    def generate_signals(self) -> pd.DataFrame:
+    @endpoint("execute", "Calls the execute method within a simulation manager instance")
+    def execute(self, steps: int = None):
         signal_history = []
-        for idx, row in self.history:
-            signal_dict = self.strategy.execute(row, idx, self.history[:idx])
-            signal_history.append(signal_dict)
-        signals = pd.DataFrame(signal_history)
-        signals.columns = self.history.df.columns
-        return signals
+        if self.history is None:
+            raise ValueError("SimulationManager has no history to expand on.")
 
-    def execute(self, signals: pd.DataFrame = None):
-        if signals is None:
-            signals = self.generate_signals()
-        for idx, row in signals.iterrows():
-            if self.portfolio.history is not None:
-                self.portfolio.history.add_row(self.history.df.iloc[idx])
-            else:
-                self.portfolio.history = self.history.df.iloc[:1]
+        if steps is None:
+            steps = len(self.history.df) - self._current_step
 
-            for symbol, signal in row.items():
+        for idx, row in self.history.df.iloc[self._current_step:self._current_step + steps].iterrows():
+            index = pd.Index(pd.Series(idx))
+            self.portfolio.history.add_row(row, index=index)
+            self._current_step += 1
+
+            signals = self.strategy.execute(idx, row, self.portfolio.history)
+
+            for symbol, signal in signals.items():
                 try:
                     if signal.trade_type != TradeType.WAIT:
+                        signal_history.append(signal)
                         self.portfolio.trade(str(symbol), signal)
                         self.logger.info(f"Executed {signal} for {symbol}")
-                except ValueError:
-                    pass
-                    # self.logger.info(f"Skipping {signal} for {symbol}")
-        return self.portfolio.historical_quantity
+                except ValueError as e:
+                    self.logger.warning(f"{e}")
+
+        return signal_history
 
 
 def main():
@@ -101,10 +125,11 @@ def main():
             return row_signal
 
     strategy = BuyOnCondition()
-    simulation = SimulationManager(portfolio, strategy, history, info_logger())
+
+    from .. import info_logger
+    simulation = SimulationManager(portfolio, strategy, history, logger=info_logger())
 
     historical_quantity = simulation.execute()
-    portfolio.print_transaction_history()
     print(portfolio.historical_returns(historical_quantity))
     print("Profit:", str(portfolio.current_value - starting_cash))
 

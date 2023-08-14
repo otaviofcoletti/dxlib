@@ -993,7 +993,7 @@
   // Partially apply a function by creating a version that has had some of its
   // arguments pre-filled, without changing its dynamic `this` context. `_` acts
   // as a placeholder by default, allowing any combination of arguments to be
-  // pre-filled. Set `_.partial.placeholder` for a custom placeholder argument.
+  // pre-filled. Set `_.partial.placeholder` for a custom_strategies placeholder argument.
   var partial = restArguments(function(func, boundArgs) {
     var placeholder = partial.placeholder;
     var bound = function() {
@@ -1839,7 +1839,7 @@
     return instance._chain ? _$1(obj).chain() : obj;
   }
 
-  // Add your own custom functions to the Underscore object.
+  // Add your own custom_strategies functions to the Underscore object.
   function mixin(obj) {
     each(functions(obj), function(name) {
       var func = _$1[name] = obj[name];
