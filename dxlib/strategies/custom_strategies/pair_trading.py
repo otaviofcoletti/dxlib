@@ -46,13 +46,13 @@ class PairTradingStrategy(Strategy):
         Returns:
         dict: Trading signals for each equity.
         """
-        signals = [Signal(TradeType.WAIT) for _ in range(len(history.columns))]
+        signals = pd.Series(Signal(TradeType.WAIT), index=row.index)
         if self.pair is not None:
             z_scores = (row[self.pair[0]] - row[self.pair[1]]) / np.std(history[self.pair[0]] - history[self.pair[1]])
             if z_scores > self.threshold:
-                signals[0] = Signal(TradeType.SELL, 1)
-                signals[1] = Signal(TradeType.BUY, 1)
+                signals[self.pair[0]] = Signal(TradeType.SELL, 1)
+                signals[self.pair[1]] = Signal(TradeType.BUY, 1)
             elif z_scores < -self.threshold:
-                signals[0] = Signal(TradeType.BUY, 1)
-                signals[1] = Signal(TradeType.SELL, 1)
+                signals[self.pair[0]] = Signal(TradeType.BUY, 1)
+                signals[self.pair[1]] = Signal(TradeType.SELL, 1)
         return signals

@@ -1,6 +1,5 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 
-import pandas
 import pandas as pd
 
 from .. import History
@@ -13,5 +12,6 @@ class Strategy(ABC):
     def fit(self, history: History):
         pass
 
-    def execute(self, idx, row: pd.Series, history: History) -> pandas.Series:  # expected element type: Signal
+    @abstractmethod
+    def execute(self, idx, row: pd.Series, history: History) -> pd.Series:  # expected element type: Signal
         pass

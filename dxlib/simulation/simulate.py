@@ -111,7 +111,7 @@ def main():
             super().__init__()
             self.signal_history = []
 
-        def execute(self, row, idx, history):
+        def execute(self, idx, row: pd.Series, history: History) -> pd.Series:
             row_signal = pd.Series(index=range(len(row)))
             if 0 < idx < 3:
                 signal = Signal(TradeType.BUY, 2, row[0])

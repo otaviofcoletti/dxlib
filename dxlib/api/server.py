@@ -57,6 +57,12 @@ def endpoint(route_name, description=None):
     return decorator
 
 
+class ReusableTCPServer(socketserver.TCPServer):
+    def server_bind(self):
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        super().server_bind()
+
+
 class Server:
     def __init__(self, manager, port=None, config_file=None, logger=None):
         self.logger = logger if logger else no_logger(__name__)
@@ -114,12 +120,14 @@ class Server:
             def list_endpoints(self):
                 endpoint_data = {
                     "message": "Available endpoints:",
-                    "endpoints": {route_name: {
-                        "description": method_endpoint.get('description', 'No description provided'),
-                        "params": method_endpoint.get('params', [])
+                    "endpoints": {
+                        route_name: {
+                            "description": method_endpoint.get('description', 'No description provided'),
+                            "params": {name: str(typehint)
+                                       for name, typehint in dict(method_endpoint.get('params', [])).items()
+                                       if name != 'self'}
+                        } for route_name, method_endpoint in self.endpoints.items()
                     }
-
-                                  for route_name, method_endpoint in self.endpoints.items()}
                 }
                 return json.dumps(endpoint_data, indent=4)
 
@@ -174,12 +182,18 @@ class Server:
                     return
 
                 try:
+                    class MethodEncoder(json.JSONEncoder):
+                        def default(self, obj):
+                            if hasattr(obj, "to_json") and callable(obj.to_json):
+                                return obj.to_json()
+                            return super().default(obj)
+
                     response = method_callable(**{k: v[0] for k, v in params.items()
                                                   if k in method_signature.parameters and k != 'self'})
                     self.send_response(200)
                     self.send_header('Content-type', 'application/json')
                     self.end_headers()
-                    self.wfile.write(json.dumps(response).encode())
+                    self.wfile.write(json.dumps(response, cls=MethodEncoder).encode())
 
                 except Exception as e:
                     self.send_response(500)
@@ -214,7 +228,7 @@ class Server:
         SimulationManagerHTTPRequestHandler.server = self
 
         try:
-            with socketserver.TCPServer(("", self.port), SimulationManagerHTTPRequestHandler) as self._httpd_server:
+            with ReusableTCPServer(("", self.port), SimulationManagerHTTPRequestHandler) as self._httpd_server:
                 self.logger.info(f"Server started on port {self.port}. Press Ctrl+C to stop")
                 self._httpd_server.serve_forever()
         except Exception as e:
@@ -245,13 +259,15 @@ class Server:
         self._started.wait()
         self._started.clear()
 
+        self.logger.info("Stopping server")
+
+        if self._httpd_thread is not None:
+            self._httpd_thread.join()
         if self._httpd_server is not None:
-            self.logger.info("Stopping server")
             self._httpd_server.shutdown()
             self._httpd_server.server_close()
             self._httpd_server = None
-        if self._httpd_thread is not None:
-            self._httpd_thread.join()
+
         return ServerStatus.STOPPED
 
     def __del__(self):

@@ -41,6 +41,15 @@ class Transaction:
     def __repr__(self):
         return f"{self.trade_type.name}: {self.security.symbol} {self.quantity} @ {self.price}"
 
+    def to_json(self):
+        return {
+            "security": self.security.symbol,
+            "trade_type": self.trade_type.name,
+            "quantity": self.quantity,
+            "price": self.price,
+            "timestamp": self.timestamp
+        }
+
     @property
     def price(self):
         return self._price
@@ -84,9 +93,16 @@ class Signal:
         self.quantity = quantity
         self.price = price
 
+    def to_json(self):
+        return {
+            "trade_type": self.trade_type.name,
+            "quantity": self.quantity,
+            "price": self.price if self.price else 'mkt'
+        }
+
     def __str__(self):
         if self.trade_type != TradeType.WAIT:
-            return f"{self.trade_type.name}: {self.quantity} @ {self.price if self.price else 'MKT'}"
+            return f"{self.trade_type.name}: {self.quantity} @ {self.price if self.price else 'mkt'}"
         else:
             return f"{self.trade_type.name}"
 
@@ -110,6 +126,14 @@ class Portfolio:
 
         if history is not None:
             self.history = history
+
+    def to_json(self):
+        return {
+            "name": self.name,
+            "current_cash": self.current_cash,
+            "current_assets": {security.symbol: weight for security, weight in self.current_weights.items()},
+            "transaction_history": [transaction.to_json() for transaction in self.transaction_history]
+        }
 
     @property
     def current_value(self):
