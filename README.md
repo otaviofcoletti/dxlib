@@ -100,7 +100,6 @@ Unified data-fetching methods, ensuring consistent data structures:
 from dxlib.api import AlphaVantageAPI, YFinanceAPI, AlpacaMarketsAPI
 
 # All the below calls return data in the same format
-data_alpha = AlphaVantageAPI("<api_key>").get_historical_bars(["AAPL", "MSFT"])
 data_yfinance = YFinanceAPI().get_historical_bars(["AAPL", "MSFT"])
 data_alpaca = AlpacaMarketsAPI("<api_key>", "<api_secret>").get_historical_bars(["AAPL", "MSFT"])
 ```
