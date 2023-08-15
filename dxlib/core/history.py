@@ -1,5 +1,8 @@
+from json import loads
+
 import pandas as pd
 import numpy as np
+
 from .indicators import TechnicalIndicators
 
 
@@ -13,6 +16,30 @@ class History:
         self._technical_indicators = TechnicalIndicators(self)
         self.df = df
 
+    def __len__(self):
+        return len(self.df)
+
+    def __iter__(self):
+        return self.df.iterrows()
+
+    def __getitem__(self, item):
+        return self.df[item]
+
+    def to_json(self):
+        return loads(self.df.to_json())
+
+    @property
+    def shape(self):
+        return self.df.shape
+
+    @property
+    def indicators(self):
+        return self._technical_indicators
+
+    @property
+    def symbols(self):
+        return self.df.columns
+
     def add_symbol(self, symbol, data):
         if isinstance(data, dict):
             data = pd.Series(data)
@@ -23,23 +50,6 @@ class History:
             new_series[len(data):] = np.nan
 
         self.df[symbol] = new_series
-
-    def __len__(self):
-        return len(self.df)
-
-    def __iter__(self):
-        return self.df.iterrows()
-
-    def __getitem__(self, item):
-        return self.df[item]
-
-    @property
-    def shape(self):
-        return self.df.shape
-
-    @property
-    def indicators(self):
-        return self._technical_indicators
 
     def add_row(self, rows: pd.DataFrame | pd.Series, index: pd.Index = None):
         if isinstance(rows, pd.Series):

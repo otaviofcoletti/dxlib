@@ -6,7 +6,7 @@ import pandas as pd
 
 from .. import Portfolio, TradeType, Signal, History, GenericManager
 from ..strategies import Strategy
-from ..api import endpoint
+from ..api import Endpoint
 
 
 class SimulationManager(GenericManager):
@@ -34,17 +34,29 @@ class SimulationManager(GenericManager):
         return self._current_step
 
     @property
+    @Endpoint.get("history", "Gets the currently history for the simulation")
     def history(self):
         return self._history
 
-    @history.setter
-    def history(self, history: History | pd.DataFrame | np.ndarray):
-        self.portfolio.security_manager.add_securities(history.columns)
+    @Endpoint.get("portfolio", "Gets the portfolio for the simulation")
+    def portfolio(self):
+        return self.portfolio
 
+    @Endpoint.post("add_cash", "Adds cash to the portfolio")
+    def add_cash(self, amount: float):
+        self.portfolio.add_cash(amount)
+
+    @history.setter
+    @Endpoint.post("history", "Sets the history on which to test the simulation against")
+    def history(self, history: History | pd.DataFrame | np.ndarray | dict):
         if isinstance(history, pd.DataFrame):
             history = History(history)
         elif isinstance(history, np.ndarray):
             history = History(pd.DataFrame(history))
+        elif isinstance(history, dict):
+            history = History(pd.DataFrame(history))
+
+        self.portfolio.security_manager.add_securities(history.symbols)
 
         if self.portfolio.history is None:
             self.portfolio.history = History(pandas.DataFrame(columns=history.df.columns))
@@ -60,7 +72,7 @@ class SimulationManager(GenericManager):
 
         return train, test
 
-    @endpoint("execute", "Calls the execute method within a simulation manager instance")
+    @Endpoint.post("execute", "Calls the execute method within a simulation manager instance")
     def execute(self, steps: int = None):
         signal_history = []
         if self.history is None:
