@@ -14,7 +14,11 @@ class GenericManager:
 
     def start_server(self):
         if self.server is not None:
-            self.server.start()
+            try:
+                self.server.start()
+                self.logger.info("Press Ctrl+C to stop the server")
+            except KeyboardInterrupt:
+                self.stop_server()
 
     def stop_server(self):
         if self.server is not None:
