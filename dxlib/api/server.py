@@ -86,6 +86,9 @@ class Server:
     #         if hasattr(self.manager, method_name):
     #             self.endpoints[method_name] = endpoint
 
+    def is_alive(self):
+        return self._started.is_set()
+
     def set_endpoints(self):
         for method_name in dir(self.manager):
             method = getattr(self.manager, method_name, None)
@@ -212,12 +215,14 @@ class Server:
 
         try:
             with socketserver.TCPServer(("", self.port), SimulationManagerHTTPRequestHandler) as self._httpd_server:
-                self.logger.info(f"Server started on port {self.port}")
+                self.logger.info(f"Server started on port {self.port}. Press Ctrl+C to stop")
                 self._httpd_server.serve_forever()
         except Exception as e:
             self.logger.error(f"Server error: {e}")
             self._error.set()
             self.exception_queue.put(e)
+        except KeyboardInterrupt:
+            self.logger.info("Server stopped by user")
 
     def get_exceptions(self):
         try:
@@ -238,6 +243,7 @@ class Server:
             return ServerStatus.ERROR
 
         self._started.wait()
+        self._started.clear()
 
         if self._httpd_server is not None:
             self.logger.info("Stopping server")
