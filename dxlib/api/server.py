@@ -222,7 +222,7 @@ class Server:
                     self.send_response(200)
                     self.send_header('Content-type', 'application/json')
                     self.end_headers()
-                    self.wfile.write(json.dumps(response, cls=MethodEncoder).encode())
+                    self.wfile.write(json.dumps(response if response else "ok", cls=MethodEncoder).encode())
 
                 except Exception as unknown_error:
                     self.send_response(500)
@@ -253,7 +253,7 @@ class Server:
                 if endpoint is None:
                     return
 
-                self.call_func(func_callable, endpoint, params)
+                return self.call_func(func_callable, endpoint, params)
 
             @handle_exceptions_decorator
             def do_POST(self):
@@ -283,7 +283,7 @@ class Server:
                         }).encode())
                         return
 
-                self.call_func(func_callable, endpoint, params, post_data)
+                return self.call_func(func_callable, endpoint, params, post_data)
 
         SimulationManagerHTTPRequestHandler.server = self
 
