@@ -4,10 +4,10 @@ import os
 import pandas as pd
 import requests
 
-from .data_api import DataApi
+from .data_api import SnapshotApi
 
 
-class YFinanceAPI(DataApi):
+class YFinanceAPI(SnapshotApi):
     def __init__(self, base_url='https://query1.finance.yahoo.com/v8/finance/chart/'):
         super().__init__(base_url)
         self.user_agent = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '

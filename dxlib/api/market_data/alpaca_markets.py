@@ -4,12 +4,16 @@ from enum import Enum
 
 import pandas as pd
 
-from .data_api import DataApi
+from .data_api import SnapshotApi
 
 
-class AlpacaMarketsAPI(DataApi):
+class AlpacaMarketsAPI(SnapshotApi):
     def __init__(self, api_key, api_secret):
         super().__init__('https://data.alpaca.markets', api_key, api_secret, 'v2')
+        self.headers = {
+            'APCA-API-KEY-ID': api_key,
+            'APCA-API-SECRET-KEY': api_secret
+        }
 
     class Endpoints(Enum):
         stocks = 'stocks'

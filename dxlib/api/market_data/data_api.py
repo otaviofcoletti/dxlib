@@ -27,11 +27,7 @@ class DataApi:
         self.__api_key = api_key
         self.__api_secret = api_secret
         self.api_version = api_version
-
-        self.num_calls = 0
-
-    def form_url(self, endpoint_uri):
-        return f'{self.base_url}/{self.api_version}/{endpoint_uri}'
+        self.headers = {}
 
     @classmethod
     def default_date_interval(cls, start=None, end=None):
@@ -68,6 +64,16 @@ class DataApi:
             tickers = [tickers]
         return tickers
 
+    def form_url(self, endpoint_uri):
+        return f'{self.base_url}/{self.api_version}/{endpoint_uri}'
+
+
+class SnapshotApi(DataApi):
+    def __init__(self, base_url=None, api_key=None, api_secret=None, api_version='v1'):
+        super().__init__(base_url, api_key, api_secret, api_version)
+
+        self.num_calls = 0
+
     def cache_filename(self, tickers, start, end, timeframe, api_name=None, folder="cache", ext="csv"):
         if not os.path.exists(folder):
             print("Creating cache folder")
@@ -83,14 +89,10 @@ class DataApi:
     def get(self, url, headers=None):
         if headers is None:
             headers = {}
-        headers.update({
-            'APCA-API-KEY-ID': self.__api_key,
-            'APCA-API-SECRET-KEY': self.__api_secret
-        })
 
         response = requests.get(
             url,
-            headers=headers
+            headers=headers | self.headers
         )
 
         return response.json()
@@ -99,14 +101,10 @@ class DataApi:
     def post(self, url, data=None, headers=None):
         if headers is None:
             headers = {}
-        headers.update({
-            'APCA-API-KEY-ID': self.__api_key,
-            'APCA-API-SECRET-KEY': self.__api_secret
-        })
 
         response = requests.post(
             url,
-            headers=headers,
+            headers=headers | self.headers,
             data=data
         )
 
@@ -116,14 +114,10 @@ class DataApi:
     def put(self, url, data=None, headers=None):
         if headers is None:
             headers = {}
-        headers.update({
-            'APCA-API-KEY-ID': self.__api_key,
-            'APCA-API-SECRET-KEY': self.__api_secret
-        })
 
         response = requests.put(
             url,
-            headers=headers,
+            headers=headers | self.headers,
             data=data
         )
 
@@ -133,27 +127,19 @@ class DataApi:
     def delete(self, url, data=None, headers=None):
         if headers is None:
             headers = {}
-        headers.update({
-            'APCA-API-KEY-ID': self.__api_key,
-            'APCA-API-SECRET-KEY': self.__api_secret
-        })
 
         response = requests.delete(
             url,
-            headers=headers,
+            headers=headers | self.headers,
             data=data
         )
 
         return response.json()
 
 
-class Stream(DataApi):
-    def __init__(self, api_key, api_secret, base_url, api_version='v1'):
-        super().__init__(api_key, api_secret, base_url, api_version)
-
-    def test(self):
-        self.base_url = 'https://jsonplaceholder.typicode.com/posts/1'
-        self.get_stream()
+class StreamApi(DataApi):
+    def __init__(self, base_url, api_key=None, api_secret=None, api_version='v1'):
+        super().__init__(base_url, api_key, api_secret, api_version)
 
     def get_stream(self):
         s = requests.Session()

@@ -1,10 +1,10 @@
 import requests
 import pandas
 
-from .data_api import DataApi
+from .data_api import SnapshotApi
 
 
-class AlphaVantageAPI(DataApi):
+class AlphaVantageAPI(SnapshotApi):
     def __init__(self, api_key):
         super().__init__('https://www.alphavantage.co/query?', api_key)
 
