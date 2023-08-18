@@ -3,6 +3,7 @@ def GET_TABLES():
     SELECT table_name FROM user_tables;
     """
 
+
 def GET_USERS():
     return """
     SELECT P.NOME FROM PESSOA P 

@@ -7,6 +7,6 @@ def finite_differences(x, y):
 
     finite_difference = np.diff(y) / abs(x[1] - x[0])
 
-    plt.plot(range_x, finite_difference, '--', label='Approximation')
+    plt.plot(range_x, finite_difference, "--", label="Approximation")
     plt.legend()
     plt.show()

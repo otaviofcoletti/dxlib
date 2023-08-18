@@ -10,13 +10,15 @@ from ..api import Endpoint
 
 
 class SimulationManager(GenericManager):
-    def __init__(self,
-                 portfolio: Portfolio,
-                 strategy: Strategy,
-                 history: History | pd.DataFrame,
-                 use_server=False,
-                 port=None,
-                 logger: logging.Logger = None):
+    def __init__(
+        self,
+        portfolio: Portfolio,
+        strategy: Strategy,
+        history: History | pd.DataFrame,
+        use_server=False,
+        port=None,
+        logger: logging.Logger = None,
+    ):
         super().__init__(use_server, port, logger)
         self.portfolio = portfolio
         self.strategy = strategy
@@ -47,7 +49,9 @@ class SimulationManager(GenericManager):
         self.portfolio.add_cash(amount)
 
     @history.setter
-    @Endpoint.post("history", "Sets the history on which to test the simulation against")
+    @Endpoint.post(
+        "history", "Sets the history on which to test the simulation against"
+    )
     def history(self, history: History | pd.DataFrame | np.ndarray | dict):
         if isinstance(history, pd.DataFrame):
             history = History(history)
@@ -59,7 +63,9 @@ class SimulationManager(GenericManager):
         self.portfolio.security_manager.add_securities(history.symbols)
 
         if self.portfolio.history is None:
-            self.portfolio.history = History(pandas.DataFrame(columns=history.df.columns))
+            self.portfolio.history = History(
+                pandas.DataFrame(columns=history.df.columns)
+            )
 
         self._history = history
 
@@ -72,7 +78,9 @@ class SimulationManager(GenericManager):
 
         return train, test
 
-    @Endpoint.post("execute", "Calls the execute method within a simulation manager instance")
+    @Endpoint.post(
+        "execute", "Calls the execute method within a simulation manager instance"
+    )
     def execute(self, steps: int = None):
         signal_history = []
         if self.history is None:
@@ -81,7 +89,9 @@ class SimulationManager(GenericManager):
         if steps is None:
             steps = len(self.history.df) - self._current_step
 
-        for idx, row in self.history.df.iloc[self._current_step:self._current_step + steps].iterrows():
+        for idx, row in self.history.df.iloc[
+            self._current_step : self._current_step + steps
+        ].iterrows():
             index = pd.Index(pd.Series(idx))
             self.portfolio.history.add_row(row, index=index)
             self._current_step += 1
@@ -103,14 +113,16 @@ class SimulationManager(GenericManager):
 def main():
     import numpy as np
 
-    symbols = ['AAPL', 'GOOGL', 'MSFT']
-    history = np.array([
-        [150.0, 2500.0, 300.0],
-        [152.0, 2550.0, 305.0],
-        [151.5, 2510.0, 302.0],
-        [155.0, 2555.0, 308.0],
-        [157.0, 2540.0, 306.0],
-    ])
+    symbols = ["AAPL", "GOOGL", "MSFT"]
+    history = np.array(
+        [
+            [150.0, 2500.0, 300.0],
+            [152.0, 2550.0, 305.0],
+            [151.5, 2510.0, 302.0],
+            [155.0, 2555.0, 308.0],
+            [157.0, 2540.0, 306.0],
+        ]
+    )
 
     history = pd.DataFrame(history, columns=symbols)
 
@@ -139,6 +151,7 @@ def main():
     strategy = BuyOnCondition()
 
     from .. import info_logger
+
     simulation = SimulationManager(portfolio, strategy, history, logger=info_logger())
 
     historical_quantity = simulation.execute()

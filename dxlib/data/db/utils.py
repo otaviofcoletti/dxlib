@@ -30,8 +30,14 @@ class DatabaseManager:
 
 
 class Menu:
-    def __init__(self, name, identifier, paths: list = None, calls: list[dict] = None,
-                 text="Selecione uma opção para continuar:"):
+    def __init__(
+        self,
+        name,
+        identifier,
+        paths: list = None,
+        calls: list[dict] = None,
+        text="Selecione uma opção para continuar:",
+    ):
         self.name = name
         self.identifier = identifier
         self.paths = [] if not paths else paths
@@ -70,9 +76,13 @@ class Navigation:
             self.terminal.print(f"{idx + 1} - {path.identifier}")
 
         for idx, call in enumerate(self.current_menu.calls):
-            self.terminal.print(f"{len(self.current_menu.paths) + idx + 1} - {call['name']}")
+            self.terminal.print(
+                f"{len(self.current_menu.paths) + idx + 1} - {call['name']}"
+            )
 
-        self.terminal.print(f"{len(self.current_menu.paths) + len(self.current_menu.calls) + 1} - Exit \n")
+        self.terminal.print(
+            f"{len(self.current_menu.paths) + len(self.current_menu.calls) + 1} - Exit \n"
+        )
 
         if output:
             self.terminal.log(json=output)
@@ -81,7 +91,10 @@ class Navigation:
         while True:
             option = int(self.terminal.get_input(self.current_menu.text + "\n"))
 
-            if option == (len(self.current_menu.paths) + len(self.current_menu.calls)) + 1:
+            if (
+                option
+                == (len(self.current_menu.paths) + len(self.current_menu.calls)) + 1
+            ):
                 raise SystemExit
 
             if option == 0 and self.previous_menus:
@@ -98,22 +111,34 @@ class Navigation:
 
                 else:
                     try:
-                        call = self.current_menu.calls[option - len(self.current_menu.paths)]
+                        call = self.current_menu.calls[
+                            option - len(self.current_menu.paths)
+                        ]
                         args = call.get("args", None)
 
                         if args:
-                            args = self.terminal.get_input(f"Required parameters: {args}\n")
-                            output = self.current_menu.call(option - len(self.current_menu.paths), args.split(" "))
+                            args = self.terminal.get_input(
+                                f"Required parameters: {args}\n"
+                            )
+                            output = self.current_menu.call(
+                                option - len(self.current_menu.paths), args.split(" ")
+                            )
                         else:
-                            output = self.current_menu.call(option - len(self.current_menu.paths))
+                            output = self.current_menu.call(
+                                option - len(self.current_menu.paths)
+                            )
                         return output
                     except ValueError as params:
-                        self.terminal.print(f"For the selected option {option}, provide the following params: {params}")
+                        self.terminal.print(
+                            f"For the selected option {option}, provide the following params: {params}"
+                        )
 
             except IndexError:
-                self.terminal.print("Invalid option, please select a number between 0 e {}".format(
-                    len(self.current_menu.paths) + len(self.current_menu.calls) + 1
-                ))
+                self.terminal.print(
+                    "Invalid option, please select a number between 0 e {}".format(
+                        len(self.current_menu.paths) + len(self.current_menu.calls) + 1
+                    )
+                )
 
     def enter_menu(self, menu):
         self.previous_menus.append(self.current_menu)

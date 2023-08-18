@@ -7,7 +7,7 @@ class TechnicalIndicators:
 
     def sharpe_ratio(self, periods=252, risk_free_rate=0.05):
         returns = self.history.log_change()
-        daily_risk_free = (1 + risk_free_rate) ** (1/periods) - 1
+        daily_risk_free = (1 + risk_free_rate) ** (1 / periods) - 1
 
         excess_returns = returns - daily_risk_free
 

@@ -7,10 +7,10 @@ from enum import Enum
 
 
 class RequestType(Enum):
-    GET = 'GET'
-    POST = 'POST'
-    PUT = 'PUT'
-    DELETE = 'DELETE'
+    GET = "GET"
+    POST = "POST"
+    PUT = "PUT"
+    DELETE = "DELETE"
 
 
 def request(func):
@@ -22,7 +22,7 @@ def request(func):
 
 
 class DataApi:
-    def __init__(self, base_url=None, api_key=None, api_secret=None, api_version='v1'):
+    def __init__(self, base_url=None, api_key=None, api_secret=None, api_version="v1"):
         self.base_url = base_url
         self.__api_key = api_key
         self.__api_secret = api_secret
@@ -41,22 +41,30 @@ class DataApi:
     @classmethod
     def str_to_date(cls, date):
         if isinstance(date, list) or isinstance(date, tuple):
-            return [datetime.datetime.strptime(single_date, '%Y-%m-%d') if isinstance(single_date, str) else single_date
-                    for single_date in date]
+            return [
+                datetime.datetime.strptime(single_date, "%Y-%m-%d")
+                if isinstance(single_date, str)
+                else single_date
+                for single_date in date
+            ]
         elif isinstance(date, str):
-            return datetime.datetime.strptime(date, '%Y-%m-%d')
+            return datetime.datetime.strptime(date, "%Y-%m-%d")
         else:
-            raise TypeError('Date must be a list or str')
+            raise TypeError("Date must be a list or str")
 
     @classmethod
     def date_to_str(cls, date):
         if isinstance(date, list) or isinstance(date, tuple):
-            return [single_date.strftime('%Y-%m-%d') if isinstance(single_date, datetime.date) else single_date
-                    for single_date in date]
+            return [
+                single_date.strftime("%Y-%m-%d")
+                if isinstance(single_date, datetime.date)
+                else single_date
+                for single_date in date
+            ]
         elif isinstance(date, datetime.date) or isinstance(date, datetime.datetime):
-            return date.strftime('%Y-%m-%d')
+            return date.strftime("%Y-%m-%d")
         else:
-            raise TypeError('Date must be list or datetime.datetime')
+            raise TypeError("Date must be list or datetime.datetime")
 
     @classmethod
     def format_tickers(cls, tickers):
@@ -65,16 +73,18 @@ class DataApi:
         return tickers
 
     def form_url(self, endpoint_uri):
-        return f'{self.base_url}/{self.api_version}/{endpoint_uri}'
+        return f"{self.base_url}/{self.api_version}/{endpoint_uri}"
 
 
 class SnapshotApi(DataApi):
-    def __init__(self, base_url=None, api_key=None, api_secret=None, api_version='v1'):
+    def __init__(self, base_url=None, api_key=None, api_secret=None, api_version="v1"):
         super().__init__(base_url, api_key, api_secret, api_version)
 
         self.num_calls = 0
 
-    def cache_filename(self, tickers, start, end, timeframe, api_name=None, folder="cache", ext="csv"):
+    def cache_filename(
+        self, tickers, start, end, timeframe, api_name=None, folder="cache", ext="csv"
+    ):
         if not os.path.exists(folder):
             print("Creating cache folder")
             os.mkdir(folder)
@@ -90,10 +100,7 @@ class SnapshotApi(DataApi):
         if headers is None:
             headers = {}
 
-        response = requests.get(
-            url,
-            headers=headers | self.headers
-        )
+        response = requests.get(url, headers=headers | self.headers)
 
         return response.json()
 
@@ -102,11 +109,7 @@ class SnapshotApi(DataApi):
         if headers is None:
             headers = {}
 
-        response = requests.post(
-            url,
-            headers=headers | self.headers,
-            data=data
-        )
+        response = requests.post(url, headers=headers | self.headers, data=data)
 
         return response.json()
 
@@ -115,11 +118,7 @@ class SnapshotApi(DataApi):
         if headers is None:
             headers = {}
 
-        response = requests.put(
-            url,
-            headers=headers | self.headers,
-            data=data
-        )
+        response = requests.put(url, headers=headers | self.headers, data=data)
 
         return response.json()
 
@@ -128,17 +127,13 @@ class SnapshotApi(DataApi):
         if headers is None:
             headers = {}
 
-        response = requests.delete(
-            url,
-            headers=headers | self.headers,
-            data=data
-        )
+        response = requests.delete(url, headers=headers | self.headers, data=data)
 
         return response.json()
 
 
 class StreamApi(DataApi):
-    def __init__(self, base_url, api_key=None, api_secret=None, api_version='v1'):
+    def __init__(self, base_url, api_key=None, api_secret=None, api_version="v1"):
         super().__init__(base_url, api_key, api_secret, api_version)
 
     def get_stream(self):

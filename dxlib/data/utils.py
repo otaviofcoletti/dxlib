@@ -14,15 +14,15 @@ def read_data(symbol):
     return None
 
 
-def append_to_csv(data, csv_file='stock_data.csv'):
+def append_to_csv(data, csv_file="stock_data.csv"):
     if isinstance(data, list):
         try:
-            with open(csv_file, 'r') as file:
+            with open(csv_file, "r") as file:
                 is_empty = len(file.readline().strip()) == 0
         except FileNotFoundError:
             is_empty = True
 
-        with open(csv_file, 'a', newline='') as file:
+        with open(csv_file, "a", newline="") as file:
             writer = csv.writer(file)
             if is_empty:
                 if isinstance(data[0], (list, tuple)):
@@ -40,7 +40,7 @@ def append_to_csv(data, csv_file='stock_data.csv'):
         fieldnames = list(data.keys())
 
         try:
-            with open(csv_file, 'r') as file:
+            with open(csv_file, "r") as file:
                 reader = csv.DictReader(file)
                 existing_fieldnames = reader.fieldnames
         except FileNotFoundError:
@@ -51,14 +51,21 @@ def append_to_csv(data, csv_file='stock_data.csv'):
         else:
             ordered_data = list(data.values())
 
-        with open(csv_file, 'a', newline='') as file:
+        with open(csv_file, "a", newline="") as file:
             writer = csv.DictWriter(file, fieldnames=fieldnames)
             if not existing_fieldnames:
                 writer.writeheader()
-            writer.writerow({field: value for field, value in zip(existing_fieldnames, ordered_data)})
+            writer.writerow(
+                {
+                    field: value
+                    for field, value in zip(existing_fieldnames, ordered_data)
+                }
+            )
 
     elif isinstance(data, pd.DataFrame):
-        data.to_csv(csv_file, mode='a', header=False, index=False)
+        data.to_csv(csv_file, mode="a", header=False, index=False)
 
     else:
-        raise ValueError("Unsupported data type. Only lists, dictionaries, and pandas DataFrames are supported.")
+        raise ValueError(
+            "Unsupported data type. Only lists, dictionaries, and pandas DataFrames are supported."
+        )

@@ -27,8 +27,8 @@ class BollingerBreakoutStrategy(Strategy):
         var_normalized = (volatility.loc[idx] - var_mean) / var_var
 
         pos = history.df.index.get_loc(idx)
-        short_ma = history.df.iloc[pos - self.short_window:pos].mean()
-        long_ma = history.df.iloc[pos - self.long_window:pos].mean()
+        short_ma = history.df.iloc[pos - self.short_window : pos].mean()
+        long_ma = history.df.iloc[pos - self.long_window : pos].mean()
 
         for idx, equity in enumerate(history.df.columns):
             if abs(var_normalized[equity]) > abs(self.multiplier * var_historical):

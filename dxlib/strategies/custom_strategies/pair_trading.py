@@ -48,7 +48,9 @@ class PairTradingStrategy(Strategy):
         """
         signals = pd.Series(Signal(TradeType.WAIT), index=row.index)
         if self.pair is not None:
-            z_scores = (row[self.pair[0]] - row[self.pair[1]]) / np.std(history[self.pair[0]] - history[self.pair[1]])
+            z_scores = (row[self.pair[0]] - row[self.pair[1]]) / np.std(
+                history[self.pair[0]] - history[self.pair[1]]
+            )
             if z_scores > self.threshold:
                 signals[self.pair[0]] = Signal(TradeType.SELL, 1)
                 signals[self.pair[1]] = Signal(TradeType.BUY, 1)

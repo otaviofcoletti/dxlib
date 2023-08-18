@@ -47,7 +47,7 @@ class History:
         new_series = data.reindex(self.df.index)
 
         if len(new_series) > len(data):
-            new_series[len(data):] = np.nan
+            new_series[len(data) :] = np.nan
 
         self.df[symbol] = new_series
 
@@ -101,7 +101,9 @@ class History:
 
         if progressive:
             for i in range(min_interval, window):
-                rolling_volatility.iloc[i] = (log_returns.rolling(i).std(ddof=0) * np.sqrt(window)).iloc[i]
+                rolling_volatility.iloc[i] = (
+                    log_returns.rolling(i).std(ddof=0) * np.sqrt(window)
+                ).iloc[i]
 
         return rolling_volatility
 
@@ -110,14 +112,16 @@ class History:
 
 
 if __name__ == "__main__":
-    symbols: list[str] = ['TSLA', 'GOOGL', 'MSFT']
-    price_data = np.array([
-        [150.0, 2500.0, 300.0],
-        [152.0, 2550.0, 305.0],
-        [151.5, 2510.0, 302.0],
-        [155.0, 2555.0, 308.0],
-        [157.0, 2540.0, 306.0],
-    ])
+    symbols: list[str] = ["TSLA", "GOOGL", "MSFT"]
+    price_data = np.array(
+        [
+            [150.0, 2500.0, 300.0],
+            [152.0, 2550.0, 305.0],
+            [151.5, 2510.0, 302.0],
+            [155.0, 2555.0, 308.0],
+            [157.0, 2540.0, 306.0],
+        ]
+    )
     price_data = pd.DataFrame(price_data, columns=symbols)
     history = History(price_data)
 
@@ -132,13 +136,20 @@ if __name__ == "__main__":
     plt.show()
 
     moving_average_df = history.moving_average(window=2)
-    combined_df = pd.concat([history.df, moving_average_df.add_suffix('_MA')], axis=1)
+    combined_df = pd.concat([history.df, moving_average_df.add_suffix("_MA")], axis=1)
     combined_df.index = pd.to_datetime(combined_df.index)
 
     for symbol in symbols:
         plt.figure(figsize=(10, 6))
-        seaborn.lineplot(data=combined_df, x=combined_df.index, y=symbol, label="Stock Price")
-        seaborn.lineplot(data=combined_df, x=combined_df.index, y=f'{symbol}_MA', label="Moving Average")
+        seaborn.lineplot(
+            data=combined_df, x=combined_df.index, y=symbol, label="Stock Price"
+        )
+        seaborn.lineplot(
+            data=combined_df,
+            x=combined_df.index,
+            y=f"{symbol}_MA",
+            label="Moving Average",
+        )
         plt.title(f"{symbol} Stock Price and Moving Average")
         plt.xlabel("Date")
         plt.ylabel("Price")

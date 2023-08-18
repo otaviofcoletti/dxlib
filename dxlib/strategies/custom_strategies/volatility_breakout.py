@@ -48,10 +48,12 @@ class VolatilityBreakoutStrategy(Strategy):
         Returns:
         dict: Trading signals for each equity.
         """
-        signals = [Signal(TradeType.WAIT) for _ in range(len(history.columns))]
-        volatility = history.volatility(periods=self.lookback_period, progressive=True)
+        signals = pd.Series([Signal(TradeType.WAIT) for _ in range(len(history.df.columns))])
+        volatility = history.volatility()
 
-        for idx, equity in enumerate(history.columns):
-            if volatility[equity].iloc[idx] > self.multiplier * np.mean(volatility[equity].iloc[idx - self.lookback_period:idx]):
+        for idx, equity in enumerate(history.df.columns):
+            if volatility[equity].iloc[idx] > self.multiplier * np.mean(
+                    volatility[equity].iloc[idx - self.lookback_period: idx]
+            ):
                 signals[idx] = Signal(TradeType.BUY, 1)
         return signals

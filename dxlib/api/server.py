@@ -80,7 +80,10 @@ class Server:
         route_name = endpoint["route_name"]
         method = endpoint["method"]
         self.endpoints[route_name] = self.endpoints.get(route_name, {})
-        self.endpoints[route_name][method] = {"endpoint": endpoint, "callable": callable_func}
+        self.endpoints[route_name][method] = {
+            "endpoint": endpoint,
+            "callable": callable_func,
+        }
 
     def set_endpoints(self):
         for func_name in dir(self.manager):
@@ -96,26 +99,27 @@ class Server:
                 if hasattr(attr.fget, "endpoint"):
                     endpoint = attr.fget.endpoint
                     # noinspection PyUnresolvedReferences
-                    callable_func = attr.fget.__get__(self.manager, self.manager.__class__)
+                    callable_func = attr.fget.__get__(
+                        self.manager, self.manager.__class__
+                    )
                     self.add_endpoint(endpoint, callable_func)
 
                 if hasattr(attr.fset, "endpoint"):
                     endpoint = attr.fset.endpoint
                     # noinspection PyUnresolvedReferences
-                    callable_func = attr.fset.__get__(self.manager, self.manager.__class__)
+                    callable_func = attr.fset.__get__(
+                        self.manager, self.manager.__class__
+                    )
                     self.add_endpoint(endpoint, callable_func)
 
     @staticmethod
     def _get_free_port():
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(('', 0))
+            s.bind(("", 0))
             return s.getsockname()[1]
 
     def list_endpoints(self):
-        endpoint_data = {
-            "message": "Available endpoints:",
-            "endpoints": {}
-        }
+        endpoint_data = {"message": "Available endpoints:", "endpoints": {}}
 
         for route_name, endpoint in self.endpoints.items():
             methods_data = {}
@@ -124,10 +128,14 @@ class Server:
                 endpoint = method_endpoint["endpoint"]
 
                 methods_data[method] = {
-                    "description": endpoint.get('description', 'No description provided'),
-                    "params": {name: str(typehint)
-                               for name, typehint in dict(endpoint.get('params', [])).items()
-                               if name != 'self'}
+                    "description": endpoint.get(
+                        "description", "No description provided"
+                    ),
+                    "params": {
+                        name: str(typehint)
+                        for name, typehint in dict(endpoint.get("params", [])).items()
+                        if name != "self"
+                    },
                 }
 
             endpoint_data["endpoints"][route_name] = methods_data
@@ -148,43 +156,47 @@ class Server:
             def handle_exception(self, e):
                 self.exception_queue.put(e)
                 self.send_response(500)
-                self.send_header('Content-type', 'application/json')
+                self.send_header("Content-type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({
-                    "error": str(e)
-                }).encode())
+                self.wfile.write(json.dumps({"error": str(e)}).encode())
 
             def parse_route(self):
                 path_parts = urlparse(self.path)
-                route_name = path_parts.path.lstrip('/')
+                route_name = path_parts.path.lstrip("/")
                 params = parse_qs(path_parts.query)
 
                 if route_name not in self.endpoints:
                     self.send_response(404)
-                    self.send_header('Content-type', 'application/json')
+                    self.send_header("Content-type", "application/json")
                     self.end_headers()
-                    self.wfile.write(json.dumps({
-                        "error": "Function not found"
-                    }).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Function not found"}).encode()
+                    )
                     return None, None
 
                 return route_name, params
 
             def parse_endpoint(self, method_endpoint):
-                func_callable = method_endpoint.get("callable", None) if method_endpoint else None
-                endpoint = method_endpoint.get("endpoint", None) if method_endpoint else None
+                func_callable = (
+                    method_endpoint.get("callable", None) if method_endpoint else None
+                )
+                endpoint = (
+                    method_endpoint.get("endpoint", None) if method_endpoint else None
+                )
 
                 if endpoint is None:
                     self.send_response(405)
-                    self.send_header('Content-type', 'application/json')
+                    self.send_header("Content-type", "application/json")
                     self.end_headers()
-                    self.wfile.write(json.dumps({
-                        "error": "Method Not Allowed"
-                    }).encode())
+                    self.wfile.write(
+                        json.dumps({"error": "Method Not Allowed"}).encode()
+                    )
 
                 return func_callable, endpoint
 
-            def call_func(self, func_callable: callable, endpoint: dict, params=None, data=None):
+            def call_func(
+                self, func_callable: callable, endpoint: dict, params=None, data=None
+            ):
                 if params is None:
                     params = {}
                 if data is None:
@@ -192,22 +204,30 @@ class Server:
 
                 func_signature = endpoint.get("params", {})
 
-                required_args = [arg for arg, details in func_signature.items()
-                                 if details.default == inspect.Parameter.empty and arg != 'self']
+                required_args = [
+                    arg
+                    for arg, details in func_signature.items()
+                    if details.default == inspect.Parameter.empty and arg != "self"
+                ]
 
                 missing_args = set(required_args) - set(data.keys() if data else [])
 
                 if missing_args:
                     self.send_response(400)
-                    self.send_header('Content-type', 'application/json')
+                    self.send_header("Content-type", "application/json")
                     self.end_headers()
-                    self.wfile.write(json.dumps({
-                        "error": f"Missing arguments",
-                        "missing": list(missing_args)
-                    }).encode())
+                    self.wfile.write(
+                        json.dumps(
+                            {
+                                "error": f"Missing arguments",
+                                "missing": list(missing_args),
+                            }
+                        ).encode()
+                    )
                     return
 
                 try:
+
                     class MethodEncoder(json.JSONEncoder):
                         def default(self, obj):
                             if hasattr(obj, "to_json") and callable(obj.to_json):
@@ -217,20 +237,26 @@ class Server:
                     response = func_callable(**data) if data else func_callable()
 
                     if isinstance(response, list) and params:
-                        response = [item for item in response if all(item.get(k) == v for k, v in params.items())]
+                        response = [
+                            item
+                            for item in response
+                            if all(item.get(k) == v for k, v in params.items())
+                        ]
 
                     self.send_response(200)
-                    self.send_header('Content-type', 'application/json')
+                    self.send_header("Content-type", "application/json")
                     self.end_headers()
-                    self.wfile.write(json.dumps(response if response else "ok", cls=MethodEncoder).encode())
+                    self.wfile.write(
+                        json.dumps(
+                            response if response else "ok", cls=MethodEncoder
+                        ).encode()
+                    )
 
                 except Exception as unknown_error:
                     self.send_response(500)
-                    self.send_header('Content-type', 'application/json')
+                    self.send_header("Content-type", "application/json")
                     self.end_headers()
-                    self.wfile.write(json.dumps({
-                        "error": str(unknown_error)
-                    }).encode())
+                    self.wfile.write(json.dumps({"error": str(unknown_error)}).encode())
                     raise unknown_error
 
             @handle_exceptions_decorator
@@ -238,7 +264,7 @@ class Server:
                 if self.path == "/":
                     response = self.list_endpoints()
                     self.send_response(200)
-                    self.send_header('Content-type', 'application/json')
+                    self.send_header("Content-type", "application/json")
                     self.end_headers()
                     self.wfile.write(response.encode())
                     return
@@ -267,7 +293,7 @@ class Server:
                 if endpoint is None:
                     return
 
-                content_length = int(self.headers['Content-Length'])
+                content_length = int(self.headers["Content-Length"])
                 post_data = None
 
                 if content_length > 0:
@@ -276,11 +302,11 @@ class Server:
                         post_data = json.loads(raw_post_data)
                     except json.JSONDecodeError:
                         self.send_response(400)  # Bad Request
-                        self.send_header('Content-type', 'application/json')
+                        self.send_header("Content-type", "application/json")
                         self.end_headers()
-                        self.wfile.write(json.dumps({
-                            "error": "Invalid JSON data received"
-                        }).encode())
+                        self.wfile.write(
+                            json.dumps({"error": "Invalid JSON data received"}).encode()
+                        )
                         return
 
                 return self.call_func(func_callable, endpoint, params, post_data)
@@ -288,8 +314,12 @@ class Server:
         SimulationManagerHTTPRequestHandler.server = self
 
         try:
-            with ReusableTCPServer(("", self.port), SimulationManagerHTTPRequestHandler) as self._httpd_server:
-                self.logger.info(f"Server started on port {self.port}. Press Ctrl+C to stop")
+            with ReusableTCPServer(
+                ("", self.port), SimulationManagerHTTPRequestHandler
+            ) as self._httpd_server:
+                self.logger.info(
+                    f"Server started on port {self.port}. Press Ctrl+C to stop"
+                )
                 self._httpd_server.serve_forever()
         except Exception as e:
             self.logger.error(f"Server error: {e}")
@@ -313,7 +343,9 @@ class Server:
 
     def stop(self) -> ServerStatus:
         if self._error.is_set():
-            self.logger.warning("Could not stop server. Server might not have started properly")
+            self.logger.warning(
+                "Could not stop server. Server might not have started properly"
+            )
             return ServerStatus.ERROR
 
         self._started.wait()

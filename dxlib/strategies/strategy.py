@@ -13,5 +13,7 @@ class Strategy(ABC):
         pass
 
     @abstractmethod
-    def execute(self, idx, row: pd.Series, history: History) -> pd.Series:  # expected element type: Signal
+    def execute(
+        self, idx, row: pd.Series, history: History
+    ) -> pd.Series:  # expected element type: Signal
         pass

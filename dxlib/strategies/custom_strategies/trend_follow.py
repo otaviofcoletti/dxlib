@@ -48,8 +48,8 @@ class TrendFollowStrategy(Strategy):
         """
         signals = [Signal(TradeType.WAIT) for _ in range(len(history.columns))]
         if idx >= self.long_window:
-            short_ma = history.iloc[idx - self.short_window:idx].mean()
-            long_ma = history.iloc[idx - self.long_window:idx].mean()
+            short_ma = history.iloc[idx - self.short_window : idx].mean()
+            long_ma = history.iloc[idx - self.long_window : idx].mean()
 
             for idx, equity in enumerate(history.columns):
                 if short_ma[equity] > long_ma[equity]:

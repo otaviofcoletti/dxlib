@@ -10,8 +10,8 @@ def euler_method(x, f, starting_point=0):
     for i in range(0, len(x) - 1):
         s[i + 1] = s[i] + delta * f(x[i], s[i])
 
-    plt.plot(x, s, 'bo--', label='Approximation')
-    plt.xlabel('x')
-    plt.ylabel('f(x) = y')
+    plt.plot(x, s, "bo--", label="Approximation")
+    plt.xlabel("x")
+    plt.ylabel("f(x) = y")
     plt.grid()
     plt.show()

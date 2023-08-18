@@ -12,26 +12,26 @@ with open(path.join(HERE, 'README.md'), encoding='utf-8') as f:
 with open('requirements.txt') as f:
     requirements = f.read().splitlines()
 
-remote_version = (
+version = (
     subprocess.run(["git", "describe", "--tags"], stdout=subprocess.PIPE)
     .stdout.decode("utf-8")
     .strip()
 )
 
-if "-" in remote_version:
-    v, i, s = remote_version.split("-")
-    remote_version = v + "+" + i + ".git." + s
+if "-" in version:
+    v, i, s = version.split("-")
+    version = v + "+" + i + ".git." + s
 
-assert "-" not in remote_version
-assert "." in remote_version
+assert "-" not in version
+assert "." in version
 
 assert os.path.isfile("dxlib/version.py")
 with open("dxlib/VERSION", "w", encoding="utf-8") as fh:
-    fh.write("%s\n" % remote_version)
+    fh.write("%s\n" % version)
 
 setup(
     name="dxlib",
-    version=remote_version,
+    version=version,
     description="Quantitative Methods for Finance",
     long_description=long_description,
     long_description_content_type="text/markdown",
