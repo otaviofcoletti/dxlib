@@ -13,19 +13,27 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
 
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v3
       with:
         python-version: '3.x'
 
     - name: Install twine
       run: pip install twine
 
+    - name: Ensure requirements.txt is present
+      run: |
+        echo "Checking if requirements.txt exists"
+        ls -la  # Display the directory contents for debugging
+        if [ ! -f requirements.txt ]; then
+          echo "requirements.txt not found!"
+          exit 1
+        fi
+
     - name: Build and Publish
       run: |
-        # Modify this line to the path where your script is located
         ./upload.sh "${{ github.event.release.tag_name }}" "prod"
       env:
         TWINE_USERNAME: __token__
