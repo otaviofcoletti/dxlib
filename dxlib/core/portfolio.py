@@ -192,12 +192,11 @@ class Portfolio:
 
     @history.setter
     def history(self, history: History | pd.DataFrame | np.ndarray):
-        self.security_manager.add_securities(history.df.columns)
-
         if isinstance(history, pd.DataFrame):
             history = History(history)
         elif isinstance(history, np.ndarray):
             history = History(pd.DataFrame(history))
+        self.security_manager.add_securities(history.df.columns)
 
         self.logger.info("History set for: " + self.name)
         self._history = history

@@ -75,7 +75,6 @@ class AlpacaMarketsAPI(SnapshotApi):
 
         response = self.get(url)
         formatted_data = []
-
         for ticker, bars in response['bars'].items():
             for bar in bars:
                 formatted_bar = {
