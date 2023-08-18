@@ -2,7 +2,7 @@ name: Upload Python Package to Test PyPI
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
   test:
