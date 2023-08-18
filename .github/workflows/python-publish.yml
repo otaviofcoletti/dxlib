@@ -20,8 +20,8 @@ jobs:
       with:
         python-version: '3.x'
 
-    - name: Install twine
-      run: pip install twine
+    - name: Install twine and wheel
+      run: pip install twine wheel
 
     - name: Ensure requirements.txt is present
       run: |
@@ -31,6 +31,9 @@ jobs:
           echo "requirements.txt not found!"
           exit 1
         fi
+
+    - name: Install dependencies from requirements.txt
+      run: pip install -r requirements.txt
 
     - name: Build distribution package
       run: |
