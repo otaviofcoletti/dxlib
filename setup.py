@@ -1,4 +1,5 @@
 import os
+import subprocess
 from os import path
 from codecs import open
 from setuptools import setup, find_packages
@@ -11,11 +12,26 @@ with open(path.join(HERE, 'README.md'), encoding='utf-8') as f:
 with open('requirements.txt') as f:
     requirements = f.read().splitlines()
 
-version = os.getenv("DXLIB_VERSION", "0.1.0")
+remote_version = (
+    subprocess.run(["git", "describe", "--tags"], stdout=subprocess.PIPE)
+    .stdout.decode("utf-8")
+    .strip()
+)
+
+if "-" in remote_version:
+    v, i, s = remote_version.split("-")
+    remote_version = v + "+" + i + ".git." + s
+
+assert "-" not in remote_version
+assert "." in remote_version
+
+assert os.path.isfile("cf_remote/version.py")
+with open("remote/VERSION", "w", encoding="utf-8") as fh:
+    fh.write("%s\n" % remote_version)
 
 setup(
     name="dxlib",
-    version=version,
+    version=remote_version,
     description="Quantitative Methods for Finance",
     long_description=long_description,
     long_description_content_type="text/markdown",
