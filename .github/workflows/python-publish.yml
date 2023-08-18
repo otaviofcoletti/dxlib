@@ -1,8 +1,16 @@
-name: Publish Python Package to PyPI
+# This workflow will upload a Python Package using Twine when a release is created
+# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python#publishing-to-package-registries
+
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: Upload Python Package
 
 on:
   release:
-    types: [published]
+    types: [ published ]
 
 permissions:
   contents: read
@@ -13,43 +21,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-
-    - name: Set up Python
-      uses: actions/setup-python@v3
-      with:
-        python-version: '3.x'
-
-    - name: Install twine and wheel
-      run: pip install twine wheel
-
-    - name: Ensure requirements.txt is present
-      run: |
-        echo "Checking if requirements.txt exists"
-        ls -la  # Display the directory contents for debugging
-        if [ ! -f requirements.txt ]; then
-          echo "requirements.txt not found!"
-          exit 1
-        fi
-
-    - name: Install dependencies from requirements.txt
-      run: pip install -r requirements.txt
-
-    - name: Build distribution package
-      run: |
-        version="${{ github.event.release.tag_name }}"
-        echo "Building the distribution package..."
-        export DXLIB_VERSION="$version"
-        python setup.py sdist bdist_wheel
-        unset DXLIB_VERSION
-
-    - name: Verify distribution package
-      run: twine check dist/*
-
-    - name: Publish to PyPI
-      run: |
-        tag="${{ github.event.release.tag_name }}"
-        echo "Uploading to the production PyPI server..."
-        for file in dist/*$tag*; do
-          python -m twine upload "$file"
-        done
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v3
+        with:
+          python-version: '3.x'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+      - name: Build package
+        run: python -m build
+      - name: Publish package
+        uses: pypa/gh-action-pypi-publish@27b31702a0e7fc50959f5ad993c78deac1bdfc29
+        with:
+          user: __token__
+          password: ${{ secrets.PYPI_API_TOKEN }}
