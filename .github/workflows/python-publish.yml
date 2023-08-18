@@ -50,4 +50,6 @@ jobs:
       run: |
         tag="${{ github.event.release.tag_name }}"
         echo "Uploading to the production PyPI server..."
-        python -m twine upload dist/*$tag*
+        for file in dist/*$tag*; do
+          python -m twine upload "$file"
+        done
