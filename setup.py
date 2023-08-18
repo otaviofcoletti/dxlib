@@ -25,8 +25,8 @@ if "-" in remote_version:
 assert "-" not in remote_version
 assert "." in remote_version
 
-assert os.path.isfile("cf_remote/version.py")
-with open("remote/VERSION", "w", encoding="utf-8") as fh:
+assert os.path.isfile("dxlib/version.py")
+with open("dxlib/VERSION", "w", encoding="utf-8") as fh:
     fh.write("%s\n" % remote_version)
 
 setup(

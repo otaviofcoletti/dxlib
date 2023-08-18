@@ -4,6 +4,7 @@
 dxlib.egg-info/
 dist/
 build/
+dxlib/VERSION
 
 tests/config.py
 
