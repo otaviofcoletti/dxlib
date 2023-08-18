@@ -49,13 +49,5 @@ jobs:
     - name: Publish to PyPI
       run: |
         tag="${{ github.event.release.tag_name }}"
-        if [[ "$tag" == "test" ]]; then
-          echo "Uploading to the test PyPI server..."
-          python -m twine upload --repository-url https://test.pypi.org/legacy/ dist/*$version*
-        elif [[ "$tag" == "prod" ]]; then
-          echo "Uploading to the production PyPI server..."
-          python -m twine upload dist/*$version*
-        else
-          echo "Invalid tag specified. Available options are 'test' or 'prod'."
-          exit 1
-        fi
+        echo "Uploading to the production PyPI server..."
+        python -m twine upload dist/*$tag*
