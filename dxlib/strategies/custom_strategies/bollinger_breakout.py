@@ -22,7 +22,7 @@ class BollingerBreakoutStrategy(Strategy):
         var_var = np.std(upper - lower)
 
         var_historical = ((upper - lower) - var_mean) / var_var
-        returns = history.log_change()
+        # returns = history.log_change()
 
         var_normalized = (volatility.loc[idx] - var_mean) / var_var
 
