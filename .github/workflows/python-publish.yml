@@ -32,9 +32,27 @@ jobs:
           exit 1
         fi
 
-    - name: Build and Publish
+    - name: Build distribution package
       run: |
-        ./upload.sh "${{ github.event.release.tag_name }}" "prod"
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        version="${{ github.event.release.tag_name }}"
+        echo "Building the distribution package..."
+        export DXLIB_VERSION="$version"
+        python setup.py sdist bdist_wheel
+        unset DXLIB_VERSION
+
+    - name: Verify distribution package
+      run: twine check dist/*
+
+    - name: Publish to PyPI
+      run: |
+        tag="${{ github.event.release.tag_name }}"
+        if [[ "$tag" == "test" ]]; then
+          echo "Uploading to the test PyPI server..."
+          python -m twine upload --repository-url https://test.pypi.org/legacy/ dist/*$version*
+        elif [[ "$tag" == "prod" ]]; then
+          echo "Uploading to the production PyPI server..."
+          python -m twine upload dist/*$version*
+        else
+          echo "Invalid tag specified. Available options are 'test' or 'prod'."
+          exit 1
+        fi
