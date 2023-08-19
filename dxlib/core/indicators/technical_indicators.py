@@ -1,4 +1,6 @@
 import pandas as pd
+import matplotlib.pyplot as plt
+from statsmodels.tsa.seasonal import seasonal_decompose
 
 from .indicators import Indicators
 
@@ -56,3 +58,51 @@ class TechnicalIndicators(Indicators):
 
     def drawdown(self):
         return self.df / self.df.cummax() - 1
+    
+    
+    def autocorrelation(self, lag=15) -> pd.Series:
+
+      returns = self.series_indicatos.log_change()
+
+      acorr = returns.autocorr(lag=lag)
+
+      return acorr
+
+    def trend(self):
+      decompose_result =  seasonal_decompose(self.df, model="multiplicative", period=252)
+
+      return decompose_result.trend
+
+    def seasonal(self):
+      decompose_result =  seasonal_decompose(self.df, model="multiplicative", period=252)
+
+      return decompose_result.seasonal
+      
+    def residual(self):
+      decompose_result =  seasonal_decompose(self.df, model="multiplicative", period=252)
+
+      return decompose_result.resid
+
+    def plot_trend(self):
+      trend = self.trend()      
+      plt.figure(figsize=(8,3))
+      plt.plot(trend)
+      plt.grid(color='r', linestyle='--', linewidth=1, alpha=0.3)
+      plt.ylabel('TREND')
+      plt.show()
+      
+    def plot_seasonal(self):
+      seasonal = self.seasonal()      
+      plt.figure(figsize=(8,3))
+      plt.plot(seasonal)
+      plt.grid(color='r', linestyle='--', linewidth=1, alpha=0.3)
+      plt.ylabel('SEASONAL')
+      plt.show()
+
+    def plot_residual(self):
+      residual = self.residual()
+      plt.figure(figsize=(8,3))
+      plt.plot(residual)
+      plt.grid(color='r', linestyle='--', linewidth=1, alpha=0.3)
+      plt.ylabel('RESIDUAL')
+      plt.show()
