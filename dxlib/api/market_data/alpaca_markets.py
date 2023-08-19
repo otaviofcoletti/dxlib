@@ -99,6 +99,9 @@ class AlpacaMarketsAPI(SnapshotApi):
             columns="Ticker",
             values=["Open", "High", "Low", "Close", "Volume", "NumTrades", "VWAP"],
         )
+        pivoted_df.columns = pivoted_df.columns.set_names(["Fields", "Ticker"])
+
+
         return pivoted_df
 
     def get_historical_bars(

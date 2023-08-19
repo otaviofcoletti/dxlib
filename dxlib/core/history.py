@@ -29,7 +29,7 @@ class History:
                 raise AttributeError(f"'IndicatorsProxy' object has no attribute '{attr}'")
 
     def __init__(self, df: pd.DataFrame, securities_level=None):
-        if securities_level is None and isinstance(df.columns, pd.MultiIndex):
+        if securities_level is None:
             securities_level = -1
 
         self._indicators = self.HistoryIndicators(self)

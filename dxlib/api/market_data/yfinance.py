@@ -63,7 +63,7 @@ class YFinanceAPI(SnapshotApi):
         for ticker, data in historical_bars.items():
             df = pd.DataFrame(data)
             df.set_index("Time", inplace=True)
-            df.columns = pd.MultiIndex.from_product([[ticker], df.columns])
+            df.columns = pd.MultiIndex.from_product([[ticker], df.columns], names=["Ticker", "Field"])
             concatenated_data.append(df)
 
         historical_bars = (

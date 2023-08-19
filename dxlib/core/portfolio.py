@@ -252,7 +252,7 @@ class Portfolio:
 
         price = signal.price
         if self._history is not None and signal.price is None:
-            price = self._history.df[security.symbol].iloc[-1]
+            price = self._history.df[security].iloc[-1]
         transaction = Transaction(
             security, signal.quantity, price, signal.trade_type, timestamp
         )
@@ -276,7 +276,7 @@ class Portfolio:
                 raise ValueError(
                     "Not enough of the security {} to sell. "
                     "Trying to sell {} but only have {}.".format(
-                        security.symbol,
+                        security,
                         signal.quantity,
                         self._current_assets.get(security, 0),
                     )
@@ -289,12 +289,12 @@ class Portfolio:
         print(self.history.last())
 
     def _associate_transaction_with_history(self, transaction: Transaction):
-        for history_symbol, history_df in self._history.df.items():
-            if transaction.security.symbol == history_symbol:
+        for security, history_df in self._history.df.items():
+            if transaction.security == security:
                 closest_index = history_df.index.get_loc(
                     transaction.timestamp, method="nearest"
                 )
-                transaction.attributed_histories[history_symbol] = closest_index
+                transaction.attributed_histories[security] = closest_index
                 break
 
     @property
