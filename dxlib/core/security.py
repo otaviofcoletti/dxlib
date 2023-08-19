@@ -1,5 +1,4 @@
 from enum import Enum
-from operator import itemgetter
 
 
 class SecurityType(Enum):
@@ -14,11 +13,15 @@ class SecurityType(Enum):
 class Security:
     def __init__(self,
                  symbol: str,
+                 security_type: str | SecurityType = SecurityType.equity,
                  source=None,
-                 security_type: str | SecurityType = SecurityType.equity):
+                 ):
         self.symbol = symbol
         self.source = source
         self.security_type = security_type
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.symbol}, {self.security_type})"
 
 
 class SingletonMeta(type):
@@ -32,11 +35,16 @@ class SingletonMeta(type):
 
 class SecurityManager(metaclass=SingletonMeta):
     def __init__(self):
-        self._securities: dict[str, Security] = {SecurityType.cash.value: Security("cash")}
+        self._securities: dict[str, Security] = {}
+        self._cash = Security("cash", SecurityType.cash)
 
     def __iadd__(self, security_dict: dict[str, Security]):
         self.securities = security_dict
         return self
+
+    @property
+    def cash(self):
+        return self._cash
 
     @property
     def securities(self):
@@ -58,12 +66,16 @@ class SecurityManager(metaclass=SingletonMeta):
         for security in securities:
             if isinstance(security, str):
                 security = Security(security)
-            self.securities[security.symbol] = security
+            if security.symbol not in self.securities:
+                self.securities[security.symbol] = security
 
-    def get_cash(self):
-        return self.securities[SecurityType.cash.value]
-
-    def get_securities(self, symbols: list = None) -> dict[str, Security]:
-        if symbols:
-            return {symbol: self.securities[symbol] for symbol in symbols if symbol in self.securities}
+    def get_securities(self, securities: list[str, Security] = None) -> dict[str, Security]:
+        if securities:
+            filtered_securities = {}
+            for security in securities:
+                if isinstance(security, str):
+                    filtered_securities[security] = self.securities[security]
+                elif isinstance(security, Security):
+                    filtered_securities[security.symbol] = self.securities[security.symbol]
+            return filtered_securities
         return self.securities

@@ -139,6 +139,8 @@ class Portfolio:
                 security.symbol: weight
                 for security, weight in self.current_weights.items()
             },
+            "current_assets_value": self.current_assets_value,
+            "current_value": self.current_value,
             "transaction_history": [
                 transaction.to_json() for transaction in self.transaction_history
             ],
@@ -175,7 +177,7 @@ class Portfolio:
     def _update_assets_value(self):
         current_value = self.history.last()
         self._current_assets_value = {
-            security: self._current_assets[security] * current_value[security.symbol]
+            security: self._current_assets[security] * current_value[security]
             for security in self._current_assets
         }
 
@@ -195,12 +197,12 @@ class Portfolio:
 
     def add_cash(self, amount: float, idx=-1):
         self.current_cash += amount
-        cash = self.security_manager.get_cash()
+        cash = self.security_manager.cash
         self.record_transaction(Transaction(cash, amount, 1), is_asset=False, idx=idx)
 
     def _use_cash(self, amount: float, idx=-1):
         self.current_cash -= amount
-        cash = self.security_manager.get_cash()
+        cash = self.security_manager.cash
         self.record_transaction(
             Transaction(cash, amount, 1, TradeType.SELL), is_asset=False, idx=idx
         )
@@ -307,11 +309,11 @@ class Portfolio:
         )
 
         for transaction in self.transaction_history:
-            if transaction.security.symbol not in self.history.df.columns:
+            if transaction.security not in self.history.securities:
                 continue
 
             time_index = transaction.get_time(self.history)
-            security_weights = self._historical_quantity[transaction.security.symbol]
+            security_weights = self._historical_quantity[transaction.security]
 
             if transaction.trade_type == TradeType.BUY:
                 security_weights.iloc[time_index:] += transaction.quantity

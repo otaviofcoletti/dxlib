@@ -1,7 +1,6 @@
 import logging
 
 import numpy as np
-import pandas
 import pandas as pd
 
 from .. import Portfolio, TradeType, Signal, History, GenericManager
@@ -62,7 +61,7 @@ class SimulationManager(GenericManager):
 
         if self.portfolio.history is None:
             self.portfolio.history = History(
-                pandas.DataFrame(columns=history.df.columns)
+                pd.DataFrame(columns=history.df.columns)
             )
 
         self._history = history
@@ -88,7 +87,7 @@ class SimulationManager(GenericManager):
             steps = len(self.history.df) - self._current_step
 
         for idx, row in self.history.df.iloc[
-            self._current_step : self._current_step + steps
+            self._current_step: self._current_step + steps
         ].iterrows():
             index = pd.Index(pd.Series(idx))
             self.portfolio.history.add_row(row, index=index)
@@ -96,12 +95,13 @@ class SimulationManager(GenericManager):
 
             signals = self.strategy.execute(idx, row, self.portfolio.history)
 
-            for symbol, signal in signals.items():
+            for security, signal in signals.items():
                 try:
                     if signal.trade_type != TradeType.WAIT:
                         signal_history.append(signal)
-                        self.portfolio.trade(str(symbol), signal)
-                        self.logger.info(f"Executed {signal} for {symbol}")
+                        # noinspection PyTypeChecker
+                        self.portfolio.trade(security, signal)
+                        self.logger.info(f"Executed {signal} for {security}")
                 except ValueError as e:
                     self.logger.warning(f"{e}")
 
@@ -109,8 +109,6 @@ class SimulationManager(GenericManager):
 
 
 def main():
-    import numpy as np
-
     symbols = ["AAPL", "GOOGL", "MSFT"]
     history = np.array(
         [
@@ -134,7 +132,7 @@ def main():
             self.signal_history = []
 
         def execute(self, idx, row: pd.Series, history: History) -> pd.Series:
-            row_signal = pd.Series(index=range(len(row)))
+            row_signal = pd.Series(index=row.index)
             if 0 < idx < 3:
                 signal = Signal(TradeType.BUY, 2, row[0])
                 row_signal[0] = signal
@@ -151,9 +149,9 @@ def main():
     from .. import info_logger
 
     simulation = SimulationManager(portfolio, strategy, history, logger=info_logger())
+    simulation.execute()
 
-    historical_quantity = simulation.execute()
-    print(portfolio.historical_returns(historical_quantity))
+    print(portfolio.historical_returns())
     print("Profit:", str(portfolio.current_value - starting_cash))
 
 
