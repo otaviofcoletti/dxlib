@@ -1,12 +1,22 @@
 import pandas as pd
 
+from .indicators import Indicators
 
-class TechnicalIndicators:
+
+class TechnicalIndicators(Indicators):
     def __init__(self, history):
-        self.history = history
+        super().__init__(history)
+
+    @property
+    def df(self):
+        return self.history.df
+
+    @property
+    def series_indicators(self):
+        return self.history.indicators
 
     def sharpe_ratio(self, periods=252, risk_free_rate=0.05):
-        returns = self.history.log_change()
+        returns = self.series_indicators.log_change()
         daily_risk_free = (1 + risk_free_rate) ** (1 / periods) - 1
 
         excess_returns = returns - daily_risk_free
@@ -14,7 +24,7 @@ class TechnicalIndicators:
         return excess_returns.mean() / excess_returns.std()
 
     def rsi(self, window=252):
-        delta = self.history.df.diff()
+        delta = self.df.diff()
 
         gain = delta.where(delta > 0, 0).fillna(0)
         loss = -delta.where(delta < 0, 0).fillna(0)
@@ -27,7 +37,7 @@ class TechnicalIndicators:
         return 100 - (100 / (1 + rs))
 
     def beta(self) -> pd.Series:
-        returns = self.history.log_change().dropna()
+        returns = self.series_indicators.log_change().dropna()
 
         betas = {}
 
@@ -43,3 +53,6 @@ class TechnicalIndicators:
             betas[asset] = beta
 
         return pd.Series(betas)
+
+    def drawdown(self):
+        return self.df / self.df.cummax() - 1

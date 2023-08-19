@@ -1,7 +1,23 @@
+from enum import Enum
+
+
+class SecurityType(Enum):
+    equity = "equity"
+    option = "option"
+    future = "future"
+    forex = "forex"
+    crypto = "crypto"
+    cash = "cash"
+
+
 class Security:
-    def __init__(self, symbol: str, source=None):
+    def __init__(self,
+                 symbol: str,
+                 source=None,
+                 security_type: str | SecurityType = SecurityType.equity):
         self.symbol = symbol
         self.source = source
+        self.security_type = security_type
 
 
 class SingletonMeta(type):
@@ -15,26 +31,39 @@ class SingletonMeta(type):
 
 class SecurityManager(metaclass=SingletonMeta):
     def __init__(self):
-        self.securities: dict[str, Security] = {"cash": Security("cash")}
+        self._securities: dict[str, Security] = {SecurityType.cash.value: Security("cash")}
 
-    def add_security(self, security: Security | str):
-        if isinstance(security, str):
-            security = Security(security)
+    def __iadd__(self, security_dict: dict[str, Security]):
+        self.securities = security_dict
+        return self
 
-        if security.symbol in self.securities:
-            return
+    @property
+    def securities(self):
+        return self._securities
 
-        self.securities[security.symbol] = security
+    @securities.setter
+    def securities(self, security_dict: dict[str, Security] | Security):
+        if isinstance(security_dict, Security):
+            security_dict = {security_dict.symbol: security_dict}
+        if not isinstance(security_dict, dict):
+            raise ValueError("security_dict must be a Security or a dictionary of securities")
 
-    def add_securities(self, securities: list[Security | str]):
+        self._securities.update(security_dict)
+
+    def add_securities(self, securities: list[Security | str] | Security):
+        if isinstance(securities, Security):
+            securities = [securities]
+
         for security in securities:
-            self.add_security(security)
-
-    def get_security(self, symbol):
-        return self.securities[symbol]
+            if isinstance(security, str):
+                security = Security(security)
+            self.securities[security.symbol] = security
 
     def get_cash(self):
-        return self.securities["cash"]
+        return self.securities[SecurityType.cash.value]
 
     def get_securities(self):
-        return self.securities.values()
+        return list(self.securities.values())
+
+    def get_symbols(self):
+        return list(self.securities.keys())
