@@ -60,8 +60,6 @@ class SimulationManager(GenericManager):
         elif isinstance(history, dict):
             history = History(pd.DataFrame(history))
 
-        self.portfolio.security_manager.add_securities(history.symbols)
-
         if self.portfolio.history is None:
             self.portfolio.history = History(
                 pandas.DataFrame(columns=history.df.columns)

@@ -52,7 +52,7 @@ class RsiStrategy(Strategy):
         position = history.df.index.get_loc(idx)
 
         if position > self.window:
-            rsi = history.indicators.rsi(window=self.window).loc[idx]
+            rsi = history.indicators.technical.rsi(window=self.window).loc[idx]
 
             signals[rsi > self.upper_bound] = Signal(TradeType.SELL)
             signals[rsi < self.lower_bound] = Signal(TradeType.BUY)

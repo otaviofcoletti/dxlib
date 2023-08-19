@@ -246,7 +246,7 @@ class Portfolio:
         if signal.trade_type == TradeType.WAIT:
             return
         if isinstance(security, str):
-            security = self.security_manager.get_security(security)
+            security = self.security_manager.securities[security]
 
         price = signal.price
         if self._history is not None and signal.price is None:

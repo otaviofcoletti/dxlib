@@ -16,16 +16,25 @@ class Bar(pd.Series):
 
 
 class History:
+    security_manager = SecurityManager()
+
     class HistoryIndicators:
         def __init__(self, history):
             self.series: SeriesIndicators = SeriesIndicators(history)
             self.technical: TechnicalIndicators = TechnicalIndicators(history)
 
-    def __init__(self, df: pd.DataFrame):
-        security_manager = SecurityManager()
+        def __getattr__(self, attr):
+            # Try to get the attribute from series_indicators, and then from technical_indicators
+            if hasattr(self.series, attr):
+                return getattr(self.series, attr)
+            elif hasattr(self.technical, attr):
+                return getattr(self.technical, attr)
+            else:
+                raise AttributeError(f"'IndicatorsProxy' object has no attribute '{attr}'")
 
+    def __init__(self, df: pd.DataFrame):
         self._indicators = self.HistoryIndicators(self)
-        self._securities: dict[str, Security] = security_manager.get_securities(list(df.columns))
+        self._securities: dict[str, Security] = self.security_manager.get_securities(list(df.columns))
 
         self.df = df
 
