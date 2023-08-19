@@ -1,5 +1,4 @@
 import pandas as pd
-import matplotlib.pyplot as plt
 from statsmodels.tsa.seasonal import seasonal_decompose
 
 from .indicators import Indicators
@@ -68,12 +67,3 @@ class TechnicalIndicators(Indicators):
     def seasonal_decompose(self, period=252):
         result = seasonal_decompose(self.df, model="multiplicative", period=period)
         return result.trend, result.seasonal, result.resid
-
-    def plot_seasonal_decompose(self):
-        trend, seasonal, resid = self.seasonal_decompose()
-        ax = plt.figure(figsize=(8, 3))
-        plt.plot(trend)
-        plt.plot(seasonal)
-        plt.plot(resid)
-        plt.grid(color='r', linestyle='--', linewidth=1, alpha=0.3)
-        plt.show()

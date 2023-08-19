@@ -139,7 +139,9 @@ class Portfolio:
                 security.symbol: weight
                 for security, weight in self.current_weights.items()
             },
-            "current_assets_value": self.current_assets_value,
+            "current_assets_value": {
+                security.symbol: value
+                for security, value in self.current_assets_value.items()},
             "current_value": self.current_value,
             "transaction_history": [
                 transaction.to_json() for transaction in self.transaction_history

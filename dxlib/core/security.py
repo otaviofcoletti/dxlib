@@ -23,6 +23,13 @@ class Security:
     def __repr__(self):
         return f"{self.__class__.__name__}({self.symbol}, {self.security_type})"
 
+    def to_json(self):
+        return {
+            "symbol": self.symbol,
+            "security_type": self.security_type.value,
+            "source": self.source if self.source else None,
+        }
+
 
 class SingletonMeta(type):
     _instances = {}
