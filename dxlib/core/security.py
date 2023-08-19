@@ -1,4 +1,5 @@
 from enum import Enum
+from operator import itemgetter
 
 
 class SecurityType(Enum):
@@ -62,8 +63,7 @@ class SecurityManager(metaclass=SingletonMeta):
     def get_cash(self):
         return self.securities[SecurityType.cash.value]
 
-    def get_securities(self):
-        return list(self.securities.values())
-
-    def get_symbols(self):
-        return list(self.securities.keys())
+    def get_securities(self, symbols: list = None) -> dict[str, Security]:
+        if symbols:
+            return {symbol: self.securities[symbol] for symbol in symbols if symbol in self.securities}
+        return self.securities

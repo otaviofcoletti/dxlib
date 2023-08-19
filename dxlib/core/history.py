@@ -3,12 +3,16 @@ from json import loads
 import pandas as pd
 import numpy as np
 
+from .security import Security, SecurityManager
 from .indicators import TechnicalIndicators, SeriesIndicators
 
 
-class Bar:
-    def __init__(self):
-        pass
+class Bar(pd.Series):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def elefante(self):
+        return self.index
 
 
 class History:
@@ -18,7 +22,11 @@ class History:
             self.technical: TechnicalIndicators = TechnicalIndicators(history)
 
     def __init__(self, df: pd.DataFrame):
+        security_manager = SecurityManager()
+
         self._indicators = self.HistoryIndicators(self)
+        self._securities: dict[str, Security] = security_manager.get_securities(list(df.columns))
+
         self.df = df
 
     def __len__(self):
@@ -38,12 +46,12 @@ class History:
         return self.df.shape
 
     @property
-    def indicators(self):
-        return self._indicators
+    def securities(self):
+        return self._securities
 
     @property
-    def securities(self):
-        return self.df.columns
+    def indicators(self):
+        return self._indicators
 
     def add_security(self, symbol, data):
         if isinstance(data, dict):
@@ -85,31 +93,10 @@ if __name__ == "__main__":
 
     print(hist.describe())
 
-    import seaborn
-    import matplotlib.pyplot as plt
-
-    seaborn.set_theme(style="darkgrid")
-
-    seaborn.lineplot(hist.indicators.series.log_change())
-    plt.show()
-
     moving_average = hist.indicators.series.sma(window=2)
     combined_df = pd.concat([hist.df, moving_average.add_suffix("_MA")], axis=1)
     combined_df.index = pd.to_datetime(combined_df.index)
 
-    for sym in syms:
-        plt.figure(figsize=(10, 6))
-        seaborn.lineplot(
-            data=combined_df, x=combined_df.index, y=sym, label="Stock Price"
-        )
-        seaborn.lineplot(
-            data=combined_df,
-            x=combined_df.index,
-            y=f"{sym}_MA",
-            label="Moving Average",
-        )
-        plt.title(f"{sym} Stock Price and Moving Average")
-        plt.xlabel("Date")
-        plt.ylabel("Price")
-        plt.legend()
-        plt.show()
+    from ..api import YFinanceAPI
+    historical_bars = YFinanceAPI().get_historical_bars(["TSLA", "AAPL"], cache=False)
+    print(hist.securities)
