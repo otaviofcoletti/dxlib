@@ -50,7 +50,7 @@ class History:
         return self._securities
 
     @property
-    def indicators(self):
+    def indicators(self) -> HistoryIndicators:
         return self._indicators
 
     def add_security(self, symbol, data):
@@ -100,3 +100,4 @@ if __name__ == "__main__":
     from ..api import YFinanceAPI
     historical_bars = YFinanceAPI().get_historical_bars(["TSLA", "AAPL"], cache=False)
     print(hist.securities)
+    print(hist.indicators.technical.autocorrelation(1))

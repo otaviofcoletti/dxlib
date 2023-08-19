@@ -1,6 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-from statsmodels.tsa import seasonal
+from statsmodels.tsa.seasonal import seasonal_decompose
 
 from .indicators import Indicators
 
@@ -15,7 +15,7 @@ class TechnicalIndicators(Indicators):
 
     @property
     def series_indicators(self):
-        return self.history.indicators
+        return self.history.indicators.series
 
     def sharpe_ratio(self, periods=252, risk_free_rate=0.05):
         returns = self.series_indicators.log_change()
@@ -58,24 +58,22 @@ class TechnicalIndicators(Indicators):
 
     def drawdown(self):
         return self.df / self.df.cummax() - 1
-    
-    
+
     def autocorrelation(self, lag=15) -> pd.Series:
-        returns = self.series_indicatos.log_change()
-        acorr = returns.autocorr(lag=lag)
+        returns = self.series_indicators.log_change()
+        acorr = returns.apply(lambda col: col.autocorr(lag=lag))
 
         return acorr
 
     def seasonal_decompose(self, period=252):
-        result = seasonal.seasonal_decompose(self.df, model="multiplicative", period=period)
+        result = seasonal_decompose(self.df, model="multiplicative", period=period)
         return result.trend, result.seasonal, result.resid
 
     def plot_seasonal_decompose(self):
-        trend, seasonal, resid = self.trend()      
-        ax = plt.figure(figsize=(8,3))
+        trend, seasonal, resid = self.seasonal_decompose()
+        ax = plt.figure(figsize=(8, 3))
         plt.plot(trend)
         plt.plot(seasonal)
         plt.plot(resid)
         plt.grid(color='r', linestyle='--', linewidth=1, alpha=0.3)
         plt.show()
-      
