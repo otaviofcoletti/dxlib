@@ -1,4 +1,3 @@
-import os
 import subprocess
 from os import path
 from codecs import open
@@ -12,20 +11,24 @@ with open(path.join(HERE, 'README.md'), encoding='utf-8') as f:
 with open('requirements.txt') as f:
     requirements = f.read().splitlines()
 
-version = (
-    subprocess.run(["git", "describe", "--tags"], stdout=subprocess.PIPE)
-    .stdout.decode("utf-8")
-    .strip()
-)
+try:
+    version = (
+        subprocess.run(["git", "describe", "--tags"], stdout=subprocess.PIPE)
+        .stdout.decode("utf-8")
+        .strip()
+    )
 
-if "-" in version:
-    v, i, s = version.split("-")
-    version = v + "+" + i + ".git." + s
+    if "-" in version:
+        v, i, s = version.split("-")
+        version = v + "+" + i + ".git." + s
 
-assert "-" not in version
-assert "." in version
+    assert "-" not in version
+    assert "." in version
 
-assert os.path.isfile("dxlib/version.py")
+except Exception as e:
+    print(f"Warning: Unable to fetch version from Git. Using fallback version.")
+    version = "0.0.1"  # Fallback version
+
 with open("dxlib/VERSION", "w", encoding="utf-8") as fh:
     fh.write("%s\n" % version)
 
@@ -41,7 +44,7 @@ setup(
     license="MIT",
     classifiers=[
         "Intended Audience :: Developers",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: Apache 2.0 License",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
