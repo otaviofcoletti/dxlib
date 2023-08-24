@@ -23,6 +23,9 @@ class Security:
     def __repr__(self):
         return f"{self.__class__.__name__}({self.symbol}, {self.security_type})"
 
+    def __str__(self):
+        return f"{self.symbol}"
+
     def to_json(self):
         return {
             "symbol": self.symbol,

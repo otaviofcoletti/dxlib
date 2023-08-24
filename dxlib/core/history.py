@@ -8,8 +8,18 @@ from .indicators import TechnicalIndicators, SeriesIndicators
 
 
 class Bar(pd.Series):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, symbol, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.symbol = symbol
+
+    def __getattr__(self, attr):
+        if hasattr(self, attr):
+            return getattr(self, attr)
+        else:
+            raise AttributeError(f"'Bar' object has no attribute '{attr}'")
+
+    def __getitem__(self, item):
+        return self[item]
 
 
 class History:
@@ -74,6 +84,14 @@ class History:
     def indicators(self) -> HistoryIndicators:
         return self._indicators
 
+    @property
+    def start(self):
+        return self.df.index[0]
+
+    @property
+    def end(self):
+        return self.df.index[-1]
+
     def add_security(self, symbol, data):
         if isinstance(data, dict):
             data = pd.Series(data)
@@ -132,7 +150,7 @@ if __name__ == "__main__":
     # combined_df = pd.concat([hist.df, moving_average.add_suffix("_MA")], axis=1)
     # combined_df.index = pd.to_datetime(combined_df.index)
 
-    from ..api import YFinanceAPI
+    from dxlib.api import YFinanceAPI
     historical_bars = YFinanceAPI().get_historical_bars(["TSLA", "AAPL"], cache=False)
     hist = History(historical_bars)
     print(hist.get_by_symbols("TSLA"))

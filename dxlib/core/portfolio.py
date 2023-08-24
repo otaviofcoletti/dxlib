@@ -165,6 +165,10 @@ class Portfolio:
         return self._current_assets_weights
 
     @property
+    def position(self):
+        return self._current_assets
+
+    @property
     def transaction_history(self) -> list[Transaction]:
         return self._transaction_history
 
@@ -210,10 +214,10 @@ class Portfolio:
         )
 
     @history.setter
-    def history(self, history: History | pd.DataFrame | np.ndarray):
+    def history(self, history: History | pd.DataFrame | np.ndarray | list):
         if isinstance(history, pd.DataFrame):
             history = History(history)
-        elif isinstance(history, np.ndarray):
+        elif isinstance(history, np.ndarray) or isinstance(history, list):
             history = History(pd.DataFrame(history))
         self.security_manager.add_securities(history.df.columns)
 
