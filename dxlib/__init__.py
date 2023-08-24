@@ -1,2 +1,3 @@
 from .core import *
-from . import core, api, strategies, simulation, executor, data
+from .managers import *
+from . import core, api, strategies, simulation, executor, data, managers

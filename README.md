@@ -72,8 +72,8 @@ finally:
 ```
 
 ```bash
-2023-08-15 04:11:37,417 - INFO - Server starting on port 5000 (server.py:308)
-2023-08-15 04:11:37,422 - INFO - Server started on port 5000. Press Ctrl+C to stop (server.py:292)
+2023-08-15 04:11:37,417 - INFO - Server starting on port 5000 (http_server.py:308)
+2023-08-15 04:11:37,422 - INFO - Server started on port 5000. Press Ctrl+C to stop (http_server.py:292)
 127.0.0.1 - - [15/Aug/2023 04:12:01] "GET / HTTP/1.1" 200 -
 127.0.0.1 - - [15/Aug/2023 04:12:09] "GET / HTTP/1.1" 200 -
 127.0.0.1 - - [15/Aug/2023 04:13:35] "GET / HTTP/1.1" 200 -
