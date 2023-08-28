@@ -44,7 +44,7 @@ setup(
     license="MIT",
     classifiers=[
         "Intended Audience :: Developers",
-        "License :: OSI Approved :: Apache 2.0 License",
+        "License :: Apache 2.0 License",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.6",
