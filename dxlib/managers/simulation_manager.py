@@ -13,10 +13,11 @@ class SimulationManager(StrategyManager):
     def __init__(self,
                  strategy,
                  use_server=False,
+                 use_websocket=False,
                  port=None,
                  logger: logging.Logger = None,
                  ):
-        super().__init__(strategy, use_server, port, logger)
+        super().__init__(strategy, use_server, use_websocket, port, logger)
 
     @Endpoint.post("reset", "Resets the Simulation's state")
     def reset(self):

@@ -136,15 +136,15 @@ if __name__ == "__main__":
         def execute(self, idx, history, position):
             return {}
 
-    strategy = MyStrategy()
-    logger = info_logger(__name__)
-    strategy_manager = StrategyManager(strategy, use_websocket=True, logger=logger)
+    strat = MyStrategy()
+    strat_logger = info_logger(__name__)
+    strategy_manager = StrategyManager(strat, use_websocket=True, logger=strat_logger)
     strategy_manager.start_socket()
     try:
         while strategy_manager.websocket.is_alive():
             with strategy_manager.websocket.exceptions as exceptions:
                 if exceptions:
-                    logger.exception(exceptions)
+                    strat_logger.exception(exceptions)
                     raise exceptions
             input("Press enter to continue")
             strategy_manager.run(*list([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]), threaded=True)

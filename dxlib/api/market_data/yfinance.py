@@ -50,12 +50,12 @@ class YFinanceAPI(SnapshotApi):
         tickers = self.format_tickers(tickers)
         start, end = self.str_to_date(self.default_date_interval(start, end))
 
-        cache_filename = self.cache_filename(
+        tickers_cache = self.tickers_cache(
             tickers, start, end, timeframe, "yfinance_bars"
         )
-        if os.path.exists(cache_filename) and cache:
+        if os.path.exists(tickers_cache) and cache:
             return pd.read_csv(
-                cache_filename, header=[0, 1], index_col=0, parse_dates=True
+                tickers_cache, header=[0, 1], index_col=0, parse_dates=True
             )
 
         historical_bars = self._query_historical_bars(tickers, timeframe, start, end)
@@ -71,7 +71,7 @@ class YFinanceAPI(SnapshotApi):
         )
 
         if cache:
-            historical_bars.to_csv(cache_filename)
+            historical_bars.to_csv(tickers_cache)
 
         return historical_bars
 

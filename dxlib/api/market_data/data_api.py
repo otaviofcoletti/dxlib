@@ -72,8 +72,10 @@ class DataApi:
             tickers = [tickers]
         return tickers
 
-    def form_url(self, endpoint_uri):
-        return f"{self.base_url}/{self.api_version}/{endpoint_uri}"
+    def form_url(self, endpoint_uri, api_version=None):
+        if api_version is None:
+            api_version = self.api_version
+        return f"{self.base_url}/{api_version}/{endpoint_uri}"
 
 
 class SnapshotApi(DataApi):
@@ -82,16 +84,24 @@ class SnapshotApi(DataApi):
 
         self.num_calls = 0
 
-    def cache_filename(
-        self, tickers, start, end, timeframe, api_name=None, folder="cache", ext="csv"
+    def tickers_cache(
+        self, start, end, timeframe, api_name=None, folder="cache", ext="csv"
     ):
         if not os.path.exists(folder):
             print("Creating cache folder")
             os.mkdir(folder)
-        tickers = "_".join(sorted(self.format_tickers(tickers)))
         start, end = self.date_to_str(self.default_date_interval(start, end))
 
-        filename = f'{folder}/{tickers}_{start}_{end}_{timeframe}{"_" + api_name if api_name else ""}.cache.{ext}'
+        filename = f'{folder}/{start}_{end}_{timeframe}{"_" + api_name if api_name else ""}.cache.{ext}'
+
+        return filename
+
+    @classmethod
+    def symbols_cache(cls, api_name=None, n=10, filter_="volume", folder="cache", ext="csv"):
+        if not os.path.exists(folder):
+            print("Creating cache folder")
+            os.mkdir(folder)
+        filename = f'{folder}/symbols_{n}_{filter_}_{"_" + api_name if api_name else ""}.cache.{ext}'
 
         return filename
 
