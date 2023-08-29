@@ -10,7 +10,7 @@ class GenericManager:
                  use_websocket: bool = False,
                  port: int = None,
                  logger: logging.Logger = None
-    ):
+                 ):
         self.logger = logger if logger else no_logger(__name__)
         self.server = HttpServer(self, port, logger=self.logger) if use_server else None
         self.websocket = WebSocketServer(self, port, logger=self.logger) if use_websocket else None

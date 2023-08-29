@@ -34,7 +34,7 @@ class PairTradingStrategy(Strategy):
         """
         pass
 
-    def execute(self, idx: pd.Index, row: pd.Series, history: History) -> pd.Series:
+    def execute(self, idx: pd.Index, position: pd.Series, history: History) -> pd.Series:
         """
         Generate trading signals based on the Z-score of the selected equity pair.
 
@@ -46,9 +46,9 @@ class PairTradingStrategy(Strategy):
         Returns:
         dict: Trading signals for each equity.
         """
-        signals = pd.Series(Signal(TradeType.WAIT), index=row.index)
+        signals = pd.Series(Signal(TradeType.WAIT), index=position.index)
         if self.pair is not None:
-            z_scores = (row[self.pair[0]] - row[self.pair[1]]) / np.std(
+            z_scores = (position[self.pair[0]] - position[self.pair[1]]) / np.std(
                 history[self.pair[0]] - history[self.pair[1]]
             )
             if z_scores > self.threshold:

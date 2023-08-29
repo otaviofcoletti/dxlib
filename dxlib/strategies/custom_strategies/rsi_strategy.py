@@ -36,7 +36,7 @@ class RsiStrategy(Strategy):
         """
         pass
 
-    def execute(self, idx: pd.Index, row: pd.Series, history: History) -> pd.Series:
+    def execute(self, idx: pd.Index, position: pd.Series, history: History) -> pd.Series:
         """
         Generate trading signals based on Relative Strength Index(RSI).
 
@@ -48,10 +48,10 @@ class RsiStrategy(Strategy):
         Returns:
         dict: Trading signals for each equity.
         """
-        signals = pd.Series(Signal(TradeType.WAIT), index=row.index)
-        position = history.df.index.get_loc(idx)
+        signals = pd.Series(Signal(TradeType.WAIT), index=history.df.index)
+        loc = history.df.index.get_loc(idx)
 
-        if position > self.window:
+        if loc > self.window:
             rsi = history.indicators.technical.rsi(window=self.window).loc[idx]
 
             signals[rsi > self.upper_bound] = Signal(TradeType.SELL)

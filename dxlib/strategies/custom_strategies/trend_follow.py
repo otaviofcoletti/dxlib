@@ -34,7 +34,7 @@ class TrendFollowStrategy(Strategy):
         """
         pass
 
-    def execute(self, idx: pd.Index, row: pd.Series, history: History) -> pd.Series:
+    def execute(self, idx: pd.Index, position: pd.Series, history: History) -> pd.Series:
         """
         Generate trading signals based on moving average crossovers.
 
@@ -46,12 +46,12 @@ class TrendFollowStrategy(Strategy):
         Returns:
         dict: Trading signals for each equity.
         """
-        signals = [Signal(TradeType.WAIT) for _ in range(len(history.columns))]
+        signals = pd.Series(Signal(TradeType.WAIT), index=history.df.index)
         if idx >= self.long_window:
-            short_ma = history.iloc[idx - self.short_window : idx].mean()
-            long_ma = history.iloc[idx - self.long_window : idx].mean()
+            short_ma = history.indicators.sma(self.short_window).mean()
+            long_ma = history.indicators.sma(self.long_window).mean()
 
-            for idx, equity in enumerate(history.columns):
+            for idx, equity in enumerate(history.df.columns):
                 if short_ma[equity] > long_ma[equity]:
                     signals[idx] = Signal(TradeType.BUY, 1)
                 else:

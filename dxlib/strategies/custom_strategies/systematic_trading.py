@@ -1,9 +1,8 @@
 import pandas as pd
-
 from sklearn.ensemble import RandomForestClassifier
 
 from ..strategy import Strategy
-from ...core import History, Signal, TradeType
+from ...core import History
 
 
 class SystematicRandomForest(Strategy):
@@ -16,7 +15,7 @@ class SystematicRandomForest(Strategy):
 
         self.model = RandomForestClassifier()
 
-    def execute(self, idx: pd.Index, row: pd.Series, history: History) -> pd.Series:
+    def execute(self, idx: pd.Index, position: pd.Series, history: History) -> pd.Series:
         y_pred = self.model.predict()
         print(y_pred)
         return pd.Series()

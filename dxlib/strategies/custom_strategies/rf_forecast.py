@@ -12,6 +12,6 @@ class RandomForestStrategy(Strategy):
         pass
 
     def execute(
-        self, idx, row: pd.Series, history: History
+        self, idx, position: pd.Series, history: History
     ) -> pd.Series:  # expected element type: Signal
         pass

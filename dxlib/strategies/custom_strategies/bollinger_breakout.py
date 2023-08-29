@@ -1,5 +1,5 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from ..strategy import Strategy
 from ...core import Signal, History, TradeType
@@ -13,16 +13,15 @@ class BollingerBreakoutStrategy(Strategy):
         self.long_window = long_window
         self.window = window
 
-    def execute(self, idx: pd.Index, row: pd.Series, history: History) -> pd.Series:
+    def execute(self, idx: pd.Index, position: pd.Series, history: History) -> pd.Series:
         signals = pd.Series(Signal("wait"), index=history.df.columns)
-        volatility = history.volatility()
+        volatility = history.indicators.volatility()
 
-        upper, lower = history.bollinger_bands(self.window)
+        upper, lower = history.indicators.bollinger_bands(self.window)
         var_mean = np.mean(upper - lower)
         var_var = np.std(upper - lower)
 
         var_historical = ((upper - lower) - var_mean) / var_var
-        # returns = history.log_change()
 
         var_normalized = (volatility.loc[idx] - var_mean) / var_var
 
