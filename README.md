@@ -12,18 +12,41 @@ pip install dxlib
 
 ## Modules Overview
 
-### Research Module
+### API Modules
+Encapsulates a series of financial data api, allowing static data requests, data streaming and websocket creation.
+Currently available APIs endpoints are:
+* Alpaca Markets
+* Alpha Vantage
+* Yahoo! Finance
+
+Unified data-fetching methods, ensuring consistent data structures.
+To use the individual API endpoints, simply load the respective API module:
 
 ```python
-from dxlib import finite_differences
-import numpy as np
-import matplotlib.pyplot as plt
+from dxlib.api import AlpacaMarketsAPI
+api = AlpacaMarketsAPI("<api_key>", "<api_secret>")  # If a local cache/ directory is used, no API key is needed
 
-x = np.arange(-3, 3, 0.1)
-y = np.tanh(x)
-dy = finite_differences(x, y)
-plt.plot(x, dy)
-plt.show()
+top_symbols = api.get_symbols(n=100)
+historical_bars = api.get_historical_bars(top_symbols["symbol"].values)
+
+print(top_symbols)
+print(historical_bars)
+```
+```
+   symbol    trade_count        volume
+0    MCOM          86713     146651863
+1    EBET          33428      83560053
+...
+98   FNGD           9886       5580585
+99   OPEN          13278       5528415
+```
+```
+Fields                  Close                   ...       VWAP      Volume            
+Ticker                  AAL      AAPL   ABCM    ...       XPEV         XLF        XPEV
+Time                                            ...                                   
+2022-08-29 04:00:00     13.51  160.43  14.99    ... 
+...
+2023-08-25 04:00:00     NaN      NaN     NaN    ...  17.149326  37520857.0  19358445.0
 ```
 
 ### Simulation Module
@@ -32,12 +55,14 @@ Harness `dxlib` to simulate trading strategies:
 
 ```python
 import dxlib as dx
-from dxlib.simulation import SimulationManager
+from dxlib import StrategyManager, Portfolio
+from dxlib.api import YFinanceAPI
 
-data = dx.api.YFinanceAPI().get_historical_bars(["AAPL", "MSFT", "GOOGL", "AMZN"], start="2022-01-01", end="2022-12-31")
-portfolio = dx.Portfolio().add_cash(1e4)
-strategy = dx.strategies.RsiStrategy()
-simulation_manager = SimulationManager(portfolio, strategy, data["Close"])
+data = YFinanceAPI().get_historical_bars(["AAPL", "MSFT", "GOOGL", "AMZN"], start="2022-01-01", end="2022-12-31")
+portfolio = Portfolio().add_cash(1e4)
+my_strategy = StrategyManager(dx.strategies.RsiStrategy())
+my_strategy.register(portfolio)
+historical_signals = my_strategy.run(data["Close"])
 ```
 
 **Highlight: Built-in Server**
@@ -49,29 +74,29 @@ Start the server with `simulation_manager.start_server()`. Check the logs for se
 ```python
 
 import dxlib as dx
-from dxlib.simulation import SimulationManager
+from dxlib.managers import SimulationManager
 
 data = dx.api.YFinanceAPI().get_historical_bars(["AAPL", "MSFT", "GOOGL", "AMZN"], start="2022-01-01", end="2022-12-31")
-portfolio = dx.Portfolio().add_cash(1e4)
-strategy = dx.strategies.RsiStrategy()
+my_strategy = dx.strategies.RsiStrategy()
 
 logger = dx.info_logger("simulation_manager")
-simulation_manager = SimulationManager(portfolio, strategy, data["Close"], use_server=True, port=5000, logger=logger)
+my_manager = SimulationManager(my_strategy, use_server=True, port=5000, logger=logger)
 
-simulation_manager.start_server()
+my_manager.start()
 
 try:
-    while simulation_manager.server.is_alive():
-        with simulation_manager.server.exceptions as exceptions:
+    while my_manager.server.is_alive():
+        with my_manager.server.exceptions as exceptions:
             if exceptions:
                 logger.exception(exceptions)
 except KeyboardInterrupt:
     pass
 finally:
-    simulation_manager.stop_server()
+    my_manager.stop_server()
 ```
 
 ```bash
+$ python server.py
 2023-08-15 04:11:37,417 - INFO - Server starting on port 5000 (http_server.py:308)
 2023-08-15 04:11:37,422 - INFO - Server started on port 5000. Press Ctrl+C to stop (http_server.py:292)
 127.0.0.1 - - [15/Aug/2023 04:12:01] "GET / HTTP/1.1" 200 -
@@ -84,27 +109,15 @@ finally:
 ### Trading Module
 
 ```python
-from dxlib.models import trading
+from dxlib.strategies import RandomForestStrategy as rfs
+from dxlib.data import DataLoader
 
-features, labels = trading.prepare_data(data)
-clf = trading.train_model(*trading.train_test_split(features, labels, 0.5))
-y_pred = trading.predict_model(clf, features)
-print(f"Returns: {trading.simulate_trade_allocation(y_pred, basis)[1]}")
+features, labels = DataLoader(data["Close"])
+x_train, y_train, x_test, y_test = train_test_split(features, labels, 0.5)
+clf = rfs().fit(x_train, y_train)
+y_pred = rfs.predict(x_test)
+print(f"Returns: {sum(y_pred - y_test}")
 ```
-
-### API Module
-
-Unified data-fetching methods, ensuring consistent data structures:
-
-```python
-from dxlib.api import AlphaVantageAPI, YFinanceAPI, AlpacaMarketsAPI
-
-# All the below calls return data in the same format
-data_yfinance = YFinanceAPI().get_historical_bars(["AAPL", "MSFT"])
-data_alpaca = AlpacaMarketsAPI("<api_key>", "<api_secret>").get_historical_bars(["AAPL", "MSFT"])
-```
-
-### Data Module
 
 ### `History` Class
 
@@ -112,25 +125,26 @@ data_alpaca = AlpacaMarketsAPI("<api_key>", "<api_secret>").get_historical_bars(
 The `History` class is a robust stock market data handler, offering a suite of utilities and technical indicators for market analysis.
 
 - **Data Management**: Seamlessly manage your stock price data. Easily add new symbols or rows of data.
-   
-- **Technical Indicators**: Enjoy a rich suite of built-in technical indicators, such as:
+
+- **Timeseries Indicators**: Common indicators and timeseries methods:
     - Moving Averages
     - Exponential Moving Averages
-    - Bollinger Bands
     - Logarithmic Changes
     - Volatility Measurements
+   
+- **Technical Indicators**: Enjoy a rich suite of built-in technical indicators, such as (Convert your History to JSON format with a single call to the `to_json` method):
+    - RSI
+    - Sharpe Ratio
+    - Bollinger Bands
+    - Beta
     - Drawdown Computations
-
-- **Data Description**: Quickly obtain a summarized description of your data with the `describe` method.
-
-- **JSON Compatibility**: Convert your data to JSON format with a single call to the `to_json` method.
 
 - **Extendability**: Extend the `History` class with more technical indicators or data analysis tools as per your requirements.
 
 Here's a quick start guide to using the `History` class:
 
 ```python
-from stock_market_analysis_toolkit import History
+from dxlib import History
 import pandas as pd
 
 # Sample data
@@ -142,11 +156,11 @@ data = pd.DataFrame({
 history = History(data)
 
 # Adding a new stock ticker
-history.add_symbol('TSLA', [650, 651, 652])
+history.add_security('TSLA', [650, 651, 652])
 
 # Calculating moving averages
-ma = history.moving_average(window=2)
-print(ma)
+moving_average = history.indicators.sma(window=2)
+print(moving_average)
 ```
 
 ## Contributions
