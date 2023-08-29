@@ -1,7 +1,7 @@
 import logging
 
-from dxlib.core.logger import no_logger
 from dxlib.api import HttpServer, WebSocketServer
+from dxlib.core.logger import no_logger
 
 
 class GenericManager:
@@ -12,25 +12,31 @@ class GenericManager:
                  logger: logging.Logger = None
     ):
         self.logger = logger if logger else no_logger(__name__)
-        self.http = HttpServer(self, port, logger=self.logger) if use_server else None
+        self.server = HttpServer(self, port, logger=self.logger) if use_server else None
         self.websocket = WebSocketServer(self, port, logger=self.logger) if use_websocket else None
 
-    def start_http(self):
-        if self.http is not None:
-            self.http.start()
+    def start_server(self):
+        if self.server is not None:
+            self.server.start()
 
     def stop_server(self):
-        if self.http is not None:
-            self.http.stop()
+        if self.server is not None:
+            self.server.stop()
 
-    def start_socket(self):
+    def start_websocket(self):
         if self.websocket is not None:
             self.websocket.start()
 
-    def stop_socket(self):
+    def stop_websocket(self):
         if self.websocket is not None:
             self.websocket.stop()
 
-    def stop_servers(self):
+    def start(self):
+        if self.server is not None:
+            self.start_server()
+        if self.websocket is not None:
+            self.start_websocket()
+
+    def stop(self):
         self.stop_server()
-        self.stop_socket()
+        self.stop_websocket()

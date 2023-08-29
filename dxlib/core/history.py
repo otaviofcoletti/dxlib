@@ -1,16 +1,20 @@
+from __future__ import annotations
+
 from json import loads
+from typing import Generator
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
-from .security import Security, SecurityManager
 from .indicators import TechnicalIndicators, SeriesIndicators
+from .security import Security, SecurityManager
 
 
 class Bar(pd.Series):
     def __init__(self, symbol, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.symbol = symbol
+        self.index = pd.to_datetime(self.index)
 
     def __getattr__(self, attr):
         if hasattr(self, attr):
@@ -38,12 +42,16 @@ class History:
             else:
                 raise AttributeError(f"'IndicatorsProxy' object has no attribute '{attr}'")
 
-    def __init__(self, df: pd.DataFrame, securities_level=None):
+    def __init__(self, df: pd.DataFrame | tuple, securities_level=None):
         if securities_level is None:
             securities_level = -1
 
         self._indicators = self.HistoryIndicators(self)
         self._securities_level = securities_level
+
+        if isinstance(df, tuple):
+            idx, row = df
+            df = pd.DataFrame(row).transpose()
 
         symbols = list(df.columns.get_level_values(securities_level).unique())
         self.security_manager.add_securities(symbols)
@@ -68,6 +76,23 @@ class History:
 
     def __getitem__(self, item):
         return self.df[item]
+
+    def __add__(self, other: Bar | tuple | Generator | pd.DataFrame | History):
+        if self.df.empty:
+            return History(other)
+        if isinstance(other, tuple):
+            idx, row = other
+            self.df.loc[idx] = row.values
+        elif isinstance(other, Generator):
+            for idx, row in other:
+                # noinspection PyMethodFirstArgAssignment
+                self += (idx, row)
+        elif isinstance(other, pd.DataFrame):
+            # noinspection PyMethodFirstArgAssignment
+            self += History(other)
+        elif isinstance(other, History):
+            self.df = pd.concat([self.df, other.df])
+        return self
 
     def to_json(self):
         return loads(self.df.to_json())
@@ -152,5 +177,7 @@ if __name__ == "__main__":
 
     from dxlib.api import YFinanceAPI
     historical_bars = YFinanceAPI().get_historical_bars(["TSLA", "AAPL"], cache=False)
-    hist = History(historical_bars)
+    hist = History(historical_bars.iloc[:10])
+
+    hist += historical_bars.iloc[10:20]
     print(hist.get_by_symbols("TSLA"))

@@ -1,16 +1,19 @@
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
 import threading
-
-from typing import AsyncGenerator, Generator
 from collections import Counter
+from typing import AsyncGenerator, Generator
+
+import numpy as np
 import pandas as pd
 
+from .generic_manager import GenericManager
 from ..api import Endpoint
 from ..core import Portfolio, History
 from ..strategies import Strategy
-from .generic_manager import GenericManager
 
 
 class StrategyManager(GenericManager):
@@ -43,7 +46,7 @@ class StrategyManager(GenericManager):
         return self._history
 
     def execute(self):
-        position = dict(sum(*[Counter(portfolio.position) for portfolio in self.portfolios]))
+        position = dict(sum(*[Counter(portfolio.position) for portfolio in self.portfolios])) if self.portfolios else {}
         signals = self.strategy.execute(self.history.df.index[-1], pd.Series(position), self.history)
 
         for security in signals:
@@ -54,7 +57,7 @@ class StrategyManager(GenericManager):
 
         return signals
 
-    async def _async_consume(self, subscription: AsyncGenerator | Generator):
+    async def _async_consume(self, subscription: AsyncGenerator):
         async for bars in subscription:
             if not self.running:
                 break
@@ -77,27 +80,28 @@ class StrategyManager(GenericManager):
             self.running = False
         if self.thread:
             self.thread.join()
-        self.stop_servers()
+        super().stop()
 
-    def run(self, subscription: AsyncGenerator | Generator, threaded=False):
+    def run(self, subscription: AsyncGenerator | Generator | pd.DataFrame | np.ndarray, threaded=False):
+        if isinstance(subscription, pd.DataFrame):
+            subscription = subscription.iterrows()
         if threaded:
-            if isinstance(subscription, Generator):
-                self.thread = threading.Thread(target=self._consume, args=(subscription,))
-            else:
+            if isinstance(subscription, AsyncGenerator):
                 self.thread = threading.Thread(target=asyncio.run, args=(self._async_consume(subscription),))
+            else:
+                self.thread = threading.Thread(target=self._consume, args=(subscription,))
             self.thread.start()
             self.running = True
         else:
-            if isinstance(subscription, Generator):
-                self._consume(subscription)
-            else:
+            if isinstance(subscription, AsyncGenerator):
                 asyncio.run(self._async_consume(subscription))
+            else:
+                self._consume(subscription)
         return self.signals
 
     def start_socket(self):
         self.websocket.on_message = self.message_handler.handle
-        if self.websocket is not None:
-            self.websocket.start()
+        super().start_websocket()
 
 
 class MessageHandler:

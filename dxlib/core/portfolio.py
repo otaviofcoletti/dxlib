@@ -1,9 +1,12 @@
-import numpy as np
-import pandas as pd
+from __future__ import annotations
+
 from enum import Enum
 
-from .logger import no_logger
+import numpy as np
+import pandas as pd
+
 from .history import History
+from .logger import no_logger
 from .security import Security, SecurityManager
 
 
@@ -205,6 +208,7 @@ class Portfolio:
         self.current_cash += amount
         cash = self.security_manager.cash
         self.record_transaction(Transaction(cash, amount, 1), is_asset=False, idx=idx)
+        return self
 
     def _use_cash(self, amount: float, idx=-1):
         self.current_cash -= amount
@@ -212,6 +216,7 @@ class Portfolio:
         self.record_transaction(
             Transaction(cash, amount, 1, TradeType.SELL), is_asset=False, idx=idx
         )
+        return self
 
     @history.setter
     def history(self, history: History | pd.DataFrame | np.ndarray | list):
