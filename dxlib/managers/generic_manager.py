@@ -8,12 +8,13 @@ class GenericManager:
     def __init__(self,
                  use_server: bool = False,
                  use_websocket: bool = False,
-                 port: int = None,
+                 server_port: int = None,
+                 websocket_port: int = None,
                  logger: logging.Logger = None
                  ):
         self.logger = logger if logger else no_logger(__name__)
-        self.server = HttpServer(self, port, logger=self.logger) if use_server else None
-        self.websocket = WebSocketServer(self, port, logger=self.logger) if use_websocket else None
+        self.server = HttpServer(self, server_port, logger=self.logger) if use_server else None
+        self.websocket = WebSocketServer(self, websocket_port, logger=self.logger) if use_websocket else None
 
     def start_server(self):
         if self.server is not None:

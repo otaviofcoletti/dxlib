@@ -48,7 +48,7 @@ class RsiStrategy(Strategy):
         Returns:
         dict: Trading signals for each equity.
         """
-        signals = pd.Series(Signal(TradeType.WAIT), index=history.df.index)
+        signals = pd.Series(Signal(TradeType.WAIT), index=history.df.columns)
         loc = history.df.index.get_loc(idx)
 
         if loc > self.window:

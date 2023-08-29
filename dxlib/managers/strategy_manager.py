@@ -21,10 +21,11 @@ class StrategyManager(GenericManager):
                  strategy,
                  use_server=False,
                  use_websocket=False,
-                 port=None,
+                 server_port=None,
+                 websocket_port=None,
                  logger: logging.Logger = None,
                  ):
-        super().__init__(use_server, use_websocket, port, logger)
+        super().__init__(use_server, use_websocket, server_port, websocket_port, logger)
         self.strategy: Strategy = strategy
 
         self.portfolios: list[Portfolio] = []
@@ -50,7 +51,8 @@ class StrategyManager(GenericManager):
         signals = self.strategy.execute(self.history.df.index[-1], pd.Series(position), self.history)
 
         for security in signals:
-            self.websocket.send_messages(f"Trade {security} {signals[security]}")
+            if self.websocket:
+                self.websocket.send_messages(f"Trade {security} {signals[security]}")
 
             for portfolio in self.portfolios:
                 portfolio.trade(security, signals[security])
