@@ -115,7 +115,7 @@ class Signal:
 
 
 class Portfolio:
-    def __init__(self, history=None, name: str = None, logger=None):
+    def __init__(self, history=None, name: str = None, position=None, logger=None):
         self._name: str = name
         self._transaction_history: list[Transaction] = []
         self._history: History | None = None
@@ -133,6 +133,8 @@ class Portfolio:
 
         if history is not None:
             self.history = history
+        if position is not None:
+            self.position = position
 
     def to_json(self):
         return {
@@ -170,6 +172,12 @@ class Portfolio:
     @property
     def position(self):
         return self._current_assets
+
+    @position.setter
+    def position(self, position: dict[Security, float]):
+        for security, quantity in position.items():
+            security = self.security_manager.add_security(security)
+            self._current_assets[security] = quantity
 
     @property
     def transaction_history(self) -> list[Transaction]:
@@ -272,7 +280,7 @@ class Portfolio:
             if transaction.value + transaction.cost > self.current_cash:
                 raise ValueError(
                     "Not enough cash to execute the order. "
-                    "Trying to buy {} but only have {}.".format(
+                    "Trying to use {} but only have {}.".format(
                         transaction.value, self.current_cash
                     )
                 )

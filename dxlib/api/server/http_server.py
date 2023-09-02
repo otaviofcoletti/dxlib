@@ -31,14 +31,6 @@ class HttpServer(Server):
         self._httpd_server = None
         self._httpd_thread = None
 
-    # def load_config(self, config_file):
-    #     with open(config_file, 'r') as file:
-    #         config = yaml.safe_load(file)
-    #
-    #     for method_name, endpoint in config.items():
-    #         if hasattr(self.managers, method_name):
-    #             self.endpoints[method_name] = endpoint
-
     def add_endpoint(self, endpoint, callable_func):
         route_name = endpoint["route_name"]
         method = endpoint["method"]
@@ -115,6 +107,7 @@ class HttpServer(Server):
             manager = self.manager
 
             exception_queue = self.exception_queue
+            running = self._running
 
             def handle_exception(self, e):
                 self.exception_queue.put(e)
@@ -281,8 +274,9 @@ class HttpServer(Server):
                 ("", self.port), SimulationManagerHTTPRequestHandler
             ) as self._httpd_server:
                 self.logger.info(
-                    f"Server started on port {self.port}. Press Ctrl+C to stop"
+                    f"Server started. Press Ctrl+C to stop..."
                 )
+                self._running.set()
                 self._httpd_server.serve_forever()
         except Exception as e:
             self.logger.error(f"Server error: {e}")
@@ -295,7 +289,6 @@ class HttpServer(Server):
         self.logger.info(f"Server starting on port {self.port}")
         self._httpd_thread = threading.Thread(target=self._serve)
         self._httpd_thread.start()
-        self._started.set()
         return ServerStatus.STARTED
 
     def stop(self) -> ServerStatus:
@@ -305,17 +298,18 @@ class HttpServer(Server):
             )
             return ServerStatus.ERROR
 
-        self._started.wait()
-        self._started.clear()
+        if self._httpd_server is None and self._httpd_thread is None:
+            return ServerStatus.STOPPED
+
+        self._running.wait()
+        self._running.clear()
 
         self.logger.info("Stopping server")
-
-        if self._httpd_thread is not None:
-            self._httpd_thread.join()
-        if self._httpd_server is not None:
-            self._httpd_server.shutdown()
-            self._httpd_server.server_close()
-            self._httpd_server = None
+        self._httpd_server.shutdown()
+        self._httpd_server = None
+        self._httpd_thread.join()
+        self._httpd_thread = None
+        self.logger.info("Server stopped")
 
         return ServerStatus.STOPPED
 

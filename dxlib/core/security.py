@@ -27,11 +27,10 @@ class Security:
         return f"{self.symbol}"
 
     def to_json(self):
-        return {
-            "symbol": self.symbol,
-            "security_type": self.security_type.value,
-            "source": self.source if self.source else None,
-        }
+        serialized = { "symbol": self.symbol, "security_type": self.security_type.value }
+        if self.source is not None:
+            serialized["source"] = self.source
+        return serialized
 
 
 class SingletonMeta(type):
@@ -72,12 +71,16 @@ class SecurityManager(metaclass=SingletonMeta):
     def add_securities(self, securities: list[Security | str] | Security):
         if isinstance(securities, Security):
             securities = [securities]
-
         for security in securities:
-            if isinstance(security, str):
-                security = Security(security)
-            if security.symbol not in self.securities:
-                self.securities[security.symbol] = security
+            self.add_security(security)
+
+
+    def add_security(self, security: Security | str):
+        if isinstance(security, str):
+            security = Security(security)
+        if security.symbol not in self.securities:
+            self.securities[security.symbol] = security
+        return security
 
     def get_securities(self, securities: list[str, Security] = None) -> dict[str, Security]:
         if securities:

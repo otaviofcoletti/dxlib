@@ -37,13 +37,13 @@ class Server:
         self.logger = logger if logger else no_logger(__name__)
 
         self.manager = manager
-        self._started = threading.Event()
+        self._running = threading.Event()
 
         self.exception_queue = queue.Queue()
         self.exceptions = ExceptionContext(self)
 
     def is_alive(self):
-        return self._started.is_set()
+        return self._running.is_set()
 
     def get_exceptions(self):
         try:

@@ -16,28 +16,20 @@ class GenericManager:
         self.server = HttpServer(self, server_port, logger=self.logger) if use_server else None
         self.websocket = WebSocketServer(self, websocket_port, logger=self.logger) if use_websocket else None
 
-    def start_server(self):
-        if self.server is not None:
-            self.server.start()
-
-    def stop_server(self):
-        if self.server is not None:
-            self.server.stop()
-
-    def start_websocket(self):
-        if self.websocket is not None:
-            self.websocket.start()
-
-    def stop_websocket(self):
-        if self.websocket is not None:
-            self.websocket.stop()
+        self.message_handler = None
+        self.connection_handler = None
 
     def start(self):
         if self.server is not None:
-            self.start_server()
+            self.server.start()
         if self.websocket is not None:
-            self.start_websocket()
+            self.websocket.start()
 
     def stop(self):
-        self.stop_server()
-        self.stop_websocket()
+        if self.server is not None:
+            self.server.stop()
+        if self.websocket is not None:
+            self.websocket.stop()
+
+    def is_alive(self):
+        return (self.server.is_alive() or not self.server) and (self.websocket.is_alive() or not self.websocket)

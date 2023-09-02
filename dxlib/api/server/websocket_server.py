@@ -4,17 +4,16 @@ import threading
 import websockets
 from websockets.exceptions import ConnectionClosedError
 
-from .server import Server
-from ... import no_logger
+from .server import Server, ServerStatus
+from ...core import no_logger
 
 
 class WebSocketServer(Server):
     def __init__(self, manager, port=None, logger=None):
         super().__init__(manager, logger)
-        self.message_subjects = {}
         self._websocket_thread = None
         self._websocket_server = None
-        self._started = threading.Event()
+        self._running = threading.Event()
         self._stop_event = asyncio.Event()
 
         self.port = port if port else 8765
@@ -22,54 +21,57 @@ class WebSocketServer(Server):
 
         self.logger = logger if logger else no_logger(__name__)
 
-        self.on_message = None
-
-    async def websocket_handler(self, websocket, _):
-        message_subject = []
-        self.message_subjects[websocket] = message_subject
+    async def websocket_handler(self, websocket, endpoint):
         self.logger.info("New websocket connection")
+        self.manager.message_handler.connect(websocket, endpoint)
+
         try:
             async for message in websocket:
-                if self.on_message:
-                    self.on_message(message)
+                if self.manager.message_handler:
+                    self.manager.message_handler.handle(websocket, message)
         except ConnectionClosedError:
             self.logger.warning("Websocket connection closed")
 
-        del self.message_subjects[websocket]
+        self.manager.message_handler.disconnect(websocket, endpoint)
 
-    async def _send_message(self, websocket, message):
+    @classmethod
+    async def _send_message(cls, websocket, message):
         await websocket.send(message)
 
-    def send_messages(self, message):
-        loop = asyncio.get_event_loop()
-        tasks = [self.send_message(websocket, message) for websocket in self.message_subjects.keys()]
-        loop.run_until_complete(asyncio.gather(*tasks))
-
     def send_message(self, websocket, message):
-        asyncio.run_coroutine_threadsafe(self._send_message(websocket, message), loop=asyncio.get_event_loop()).result()
+        asyncio.create_task(self._send_message(websocket, message))
 
     async def _serve(self):
         self._websocket_server = await websockets.serve(self.websocket_handler, "localhost", self.port)
+        self._running.set()
 
         try:
-            while self._started.is_set():
+            while self._running.is_set():
                 await asyncio.sleep(0.1)
         except (asyncio.CancelledError, KeyboardInterrupt) as e:
             self.exception_queue.put(e)
 
     def start(self):
-        self.logger.info(f"Starting websocket server on port {self.port}")
+        self.logger.info(f"Starting websocket on port {self.port}")
         self._websocket_thread = threading.Thread(target=asyncio.run, args=(self._serve(),))
         self._websocket_thread.start()
-        self._started.set()
+        self.logger.info("Websocket started. Press Ctrl+C to stop...")
+        return ServerStatus.STARTED
 
     def stop(self):
-        if self._websocket_server:
-            self._started.clear()
-            self._websocket_thread.join()
+        self.logger.info("Stopping websocket")
+        if self._websocket_server is None:
+            return ServerStatus.STOPPED
+
+        self._running.clear()
+        self._websocket_thread.join()
+        self._websocket_server = None
+        self.logger.info("Websocket stopped")
+
+        return ServerStatus.STOPPED
 
     def is_alive(self):
-        return self._started.is_set()
+        return self._running.is_set()
 
 
 if __name__ == "__main__":

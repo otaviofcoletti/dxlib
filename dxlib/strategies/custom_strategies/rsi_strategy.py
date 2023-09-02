@@ -48,13 +48,18 @@ class RsiStrategy(Strategy):
         Returns:
         dict: Trading signals for each equity.
         """
-        signals = pd.Series(Signal(TradeType.WAIT), index=history.df.columns)
+        signals = pd.Series(Signal(TradeType.WAIT), index=history.securities.values())
         loc = history.df.index.get_loc(idx)
 
         if loc > self.window:
-            rsi = history.indicators.technical.rsi(window=self.window).loc[idx]
+            rsi = history.indicators.technical.rsi(window=self.window).loc[idx]["Close"]
 
-            signals[rsi > self.upper_bound] = Signal(TradeType.SELL)
-            signals[rsi < self.lower_bound] = Signal(TradeType.BUY)
+            price = history.df.iloc[loc]["Close"]
+
+            # TODO: Add a "allocation" parameter to the strategy to determine how much to buy/sell
+            signals[rsi > self.upper_bound] = [Signal(TradeType.BUY, 1, price[security])
+                                               for security in (rsi > self.upper_bound).keys()]
+            signals[rsi < self.lower_bound] = [Signal(TradeType.SELL, 1, price[security])
+                                               for security in (rsi < self.lower_bound).keys()]
 
         return signals

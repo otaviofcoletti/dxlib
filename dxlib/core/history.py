@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from json import loads
+from json import dumps
 from typing import Generator
 
 import numpy as np
@@ -11,10 +11,15 @@ from .security import Security, SecurityManager
 
 
 class Bar(pd.Series):
-    def __init__(self, symbol, *args, **kwargs):
+    def __init__(self, bar: str | tuple, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        symbol = None
+        if isinstance(bar, str):
+            symbol = bar
+        elif isinstance(bar, tuple):
+            symbol, data = bar
         self.symbol = symbol
-        self.index = pd.to_datetime(self.index)
+        self.index = pd.to_datetime(kwargs["index"]) if kwargs.get("index", None) else None
 
     def __getattr__(self, attr):
         if hasattr(self, attr):
@@ -42,16 +47,19 @@ class History:
             else:
                 raise AttributeError(f"'IndicatorsProxy' object has no attribute '{attr}'")
 
-    def __init__(self, df: pd.DataFrame | tuple, securities_level=None):
+    def __init__(self, df: pd.DataFrame | tuple | list[dict], securities_level=None, identifier=None):
         if securities_level is None:
             securities_level = -1
 
         self._indicators = self.HistoryIndicators(self)
         self._securities_level = securities_level
+        self._identifier = identifier
 
         if isinstance(df, tuple):
             idx, row = df
             df = pd.DataFrame(row).transpose()
+        elif isinstance(df, list):
+            df = pd.DataFrame(df)
 
         symbols = list(df.columns.get_level_values(securities_level).unique())
         self.security_manager.add_securities(symbols)
@@ -85,17 +93,30 @@ class History:
             self.df.loc[idx] = row.values
         elif isinstance(other, Generator):
             for idx, row in other:
-                # noinspection PyMethodFirstArgAssignment
-                self += (idx, row)
+                return self + (idx, row)
         elif isinstance(other, pd.DataFrame):
-            # noinspection PyMethodFirstArgAssignment
-            self += History(other)
+            return self + History(other)
         elif isinstance(other, History):
-            self.df = pd.concat([self.df, other.df])
+            return History(pd.concat([self.df, other.df]))
         return self
 
+    def _serialize(self, obj):
+        if isinstance(obj, str):
+            return obj
+        elif isinstance(obj, Security):
+            return obj.to_json()
+        elif isinstance(obj, tuple):
+            return tuple(self._serialize(o) for o in obj)
+        elif isinstance(obj, pd.Timestamp):
+            return obj.isoformat()
+        else:
+            return obj
+
     def to_json(self):
-        return loads(self.df.to_json())
+        columns = [self._serialize(c) for c in self.df.columns.to_list()]
+        index = [self._serialize(i) for i in self.df.index.to_list()]
+        data = self.df.to_numpy().tolist()
+        return dumps({"columns": columns, "index": index, "data": data})
 
     @property
     def shape(self):

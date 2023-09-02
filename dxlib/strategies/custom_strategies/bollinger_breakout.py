@@ -14,7 +14,7 @@ class BollingerBreakoutStrategy(Strategy):
         self.window = window
 
     def execute(self, idx: pd.Index, position: pd.Series, history: History) -> pd.Series:
-        signals = pd.Series(Signal("wait"), index=history.df.columns)
+        signals = pd.Series(Signal("wait"), index=history.securities)
         volatility = history.indicators.volatility()
 
         upper, lower = history.indicators.bollinger_bands(self.window)
