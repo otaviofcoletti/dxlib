@@ -19,13 +19,11 @@ from ..strategies import Strategy
 class StrategyManager(GenericManager):
     def __init__(self,
                  strategy,
-                 use_server=False,
-                 use_websocket=False,
                  server_port=None,
                  websocket_port=None,
                  logger: logging.Logger = None,
                  ):
-        super().__init__(use_server, use_websocket, server_port, websocket_port, logger)
+        super().__init__(server_port, websocket_port, logger)
         self.strategy: Strategy = strategy
 
         self.portfolios: list[Portfolio] = []

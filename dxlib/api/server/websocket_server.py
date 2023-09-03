@@ -16,7 +16,6 @@ class WebSocketServer(Server):
         self._running = threading.Event()
         self._stop_event = asyncio.Event()
 
-        self.ip = "127.0.0.1"
         self.port = port if port else 8765
         self.manager = manager
 
@@ -43,7 +42,7 @@ class WebSocketServer(Server):
         asyncio.create_task(self._send_message(websocket, message))
 
     async def _serve(self):
-        self._websocket_server = await websockets.serve(self.websocket_handler, "127.0.0.1", self.port)
+        self._websocket_server = await websockets.serve(self.websocket_handler, "", self.port)
         try:
             while self._running.is_set():
                 await asyncio.sleep(0.1)
