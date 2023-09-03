@@ -3,7 +3,7 @@ import logging
 import numpy as np
 import pandas as pd
 
-from . import StrategyManager
+from .strategy_manager import StrategyManager
 from ..api import Endpoint
 from ..core import Portfolio, TradeType, Signal, History
 from ..strategies import Strategy
