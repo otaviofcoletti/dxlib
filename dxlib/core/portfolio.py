@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from enum import Enum
 
 import numpy as np
@@ -136,7 +137,7 @@ class Portfolio:
         if position is not None:
             self.position = position
 
-    def to_json(self):
+    def to_dict(self):
         return {
             "name": self.name,
             "current_cash": self.current_cash,
@@ -152,6 +153,9 @@ class Portfolio:
                 transaction.to_json() for transaction in self.transaction_history
             ],
         }
+
+    def to_json(self):
+        return json.dumps(self.to_dict())
 
     @property
     def current_value(self):

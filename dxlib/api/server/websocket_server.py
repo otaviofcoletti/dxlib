@@ -16,6 +16,7 @@ class WebSocketServer(Server):
         self._running = threading.Event()
         self._stop_event = asyncio.Event()
 
+        self.ip = "127.0.0.1"
         self.port = port if port else 8765
         self.manager = manager
 
@@ -42,9 +43,7 @@ class WebSocketServer(Server):
         asyncio.create_task(self._send_message(websocket, message))
 
     async def _serve(self):
-        self._websocket_server = await websockets.serve(self.websocket_handler, "localhost", self.port)
-        self._running.set()
-
+        self._websocket_server = await websockets.serve(self.websocket_handler, "127.0.0.1", self.port)
         try:
             while self._running.is_set():
                 await asyncio.sleep(0.1)
@@ -53,6 +52,7 @@ class WebSocketServer(Server):
 
     def start(self):
         self.logger.info(f"Starting websocket on port {self.port}")
+        self._running.set()
         self._websocket_thread = threading.Thread(target=asyncio.run, args=(self._serve(),))
         self._websocket_thread.start()
         self.logger.info("Websocket started. Press Ctrl+C to stop...")
@@ -64,6 +64,10 @@ class WebSocketServer(Server):
             return ServerStatus.STOPPED
 
         self._running.clear()
+
+        for websocket in self._websocket_server.websockets:
+            websocket.close()
+
         self._websocket_thread.join()
         self._websocket_server = None
         self.logger.info("Websocket stopped")

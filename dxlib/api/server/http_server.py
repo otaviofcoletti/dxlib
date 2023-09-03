@@ -1,7 +1,6 @@
 import http.server
 import inspect
 import json
-import queue
 import socket
 import socketserver
 import threading
@@ -186,9 +185,12 @@ class HttpServer(Server):
 
                     class MethodEncoder(json.JSONEncoder):
                         def default(self, obj):
-                            if hasattr(obj, "to_json") and callable(obj.to_json):
+                            if hasattr(obj, "__dict__") and callable(obj.__dict__):
+                                return obj.__dict__()
+                            elif hasattr(obj, "to_json") and callable(obj.to_json):
                                 return obj.to_json()
-                            return super().default(obj)
+                            else:
+                                return super().default(obj)
 
                     response = func_callable(**data) if data else func_callable()
 
@@ -276,7 +278,6 @@ class HttpServer(Server):
                 self.logger.info(
                     f"Server started. Press Ctrl+C to stop..."
                 )
-                self._running.set()
                 self._httpd_server.serve_forever()
         except Exception as e:
             self.logger.error(f"Server error: {e}")
@@ -287,6 +288,7 @@ class HttpServer(Server):
 
     def start(self) -> ServerStatus:
         self.logger.info(f"Server starting on port {self.port}")
+        self._running.set()
         self._httpd_thread = threading.Thread(target=self._serve)
         self._httpd_thread.start()
         return ServerStatus.STARTED

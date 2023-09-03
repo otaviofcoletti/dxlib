@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from json import dumps
+import json
 from typing import Generator
 
 import numpy as np
@@ -47,7 +47,7 @@ class History:
             else:
                 raise AttributeError(f"'IndicatorsProxy' object has no attribute '{attr}'")
 
-    def __init__(self, df: pd.DataFrame | tuple | list[dict], securities_level=None, identifier=None):
+    def __init__(self, df: pd.DataFrame | tuple | list[dict] | dict, securities_level=None, identifier=None):
         if securities_level is None:
             securities_level = -1
 
@@ -112,11 +112,26 @@ class History:
         else:
             return obj
 
-    def to_json(self):
+    def __dict__(self):
+        return self.to_dict()
+
+    def to_dict(self):
         columns = [self._serialize(c) for c in self.df.columns.to_list()]
         index = [self._serialize(i) for i in self.df.index.to_list()]
         data = self.df.to_numpy().tolist()
-        return dumps({"columns": columns, "index": index, "data": data})
+        return {"df": {"columns": columns, "index": index, "data": data}}
+
+    @classmethod
+    def from_dict(cls, attributes):
+        df = attributes["df"]
+        columns = [(field, cls.security_manager.add_security(Security(**security))) for field, security in df["columns"]]
+        index = df["index"]
+        data = df["data"]
+        df = pd.DataFrame(data, columns=pd.MultiIndex.from_tuples(columns), index=index)
+        return cls(df)
+
+    def to_json(self):
+        return json.dumps(self.to_dict())
 
     @property
     def shape(self):

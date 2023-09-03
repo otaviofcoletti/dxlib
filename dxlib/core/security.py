@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from enum import Enum
 
 
@@ -18,7 +20,7 @@ class Security:
                  ):
         self.symbol = symbol
         self.source = source
-        self.security_type = security_type
+        self.security_type = security_type if isinstance(security_type, SecurityType) else SecurityType(security_type)
 
     def __repr__(self):
         return f"{self.__class__.__name__}({self.symbol}, {self.security_type})"
@@ -74,13 +76,14 @@ class SecurityManager(metaclass=SingletonMeta):
         for security in securities:
             self.add_security(security)
 
-
     def add_security(self, security: Security | str):
         if isinstance(security, str):
             security = Security(security)
         if security.symbol not in self.securities:
             self.securities[security.symbol] = security
-        return security
+            return security
+        else:
+            return self.securities[security.symbol]
 
     def get_securities(self, securities: list[str, Security] = None) -> dict[str, Security]:
         if securities:
