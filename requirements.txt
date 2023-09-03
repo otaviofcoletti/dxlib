@@ -7,3 +7,5 @@ scikit-learn~=1.3.0
 setuptools~=68.0.0
 statsmodels~=0.14.0
 websockets~=10.4
+yfinance~=0.2.24
+websocket-client~=1.6.2

@@ -206,7 +206,7 @@ class HttpServer(Server):
                     self.end_headers()
                     self.wfile.write(
                         json.dumps(
-                            response if response else "ok", cls=MethodEncoder
+                            "ok" if response is None else response, cls=MethodEncoder
                         ).encode()
                     )
 

@@ -3,21 +3,20 @@ import logging
 import numpy as np
 import pandas as pd
 
+from . import StrategyManager
+from ..api import Endpoint
 from ..core import Portfolio, TradeType, Signal, History
 from ..strategies import Strategy
-from ..api import Endpoint
-from . import StrategyManager
 
 
 class SimulationManager(StrategyManager):
     def __init__(self,
                  strategy,
-                 use_server=False,
-                 use_websocket=False,
-                 port=None,
+                 server_port=None,
+                 websocket_port=None,
                  logger: logging.Logger = None,
                  ):
-        super().__init__(strategy, use_server, use_websocket, port, logger)
+        super().__init__(strategy, server_port, websocket_port, logger)
 
     @Endpoint.post("reset", "Resets the Simulation's state")
     def reset(self):
@@ -35,7 +34,8 @@ class SimulationManager(StrategyManager):
 
 def main():
     symbols = ["AAPL", "GOOGL", "MSFT"]
-    history = np.array(
+
+    historical_bars = pd.DataFrame(np.array(
         [
             [150.0, 2500.0, 300.0],
             [152.0, 2550.0, 305.0],
@@ -43,9 +43,7 @@ def main():
             [155.0, 2555.0, 308.0],
             [157.0, 2540.0, 306.0],
         ]
-    )
-
-    history = pd.DataFrame(history, columns=symbols)
+    ), columns=symbols)
 
     starting_cash = 1e6
     portfolio = Portfolio()
@@ -73,8 +71,9 @@ def main():
 
     from .. import info_logger
 
-    simulation = SimulationManager(portfolio, strategy, history, logger=info_logger())
-    simulation.execute()
+    simulation = SimulationManager(strategy, logger=info_logger())
+    simulation.register(portfolio)
+    simulation.run(historical_bars)
 
     print(portfolio.historical_returns())
     print("Profit:", str(portfolio.current_value - starting_cash))

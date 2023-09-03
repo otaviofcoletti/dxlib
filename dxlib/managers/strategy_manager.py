@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import json
 import logging
 import threading
@@ -12,7 +13,7 @@ import pandas as pd
 
 from .generic_manager import GenericManager
 from ..api import Endpoint
-from ..core import Portfolio, History, Signal
+from ..core import Portfolio, History, Signal, no_logger
 from ..strategies import Strategy
 
 
@@ -26,7 +27,7 @@ class StrategyManager(GenericManager):
         super().__init__(server_port, websocket_port, logger)
         self.strategy: Strategy = strategy
 
-        self.portfolios: list[Portfolio] = []
+        self.portfolios: dict[Portfolio] = {}
         self.histories: list[History] = []
 
         self.signals = []
@@ -36,10 +37,27 @@ class StrategyManager(GenericManager):
         self.thread = None
 
         self.message_handler = MessageHandler(self)
+        self.logger = no_logger(__name__) if logger is None else logger
 
-    def register(self, portfolio):
+    @Endpoint.get("portfolios", "Gets the currently registered portfolios")
+    def get_portfolios(self, identifier=None):
+        if identifier:
+            return self.portfolios[identifier]
+
+        return self.portfolios
+
+    @Endpoint.post("portfolios", "Registers a portfolio with the strategy manager")
+    def register(self, portfolio: Portfolio | dict, identifier=None):
+        if isinstance(portfolio, dict):
+            portfolio = Portfolio(**portfolio)
+
+        if identifier in self.portfolios:
+            raise ValueError(f"Portfolio {portfolio} already registered")
+        if identifier is None:
+            identifier = hashlib.sha256(str(portfolio).encode()).hexdigest()
+
         self.logger.info(f"Registering portfolio {portfolio}")
-        self.portfolios.append(portfolio)
+        self.portfolios[identifier] = portfolio
 
     @property
     @Endpoint.get("history", "Gets the currently history for the simulation")
@@ -48,19 +66,19 @@ class StrategyManager(GenericManager):
 
     @history.setter
     @Endpoint.post("history", "Sets the history for the simulation")
-    def history(self, value):
+    def history(self, value: History | pd.DataFrame | np.ndarray | dict):
         self._history = value
 
     @Endpoint.get("position", "Gets the current position for the simulation")
     def get_position(self):
-        return dict(sum((Counter(portfolio.position) for portfolio in self.portfolios), Counter()))
+        return dict(sum((Counter(portfolio.position) for portfolio in self.portfolios.values()), Counter()))
 
     def execute(self):
         position = self.get_position()
         signals = self.strategy.execute(self.history.df.index[-1], pd.Series(position), self.history)
 
         for security in signals.keys():
-            for portfolio in self.portfolios:
+            for portfolio in self.portfolios.values():
                 if isinstance(portfolio, Portfolio):
                     try:
                         portfolio.trade(security, signals[security])
@@ -122,7 +140,7 @@ class MessageHandler:
         self.registered_portfolios: dict = {}
         self.registered_histories: dict = {}
 
-    def _register_portfolio(self, portfolio: dict=None):
+    def _register_portfolio(self, portfolio: dict = None):
         try:
             portfolio = Portfolio(**portfolio)
             self.manager.register(portfolio)
@@ -130,9 +148,10 @@ class MessageHandler:
         except TypeError:
             raise json.dumps("Message does not contain a valid portfolio")
 
-    def _register_history(self, history: dict=None | History):
+    def _register_history(self, history: dict | History = None):
         try:
-            history = History(**history if history else pd.DataFrame()) if isinstance(history, dict) else history
+            history = History(**history if history else pd.DataFrame()) if (
+                        isinstance(history, dict) or history is None) else history
             self.manager.history = history
             return history
         except TypeError:
@@ -142,11 +161,11 @@ class MessageHandler:
         try:
             history = History.from_dict(snapshot)
             if self.manager.history is None or self.manager.history.df.empty:
-                return self._register_history(history)
+                self._register_history(history)
             self.manager.run(history)
             return self.manager.history
         except TypeError:
-            return json.dumps("Message does not contain a valid snapshot")
+            raise json.dumps("Message does not contain a valid snapshot")
 
     def send_signals(self, signals: pd.Series | dict[Security, Signal]):
         for security in signals.keys():
@@ -212,7 +231,7 @@ if __name__ == "__main__":
     my_strategy = RsiStrategy()
     my_portfolio = Portfolio().add_cash(1e4)
 
-    strategy_manager = StrategyManager(my_strategy, use_server=True, use_websocket=True, logger=my_logger)
+    strategy_manager = StrategyManager(my_strategy, server_port=5000, websocket_port=6000, logger=my_logger)
     strategy_manager.start()
     strategy_manager.register(my_portfolio)
 
