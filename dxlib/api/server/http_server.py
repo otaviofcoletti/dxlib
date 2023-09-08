@@ -185,8 +185,8 @@ class HttpServer(Server):
 
                     class MethodEncoder(json.JSONEncoder):
                         def default(self, obj):
-                            if hasattr(obj, "__dict__") and callable(obj.__dict__):
-                                return obj.__dict__()
+                            if hasattr(obj, "to_dict") and callable(obj.to_dict):
+                                return obj.to_dict()
                             elif hasattr(obj, "to_json") and callable(obj.to_json):
                                 return obj.to_json()
                             else:

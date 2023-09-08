@@ -8,7 +8,7 @@ import pandas as pd
 
 from .history import History
 from .logger import no_logger
-from .security import Security, SecurityManager
+from .security import Security, SecurityManager, SecurityType
 
 
 class TradeType(Enum):
@@ -26,12 +26,12 @@ class Transaction:
     _cost = 1e-2
 
     def __init__(
-        self,
-        security: Security = None,
-        quantity=None,
-        price=None,
-        trade_type=TradeType.BUY,
-        timestamp=None,
+            self,
+            security: Security = None,
+            quantity=None,
+            price=None,
+            trade_type=TradeType.BUY,
+            timestamp=None,
     ):
         self.attributed_histories = {}
         self._price = None
@@ -93,7 +93,7 @@ class Transaction:
 
 class Signal:
     def __init__(
-        self, trade_type: TradeType | str, quantity: int = 1, price: float = None
+            self, trade_type: TradeType | str, quantity: int = 1, price: float = None
     ):
         if isinstance(trade_type, str):
             trade_type = TradeType[trade_type.upper()]
@@ -143,14 +143,11 @@ class Portfolio:
             "current_cash": self.current_cash,
             "current_assets": {
                 security.symbol: weight
-                for security, weight in self.current_weights.items()
+                for security, weight in self._current_assets.items()
             },
-            "current_assets_value": {
-                security.symbol: value
-                for security, value in self.current_assets_value.items()},
-            "current_value": self.current_value,
             "transaction_history": [
                 transaction.to_json() for transaction in self.transaction_history
+                if transaction.security.security_type != SecurityType.cash
             ],
         }
 
@@ -158,28 +155,18 @@ class Portfolio:
         return json.dumps(self.to_dict())
 
     @property
-    def current_value(self):
-        return self.current_cash + sum(self.current_assets_value.values())
-
-    @property
-    def current_assets_value(self):
-        if not self._is_assets_value_updated:
-            self._update_assets_value()
-        return self._current_assets_value
-
-    @property
-    def current_weights(self):
-        if not self._is_assets_weights_updated:
-            self._update_current_assets_weights()
-        return self._current_assets_weights
-
-    @property
     def position(self):
         return self._current_assets
 
     @position.setter
-    def position(self, position: dict[Security, float]):
+    def position(self, position: dict[Security | str, float]):
         for security, quantity in position.items():
+            if security == self.security_manager.cash or security == "cash":
+                if quantity > self.current_cash:
+                    self.add_cash(quantity - self.current_cash)
+                elif quantity < self.current_cash:
+                    self._use_cash(self.current_cash - quantity)
+                continue
             security = self.security_manager.add_security(security)
             self._current_assets[security] = quantity
 
@@ -204,29 +191,24 @@ class Portfolio:
 
         self._is_assets_value_updated = True
 
-    def _update_current_assets_weights(self):
-        self._current_assets_weights = {
-            security: self.current_assets_value[security] / self.current_value
-            for security in self._current_assets
-        }
-        self._is_assets_weights_updated = True
-
     def print_transaction_history(self):
         for idx, transaction in enumerate(self._transaction_history):
             print(transaction.timestamp if transaction.timestamp else idx, transaction)
         print("Transaction cost (per trade):", Transaction.cost)
 
-    def add_cash(self, amount: float, idx=-1):
+    def add_cash(self, amount: float, timestamp=-1):
         self.current_cash += amount
         cash = self.security_manager.cash
-        self.record_transaction(Transaction(cash, amount, 1), is_asset=False, idx=idx)
+        self.record_transaction(
+            Transaction(cash, amount, 1, timestamp=timestamp), is_asset=False
+        )
         return self
 
-    def _use_cash(self, amount: float, idx=-1):
+    def _use_cash(self, amount: float, timestamp=-1):
         self.current_cash -= amount
         cash = self.security_manager.cash
         self.record_transaction(
-            Transaction(cash, amount, 1, TradeType.SELL), is_asset=False, idx=idx
+            Transaction(cash, amount, 1, TradeType.SELL, timestamp=timestamp), is_asset=False
         )
         return self
 
@@ -242,7 +224,7 @@ class Portfolio:
         self._history = history
 
     def record_transaction(
-        self, transaction: Transaction, is_asset=True, idx: int = -1
+            self, transaction: Transaction, is_asset=True, idx: int = -1
     ):
         self._transaction_history.append(transaction)
         if idx == -1:
@@ -253,7 +235,6 @@ class Portfolio:
                 self._update_current_assets(transaction)
 
         else:
-            # TODO: update value and assets to reflect historical transaction
             transaction.attributed_histories[self._history] = idx
 
         self._is_assets_weights_updated = False
@@ -261,7 +242,7 @@ class Portfolio:
     def _update_current_assets(self, transaction: Transaction):
         if transaction.security in self._current_assets:
             self._current_assets[transaction.security] += (
-                transaction.quantity * transaction.trade_type.value
+                    transaction.quantity * transaction.trade_type.value
             )
         else:
             self._current_assets[transaction.security] = transaction.quantity
@@ -288,13 +269,13 @@ class Portfolio:
                         transaction.value, self.current_cash
                     )
                 )
-            self._use_cash(transaction.value + transaction.cost)
+            self._use_cash(transaction.value + transaction.cost, timestamp)
 
         elif signal.trade_type.SELL:
             if (
-                not self._current_assets
-                or not (security in self._current_assets)
-                or signal.quantity > self._current_assets[security]
+                    not self._current_assets
+                    or not (security in self._current_assets)
+                    or signal.quantity > self._current_assets[security]
             ):
                 raise ValueError(
                     "Not enough of the security {} to sell. "
@@ -304,12 +285,9 @@ class Portfolio:
                         self._current_assets.get(security, 0),
                     )
                 )
-            self.add_cash(abs(transaction.value) - transaction.cost)
+            self.add_cash(abs(transaction.value) - transaction.cost, timestamp)
 
         self.record_transaction(transaction)
-
-    def allocate(self, weights: list):
-        print(self.history.last())
 
     def _associate_transaction_with_history(self, transaction: Transaction):
         for security, history_df in self._history.df.items():
@@ -381,7 +359,6 @@ def main():
     portfolio.trade("MSFT", Signal(TradeType.BUY, 2))
     portfolio.print_transaction_history()
     print(portfolio.current_cash)
-    print(portfolio.current_assets_value)
     print(portfolio.historical_returns())
 
 

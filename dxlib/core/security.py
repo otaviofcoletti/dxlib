@@ -78,7 +78,7 @@ class SecurityManager(metaclass=SingletonMeta):
 
     def add_security(self, security: Security | str):
         if isinstance(security, str):
-            security = Security(security)
+            security = Security(security) 
         if security.symbol not in self.securities:
             self.securities[security.symbol] = security
             return security

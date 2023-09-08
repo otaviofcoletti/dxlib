@@ -6,8 +6,8 @@ from .. import History
 
 
 class Strategy(ABC):
-    def __init__(self):
-        pass
+    def __init__(self, identifier: str = None):
+        self.identifier = identifier
 
     def fit(self, history: History):
         pass
