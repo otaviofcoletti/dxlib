@@ -1,74 +1,54 @@
-import json
+import asyncio
 import threading
-import time
+from typing import Generator, AsyncGenerator
 
-import websocket
+from .generic_manager import GenericManager, GenericMessageHandler
+from ..core import no_logger, History
 
-from dxlib import no_logger, History
+
+def to_async(subscription: Generator, delay=0.0):
+    async def async_subscription():
+        for item in subscription:
+            yield item
+            await asyncio.sleep(delay)
+    return async_subscription()
 
 
-class FeedManager:
-    def __init__(self, subscription, host="localhost", port=6000, secure=False, retry=False, logger=None):
-        self._ws_url = f"ws{'s' if secure else ''}://{host}:{port}"
-        self.subscription = subscription
-        self.retry = retry
+class FeedManager(GenericManager):
+    def __init__(self, subscription: AsyncGenerator | Generator, port=6000, logger=None):
+        super().__init__(None, port, logger)
+        if isinstance(subscription, Generator):
+            self.subscription = to_async(subscription)
+        else:
+            self.subscription = subscription
 
-        self._ws = None
-        self.thread = None
         self._running = threading.Event()
+
+        self.thread = None
         self.logger = no_logger(__name__) if logger is None else logger
-        self.current_retries = 0
-        self.max_retries = 5 if retry else 1
-        self.retry_interval = 1
 
-    @property
-    def timeout(self):
-        return self.current_retries >= self.max_retries
+        self.message_handler = FeedMessageHandler(self)
 
-    def _connect(self):
-        self._ws = websocket.WebSocketApp(self._ws_url,
-                                          on_message=self.on_message,
-                                          on_error=self.on_error,
-                                          on_close=self.on_close,
-                                          on_open=self.on_open)
-
-    def _serve(self):
+    async def _serve(self):
         if self._running.is_set():
-            self.current_retries = 0
-            max_retries = (self.max_retries if self.retry else 1)
-
-            while self.current_retries < max_retries:
-                time.sleep(self.retry_interval * self.current_retries)
-                try:
-                    self._connect()
-                    self._ws.run_forever()
-
-                    if not self.is_socket_alive():
-                        raise ConnectionError("Socket could not connect")
-                    return
-
-                except KeyboardInterrupt:
-                    return
-                except Exception as e:
-                    self.logger.warning(f"Connection attempt {self.current_retries + 1}/{max_retries} failed: {e}")
-                    self.current_retries += 1
-
-            if self.timeout:
-                self._running.clear()
-                self.logger.exception("{}, giving up on connection".format("Max retries reached" if max_retries > 1 else "No retry rule"))
-                return
+            async for snapshot in self.subscription:
+                snapshot = History(snapshot)
+                self.logger.info(f"Sent snapshot: {snapshot}")
+                self.message_handler.send_snapshot(snapshot)
+            self._running.clear()
+            self.websocket_server.stop()
+            return
 
     def start(self):
-        self.logger.info(f"Connecting to websocket on {self._ws_url}")
+        super().start()
+        self.logger.info(f"Starting feed websocket on {self.websocket_server.port}")
         if self.thread is None:
             self._running.set()
-            self.thread = threading.Thread(target=self._serve)
+            self.thread = threading.Thread(target=asyncio.run, args=(self._serve(),))
             self.thread.start()
 
     def stop(self):
-        if self._ws:
-            self._ws.close()
-        self._ws = None
+        super().stop()
         self._running.clear()
 
         if self.thread:
@@ -79,37 +59,46 @@ class FeedManager:
         self.stop()
         self.start()
 
-    def send_message(self, message):
-        self._ws.send(message)
 
-    def send_snapshot(self, data=None):
-        try:
-            if data is None:
-                data = History(next(self.subscription)).to_dict()
-        except StopIteration:
-            self.logger.warning("Subscription has ended")
-            return None
-        message = {"snapshot": data}
-        self.send_message(json.dumps(message))
-        self.logger.info(f"Sent snapshot: {message}")
-        return message
+class FeedMessageHandler(GenericMessageHandler):
+    def __init__(self, manager: FeedManager):
+        super().__init__()
+        self.manager = manager
+        self.connections: list = []
 
-    def on_message(self, ws, message):
-        print("Received Message:", message)
+    def connect(self, websocket, endpoint) -> str:
+        self.connections.append(websocket)
+        return "Connected"
 
-    def on_error(self, ws, error):
-        print("Error:", error)
+    def send_snapshot(self, snapshot: History):
+        message = snapshot.to_json()
+        for connection in self.connections:
+            self.manager.websocket_server.send_message(connection, message)
 
-    def on_close(self, ws, close_status_code, close_msg):
-        self.logger.warning(f"Websocket closed with status code {close_status_code}: {close_msg}")
+    def disconnect(self, websocket, endpoint):
+        self.connections.remove(websocket)
 
-    def on_open(self, ws):
-        self.current_retries = 0
-        self.logger.info("Connected to websocket. Press Ctrl+C to stop...")
-        pass
 
-    def is_alive(self):
-        return self._running.is_set()
+def main():
+    from dxlib.api import YFinanceAPI
+    from ..core import info_logger
+    logger = info_logger()
 
-    def is_socket_alive(self):
-        return self._ws and self._ws.sock and self._ws.sock.connected
+    historical_bars = YFinanceAPI().get_historical_bars(["AAPL"])
+    subscription = to_async(historical_bars.iterrows(), delay=0.5)
+
+    feed_manager = FeedManager(subscription, logger=logger)
+    feed_manager.start()
+
+    try:
+        while feed_manager.is_alive():
+            pass
+    except KeyboardInterrupt:
+        logger.info("User interrupted program")
+    finally:
+        logger.info("Stopping feed manager")
+        feed_manager.stop()
+
+
+if __name__ == "__main__":
+    main()

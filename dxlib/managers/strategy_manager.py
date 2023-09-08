@@ -11,7 +11,7 @@ from typing import AsyncGenerator, Generator
 import numpy as np
 import pandas as pd
 
-from .generic_manager import GenericManager
+from .generic_manager import GenericManager, GenericMessageHandler
 from ..api import Endpoint
 from ..core import Portfolio, History, Signal, no_logger
 from ..strategies import Strategy
@@ -27,16 +27,16 @@ class StrategyManager(GenericManager):
         super().__init__(server_port, websocket_port, logger)
         self.strategy: Strategy = strategy
 
-        self.portfolios: dict[Portfolio] = {}
+        self.portfolios: dict[str, Portfolio] = {}
         self.histories: list[History] = []
 
-        self.signals = []
+        self._signals = pd.DataFrame()
         self._history = History(pd.DataFrame())
 
         self.running = False
         self.thread = None
 
-        self.message_handler = MessageHandler(self)
+        self.message_handler = StrategyMessageHandler(self)
         self.logger = no_logger(__name__) if logger is None else logger
 
     @Endpoint.get("portfolios", "Gets the currently registered portfolios")
@@ -46,8 +46,20 @@ class StrategyManager(GenericManager):
 
         return self.portfolios
 
+    @Endpoint.get("portfolios", "Gets the currently registered portfolios")
+    def get_portfolio_values(self, identifier: str):
+        values = pd.DataFrame(np.zeros_like(self._history.df),
+                              index=self._history.df.index,
+                              columns=self._history.df.columns)
+
+        for transaction in self.portfolios[identifier].transaction_history:
+            if transaction.security in self._history.securities:
+                values[transaction.security][transaction.timestamp] = transaction.price * transaction.quantity
+
+        return values.cumsum()
+
     @Endpoint.post("portfolios", "Registers a portfolio with the strategy manager")
-    def register(self, portfolio: Portfolio | dict, identifier=None):
+    def register(self, portfolio: Portfolio | dict, identifier: str = None):
         if isinstance(portfolio, dict):
             portfolio = Portfolio(**portfolio)
 
@@ -73,15 +85,23 @@ class StrategyManager(GenericManager):
     def get_position(self):
         return dict(sum((Counter(portfolio.position) for portfolio in self.portfolios.values()), Counter()))
 
-    def execute(self):
+    def execute(self, bar=None):
+        if bar:
+            idx, _ = bar
+        elif self.history:
+            idx = self.history.df.index[-1]
+        else:
+            raise ValueError("No history or bar provided")
         position = self.get_position()
-        signals = self.strategy.execute(self.history.df.index[-1], pd.Series(position), self.history)
+        signals = self.strategy.execute(idx,
+                                        pd.Series(position),
+                                        self.history)
 
         for security in signals.keys():
             for portfolio in self.portfolios.values():
                 if isinstance(portfolio, Portfolio):
                     try:
-                        portfolio.trade(security, signals[security])
+                        portfolio.trade(security, signals[security], idx)
                     except ValueError as e:
                         self.logger.warning(e)
                 else:
@@ -94,18 +114,18 @@ class StrategyManager(GenericManager):
             if not self.running:
                 break
             self._history += bars
-            generated_signals = self.execute()
-            self.signals.append(generated_signals)
+            generated_signals = self.execute(bars)
+            # self._signals.append(generated_signals)
         self.running = False
-        return self.signals
+        return self._signals
 
     def _consume(self, subscription: Generator):
         for bars in subscription:
             self._history += bars
-            generated_signals = self.execute()
-            self.signals.append(generated_signals)
+            generated_signals = self.execute(bars)
+            # self.signals.append(generated_signals)
         self.running = False
-        return self.signals
+        return self._signals
 
     def stop(self):
         if self.running:
@@ -131,11 +151,12 @@ class StrategyManager(GenericManager):
                 asyncio.run(self._async_consume(subscription))
             else:
                 self._consume(subscription)
-        return self.signals
+        return self._signals
 
 
-class MessageHandler:
+class StrategyMessageHandler(GenericMessageHandler):
     def __init__(self, manager: StrategyManager):
+        super().__init__()
         self.manager = manager
         self.registered_portfolios: dict = {}
         self.registered_histories: dict = {}
@@ -171,9 +192,9 @@ class MessageHandler:
         for security in signals.keys():
             for portfolio in self.registered_portfolios:
                 if security in portfolio.position.keys():
-                    self.manager.websocket.send_message(
+                    self.manager.websocket_server.send_message(
                         signals[security].to_json(),
-                        self.manager.websocket.message_subjects.signal(security)
+                        self.manager.websocket_server.message_subjects.signal(security)
                     )
 
     def process(self, websocket, message):
@@ -212,20 +233,19 @@ class MessageHandler:
 
         try:
             response = self.process(websocket, message)
-            self.manager.websocket.send_message(websocket, response)
+            self.manager.websocket_server.send_message(websocket, response)
         except (ValueError, TypeError) as e:
             self.manager.logger.warning(e)
-            self.manager.websocket.send_message(websocket, e)
+            self.manager.websocket_server.send_message(websocket, e)
 
     def disconnect(self, websocket, endpoint):
         pass
 
 
 if __name__ == "__main__":
-    from .. import info_logger, Security, api
+    from .. import info_logger, Security
     from ..strategies import RsiStrategy
 
-    historical_bars = api.YFinanceAPI().get_historical_bars(["AAPL", "MSFT"])
     my_logger = info_logger(__name__)
 
     my_strategy = RsiStrategy()
@@ -236,9 +256,8 @@ if __name__ == "__main__":
     strategy_manager.register(my_portfolio)
 
     try:
-        # strategy_manager.run(historical_bars)
         while True:
-            with strategy_manager.server.exceptions as exceptions:
+            with strategy_manager.websocket_server.exceptions as exceptions:
                 if exceptions:
                     raise exceptions[0]
     except ConnectionError:
