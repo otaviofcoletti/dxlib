@@ -15,7 +15,7 @@ def to_async(subscription: Generator, delay=0.0):
 
 
 class FeedManager(GenericManager):
-    def __init__(self, subscription: AsyncGenerator | Generator, port=6000, logger=None):
+    def __init__(self, subscription: AsyncGenerator | Generator | None, port=6000, logger=None):
         super().__init__(None, port, logger)
         if isinstance(subscription, Generator):
             self.subscription = to_async(subscription)
@@ -29,19 +29,27 @@ class FeedManager(GenericManager):
 
         self.message_handler = FeedMessageHandler(self)
 
-    async def _serve(self):
+    async def handle(self, data):
         if self._running.is_set():
-            async for snapshot in self.subscription:
-                snapshot = History(snapshot)
-                self.logger.info(f"Sent snapshot: {snapshot}")
-                self.message_handler.send_snapshot(snapshot)
+            snapshot = History(data)
+            self.logger.info(f"Sent snapshot: {snapshot}")
+            self.message_handler.send_snapshot(snapshot)
+
+    async def _subscribe(self):
+        async for data in self.subscription:
+            await self._handle(data)
+        return
+
+    async def _serve(self):
+        if self.subscription:
+            asyncio.run(self._subscribe())
             self._running.clear()
-            self.websocket_server.stop()
-            return
+        else:
+            while self._running.is_set():
+                pass
 
     def start(self):
         super().start()
-        self.logger.info(f"Starting feed websocket on {self.websocket_server.port}")
         if self.thread is None:
             self._running.set()
             self.thread = threading.Thread(target=asyncio.run, args=(self._serve(),))

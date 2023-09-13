@@ -83,7 +83,9 @@ class StrategyManager(GenericManager):
 
     @Endpoint.get("position", "Gets the current position for the simulation")
     def get_position(self):
-        return dict(sum((Counter(portfolio.position) for portfolio in self.portfolios.values()), Counter()))
+        return dict(sum((Counter(
+            {security.symbol: portfolio.position[security] for security in portfolio.position.keys()}
+        ) for portfolio in self.portfolios.values()), Counter()))
 
     def execute(self, bar=None):
         if bar:

@@ -6,8 +6,9 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 
 class Connector:
-    def __init__(self):
-        self.servers: dict[str, str] = {}
+    def __init__(self, servers={}, http_port=4000):
+        self.http_port = http_port
+        self.servers: dict[str, str] = servers
         self.clients: dict[str, websockets.WebSocketClientProtocol] = {}
         self.running = threading.Event()
         self.http_server = None
@@ -50,7 +51,7 @@ class Connector:
     def remove_client(self, websocket):
         self.clients.pop(websocket)
 
-    def start(self, http_port=4000):
+    def start(self):
         class ClientHandler(BaseHTTPRequestHandler):
             connector = self
 
@@ -90,7 +91,7 @@ class Connector:
                     self.end_headers()
 
         def run_http_server():
-            server_address = ("localhost", http_port)
+            server_address = ("localhost", self.http_port)
             httpd = HTTPServer(server_address, ClientHandler)
             httpd.serve_forever()
 
