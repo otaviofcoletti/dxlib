@@ -1,44 +1,57 @@
-import threading
 import asyncio
-import websockets
 import json
+import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
+
+import websockets
 
 
 class Connector:
-    def __init__(self, servers={}, http_port=4000):
+    def __init__(self, servers=None, http_port=4000):
+        if servers is None:
+            servers = {}
         self.http_port = http_port
-        self.servers: dict[str, str] = servers
+        self.servers: dict[str, dict] = servers
         self.clients: dict[str, websockets.WebSocketClientProtocol] = {}
-        self.running = threading.Event()
-        self.http_server = None
+        self._running = threading.Event()
+        self._httpd_server = None
+        self._httpd_thread = None
 
     def add_server(self, name, uri):
         self.servers[name] = uri
 
-    async def connect_server(self, name):
-        uri = self.servers.get(name)
+    async def connect_server(self, server_name):
+        server = self.servers.get(server_name)
+        uri = server.get("uri") if isinstance(server, dict) else server
+        data_type = server.get("data_type") if isinstance(server, dict) else None
         if uri:
-            async with websockets.connect(uri) as websocket:
-                while self.running.is_set():
-                    try:
-                        message = await websocket.recv()
-                        print("Snapshot received: ", message)
-                        await self.forward_to_clients(message)
-                    except Exception as e:
-                        print(f"Error receiving from {name}: {e}")
-                        break
+            try:
+                async with websockets.connect(uri) as websocket:
+                    while self._running.is_set():
+                        try:
+                            message = await websocket.recv()
+                            print(f"{data_type} received: ", message)
+                            await self.forward_to_clients(json.dumps({data_type: json.loads(message)}))
+                        except Exception as e:
+                            print(f"Error receiving from {server_name}: {e}")
+                            break
+            except ConnectionRefusedError as e:
+                print(f"Connection refused: {e}")
 
     async def forward_to_clients(self, message):
         for client in self.clients.values():
             await client.send(message)
 
-    def add_client(self, uri):
+    def add_client(self, client):
         # creates a websocket connection that will be used to forward messages to the client
+        uri = client.get("uri") if isinstance(client, dict) else client
+        data_type = client.get("requesting") if isinstance(client, dict) else None
+        name = client.get("name") if isinstance(client, dict) else client
+
         async def connect_client():
             async with websockets.connect(uri) as websocket:
-                self.clients[uri] = websocket
-                while self.running.is_set():
+                self.clients[name] = websocket
+                while self._running.is_set():
                     try:
                         pass
                     except Exception as e:
@@ -66,7 +79,7 @@ class Connector:
                     server = self.path.split("=")[1]
                     self.send_response(200)
                     self.end_headers()
-                    self.wfile.write(bytes(self.connector.servers.get(server), "utf-8"))
+                    self.wfile.write(bytes(self.connector.servers.get(server, {}).get("uri", None), "utf-8"))
                 # path is not accepted
                 else:
                     self.send_response(404)
@@ -90,16 +103,16 @@ class Connector:
                     self.send_response(404)
                     self.end_headers()
 
-        def run_http_server():
+        def run_httpd():
             server_address = ("localhost", self.http_port)
-            httpd = HTTPServer(server_address, ClientHandler)
-            httpd.serve_forever()
+            self._httpd_server = HTTPServer(server_address, ClientHandler)
+            self._httpd_server.serve_forever()
 
-        http_thread = threading.Thread(target=run_http_server)
-        http_thread.start()
+        self._running.set()
+        self._httpd_thread = threading.Thread(target=run_httpd)
+        self._httpd_thread.start()
 
         threads = []
-        self.running.set()
         for server_name in self.servers.keys():
             thread = threading.Thread(target=asyncio.run, args=(self.connect_server(server_name),))
             thread.start()
@@ -109,7 +122,16 @@ class Connector:
             thread.join()
 
     def stop(self):
-        self.running.clear()
+        self._running.wait()
+        self._running.clear()
+
+        for client in self.clients.values():
+            client.close()
+
+        self._httpd_server.shutdown()
+        self._httpd_server = None
+        self._httpd_thread.join()
+        self._httpd_thread = None
 
 
 if __name__ == "__main__":
