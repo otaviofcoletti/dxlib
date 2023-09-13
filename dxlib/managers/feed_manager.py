@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import threading
 from typing import Generator, AsyncGenerator
@@ -30,19 +32,20 @@ class FeedManager(GenericManager):
         self.message_handler = FeedMessageHandler(self)
 
     async def handle(self, data):
-        if self._running.is_set():
-            snapshot = History(data)
-            self.logger.info(f"Sent snapshot: {snapshot}")
-            self.message_handler.send_snapshot(snapshot)
+        snapshot = History(data)
+        self.logger.info(f"Sent snapshot: {snapshot}")
+        self.message_handler.send_snapshot(snapshot)
 
     async def _subscribe(self):
         async for data in self.subscription:
-            await self._handle(data)
+            if not self._running.is_set():
+                break
+            await self.handle(data)
         return
 
     async def _serve(self):
         if self.subscription:
-            asyncio.run(self._subscribe())
+            await self._subscribe()
             self._running.clear()
         else:
             while self._running.is_set():

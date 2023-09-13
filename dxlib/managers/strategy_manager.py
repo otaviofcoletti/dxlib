@@ -238,7 +238,7 @@ class StrategyMessageHandler(GenericMessageHandler):
             self.manager.websocket_server.send_message(websocket, response)
         except (ValueError, TypeError) as e:
             self.manager.logger.warning(e)
-            self.manager.websocket_server.send_message(websocket, e)
+            self.manager.websocket_server.send_message(websocket, str(e))
 
     def disconnect(self, websocket, endpoint):
         pass
