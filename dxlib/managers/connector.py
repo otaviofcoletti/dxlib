@@ -28,22 +28,32 @@ class Connector:
             try:
                 async with websockets.connect(uri) as websocket:
                     while self._running.is_set():
-                        try:
-                            message = await websocket.recv()
-                            print(f"{data_type} received: ", message)
-                            await self.forward_to_clients(json.dumps({data_type: json.loads(message)}))
-                        except Exception as e:
-                            print(f"Error receiving from {server_name}: {e}")
-                            break
+                        message = await websocket.recv()
+                        print(f"{data_type} received: ", message)
+                        await self.forward_to_clients(json.dumps({data_type: json.loads(message)}))
+
             except ConnectionRefusedError as e:
                 print(f"Connection refused: {e}")
 
     async def forward_to_clients(self, message):
         for client in self.clients.values():
-            await client.send(message)
+            if client.open:
+                await client.send(message)
+
+    async def ping_clients(self):
+        while self._running.is_set():
+            for name, client in self.clients.items():
+                try:
+                    if client.open:
+                        await client.ping()
+                    else:
+                        self.remove_client(name)
+                except Exception as e:
+                    print(f"Error pinging client {name}: {e}")
+            await asyncio.sleep(10)
+
 
     def add_client(self, client):
-        # creates a websocket connection that will be used to forward messages to the client
         uri = client.get("uri") if isinstance(client, dict) else client
         data_type = client.get("requesting") if isinstance(client, dict) else None
         name = client.get("name") if isinstance(client, dict) else client
@@ -58,7 +68,6 @@ class Connector:
                         print(f"Error receiving from {uri}: {e}")
                         break
 
-        # non-blocking client websocket creation
         threading.Thread(target=asyncio.run, args=(connect_client(),)).start()
 
     def remove_client(self, websocket):
@@ -69,18 +78,15 @@ class Connector:
             connector = self
 
             def do_GET(self):
-                # if has path besides '/', return specific server_name string, else return dict of all servers
                 if self.path == "/":
                     self.send_response(200)
                     self.end_headers()
                     self.wfile.write(bytes(str(self.connector.servers), "utf-8"))
-                # path is of format '/{server_name}'
                 elif self.path.startswith("/?server="):
                     server = self.path.split("=")[1]
                     self.send_response(200)
                     self.end_headers()
                     self.wfile.write(bytes(self.connector.servers.get(server, {}).get("uri", None), "utf-8"))
-                # path is not accepted
                 else:
                     self.send_response(404)
 
@@ -112,6 +118,8 @@ class Connector:
         self._httpd_thread = threading.Thread(target=run_httpd)
         self._httpd_thread.start()
 
+        threading.Thread(target=asyncio.run, args=(self.ping_clients(),)).start()
+
         threads = []
         for server_name in self.servers.keys():
             thread = threading.Thread(target=asyncio.run, args=(self.connect_server(server_name),))
@@ -126,7 +134,7 @@ class Connector:
         self._running.clear()
 
         for client in self.clients.values():
-            client.close()
+            asyncio.run_coroutine_threadsafe(client.close(), asyncio.get_event_loop())
 
         self._httpd_server.shutdown()
         self._httpd_server = None

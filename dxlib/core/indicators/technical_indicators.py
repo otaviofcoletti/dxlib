@@ -67,3 +67,6 @@ class TechnicalIndicators(Indicators):
     def seasonal_decompose(self, period=252):
         result = seasonal_decompose(self.df, model="multiplicative", period=period)
         return result.trend, result.seasonal, result.resid
+
+    def adtv(self, window=20,column="Volume"):
+        return self.df[column].rolling(window=window).mean()

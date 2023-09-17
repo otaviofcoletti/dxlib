@@ -1,5 +1,5 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from .indicators import Indicators
 
@@ -42,16 +42,16 @@ class SeriesIndicators(Indicators):
 
         return np.log(relative_change)
 
-    def volatility(self, window=252, progressive=False, min_interval: int = None):
+    def volatility(self, window=20, period=252, progressive=False, min_interval: int = None):
         if progressive and min_interval is None:
             min_interval = int(np.sqrt(window))
         log_returns = self.log_change()
-        volatility = log_returns.rolling(window).std(ddof=0) * np.sqrt(window)
+        volatility = log_returns.rolling(window).std(ddof=0) * np.sqrt(period)
 
         if progressive:
             for i in range(min_interval, window):
                 volatility.iloc[i] = (
-                    log_returns.rolling(i).std(ddof=0) * np.sqrt(window)
+                    log_returns.rolling(i).std(ddof=0) * np.sqrt(period)
                 ).iloc[i]
 
         return volatility

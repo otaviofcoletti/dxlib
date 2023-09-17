@@ -36,7 +36,8 @@ class WebSocketServer(Server):
 
     @classmethod
     async def _send_message(cls, websocket, message):
-        await websocket.send(message)
+        if websocket.open:
+            await websocket.send(message)
 
     def send_message(self, websocket, message):
         asyncio.create_task(self._send_message(websocket, message))
@@ -61,16 +62,15 @@ class WebSocketServer(Server):
         self.logger.info("Stopping websocket")
         if self._websocket_server is None:
             return ServerStatus.STOPPED
-
         self._running.clear()
 
-        for websocket in self._websocket_server.websockets:
-            websocket.close()
+        self._websocket_server.close()
+        self._websocket_server = None
 
         self._websocket_thread.join()
-        self._websocket_server = None
-        self.logger.info("Websocket stopped")
+        self._websocket_thread = None
 
+        self.logger.info("Websocket stopped")
         return ServerStatus.STOPPED
 
     def is_alive(self):

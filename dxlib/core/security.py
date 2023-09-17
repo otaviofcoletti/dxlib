@@ -28,8 +28,11 @@ class Security:
     def __str__(self):
         return f"{self.symbol}"
 
+    def to_dict(self):
+        return { "symbol": self.symbol, "security_type": self.security_type.value }
+
     def to_json(self):
-        serialized = { "symbol": self.symbol, "security_type": self.security_type.value }
+        serialized = self.to_dict()
         if self.source is not None:
             serialized["source"] = self.source
         return serialized

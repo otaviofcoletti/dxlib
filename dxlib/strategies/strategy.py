@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 
 import pandas as pd
 
-from .. import History
+from ..core import History
 
 
 class Strategy(ABC):

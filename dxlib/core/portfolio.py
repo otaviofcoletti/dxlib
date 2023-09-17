@@ -47,14 +47,17 @@ class Transaction:
     def __repr__(self):
         return f"{self.trade_type.name}: {self.security.symbol} {self.quantity} @ {self.price}"
 
-    def to_json(self):
+    def to_dict(self):
         return {
             "security": self.security.symbol,
             "trade_type": self.trade_type.name,
-            "quantity": self.quantity,
-            "price": self.price,
+            "quantity": float(self.quantity),
+            "price": float(self.price),
             "timestamp": self.timestamp,
         }
+
+    def to_json(self):
+        return json.dumps(self.to_dict())
 
     @property
     def price(self):
@@ -139,14 +142,14 @@ class Portfolio:
 
     def to_dict(self):
         return {
-            "name": self.name,
-            "current_cash": self.current_cash,
+            "name": str(self.name),
+            "current_cash": float(self.current_cash),
             "current_assets": {
-                security.symbol: weight
-                for security, weight in self._current_assets.items()
+                security.symbol: float(quantity)
+                for security, quantity in self._current_assets.items()
             },
             "transaction_history": [
-                transaction.to_json() for transaction in self.transaction_history
+                transaction.to_dict() for transaction in self.transaction_history
                 if transaction.security.security_type != SecurityType.cash
             ],
         }
@@ -249,7 +252,7 @@ class Portfolio:
         self._is_assets_value_updated = False
 
     def trade(self, security: Security | str, signal: Signal | str, timestamp=None):
-        if signal.trade_type == TradeType.WAIT:
+        if signal.trade_type == TradeType.WAIT or signal.quantity == 0:
             return
         if isinstance(security, str):
             security = self.security_manager.securities[security]

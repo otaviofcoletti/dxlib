@@ -13,7 +13,7 @@ import pandas as pd
 
 from .generic_manager import GenericManager, GenericMessageHandler
 from ..api import Endpoint
-from ..core import Portfolio, History, Signal, no_logger
+from ..core import Portfolio, History, Signal, TradeType, no_logger
 from ..strategies import Strategy
 
 
@@ -30,7 +30,6 @@ class StrategyManager(GenericManager):
         self.portfolios: dict[str, Portfolio] = {}
         self.histories: list[History] = []
 
-        self._signals = pd.DataFrame()
         self._history = History(pd.DataFrame())
 
         self.running = False
@@ -44,7 +43,7 @@ class StrategyManager(GenericManager):
         if identifier:
             return self.portfolios[identifier]
 
-        return self.portfolios
+        return   {identifier: portfolio.to_dict() for identifier, portfolio in self.portfolios.items()}
 
     @Endpoint.get("portfolios", "Gets the currently registered portfolios")
     def get_portfolio_values(self, identifier: str):
@@ -81,11 +80,15 @@ class StrategyManager(GenericManager):
     def history(self, value: History | pd.DataFrame | np.ndarray | dict):
         self._history = value
 
+    @property
+    def position(self) -> dict[Security, int]:
+        return dict(sum((Counter(
+            {security: portfolio.position[security] for security in portfolio.position.keys()}
+        ) for portfolio in self.portfolios.values()), Counter()))
+
     @Endpoint.get("position", "Gets the current position for the simulation")
     def get_position(self):
-        return dict(sum((Counter(
-            {security.symbol: portfolio.position[security] for security in portfolio.position.keys()}
-        ) for portfolio in self.portfolios.values()), Counter()))
+        return  {security.symbol: quantity for security, quantity in self.position.items()}
 
     def execute(self, bar=None):
         if bar:
@@ -94,10 +97,14 @@ class StrategyManager(GenericManager):
             idx = self.history.df.index[-1]
         else:
             raise ValueError("No history or bar provided")
-        position = self.get_position()
-        signals = self.strategy.execute(idx,
-                                        pd.Series(position),
-                                        self.history)
+
+        try:
+            signals = self.strategy.execute(idx,
+                                            pd.Series(self.position),
+                                            self.history)
+        except:
+            self.logger.warning("Error executing strategy", exc_info=True)
+            return   pd.Series(Signal(TradeType.WAIT), index=self.history.securities.values())
 
         for security in signals.keys():
             for portfolio in self.portfolios.values():
@@ -117,17 +124,15 @@ class StrategyManager(GenericManager):
                 break
             self._history += bars
             generated_signals = self.execute(bars)
-            # self._signals.append(generated_signals)
         self.running = False
-        return self._signals
+        return generated_signals
 
     def _consume(self, subscription: Generator):
         for bars in subscription:
             self._history += bars
             generated_signals = self.execute(bars)
-            # self.signals.append(generated_signals)
         self.running = False
-        return self._signals
+        return generated_signals
 
     def stop(self):
         if self.running:
@@ -153,7 +158,6 @@ class StrategyManager(GenericManager):
                 asyncio.run(self._async_consume(subscription))
             else:
                 self._consume(subscription)
-        return self._signals
 
 
 class StrategyMessageHandler(GenericMessageHandler):
@@ -167,7 +171,6 @@ class StrategyMessageHandler(GenericMessageHandler):
         try:
             portfolio = Portfolio(**portfolio)
             self.manager.register(portfolio)
-            return portfolio
         except TypeError:
             raise json.dumps("Message does not contain a valid portfolio")
 
@@ -176,7 +179,6 @@ class StrategyMessageHandler(GenericMessageHandler):
             history = History(**history if history else pd.DataFrame()) if (
                         isinstance(history, dict) or history is None) else history
             self.manager.history = history
-            return history
         except TypeError:
             raise json.dumps("Message does not contain a valid history")
 
@@ -186,7 +188,6 @@ class StrategyMessageHandler(GenericMessageHandler):
             if self.manager.history is None or self.manager.history.df.empty:
                 self._register_history(history)
             self.manager.run(history)
-            return self.manager.history
         except TypeError:
             raise json.dumps("Message does not contain a valid snapshot")
 
@@ -234,7 +235,7 @@ class StrategyMessageHandler(GenericMessageHandler):
             raise TypeError("Message is not valid JSON")
 
         try:
-            response = self.process(websocket, message)
+            response = str(self.process(websocket, message))
             self.manager.websocket_server.send_message(websocket, response)
         except (ValueError, TypeError) as e:
             self.manager.logger.warning(e)

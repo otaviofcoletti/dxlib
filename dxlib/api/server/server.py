@@ -2,7 +2,7 @@ import queue
 import threading
 from enum import Enum
 
-from ... import no_logger
+from ...core import no_logger
 
 
 class ServerStatus(Enum):
