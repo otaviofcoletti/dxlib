@@ -42,7 +42,7 @@ class SeriesIndicators(Indicators):
 
         return np.log(relative_change)
 
-    def volatility(self, window=20, period=252, progressive=False, min_interval: int = None):
+    def volatility(self, window=20, period=252, progressive=False, min_interval: int = None, columns=None):
         if progressive and min_interval is None:
             min_interval = int(np.sqrt(window))
         log_returns = self.log_change()

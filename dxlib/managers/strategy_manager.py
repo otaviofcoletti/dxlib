@@ -43,7 +43,7 @@ class StrategyManager(GenericManager):
         if identifier:
             return self.portfolios[identifier]
 
-        return   {identifier: portfolio.to_dict() for identifier, portfolio in self.portfolios.items()}
+        return {identifier: portfolio.to_dict() for identifier, portfolio in self.portfolios.items()}
 
     @Endpoint.get("portfolios", "Gets the currently registered portfolios")
     def get_portfolio_values(self, identifier: str):
@@ -58,7 +58,7 @@ class StrategyManager(GenericManager):
         return values.cumsum()
 
     @Endpoint.post("portfolios", "Registers a portfolio with the strategy manager")
-    def register(self, portfolio: Portfolio | dict, identifier: str = None):
+    def register_portfolio(self, portfolio: Portfolio | dict, identifier: str = None):
         if isinstance(portfolio, dict):
             portfolio = Portfolio(**portfolio)
 
@@ -100,7 +100,7 @@ class StrategyManager(GenericManager):
 
         try:
             signals = self.strategy.execute(idx,
-                                            pd.Series(self.position),
+                                            pd.Series(self.position, dtype=np.float64),
                                             self.history)
         except:
             self.logger.warning("Error executing strategy", exc_info=True)

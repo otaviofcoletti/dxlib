@@ -89,7 +89,7 @@ class SecurityManager(metaclass=SingletonMeta):
             return self.securities[security.symbol]
 
     def get_securities(self, securities: list[str, Security] = None) -> dict[str, Security]:
-        if securities:
+        if securities is not None:
             filtered_securities = {}
             for security in securities:
                 if isinstance(security, str):
