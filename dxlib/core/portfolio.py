@@ -23,7 +23,7 @@ class TradeType(Enum):
 
 
 class Transaction:
-    _cost = 1e-2
+    _cost = 2e-2
 
     def __init__(
             self,
@@ -272,7 +272,7 @@ class Portfolio:
                         transaction.value, self.current_cash
                     )
                 )
-            self._use_cash(transaction.value + transaction.cost, timestamp)
+            self._use_cash(abs(transaction.value * 1.03) + transaction.cost, timestamp)
 
         elif signal.trade_type.SELL:
             if (
@@ -288,7 +288,7 @@ class Portfolio:
                         self._current_assets.get(security, 0),
                     )
                 )
-            self.add_cash(abs(transaction.value) - transaction.cost, timestamp)
+            self.add_cash(abs(transaction.value * 0.97) - transaction.cost, timestamp)
 
         self.record_transaction(transaction)
 
@@ -301,30 +301,32 @@ class Portfolio:
                 transaction.attributed_histories[security] = closest_index
                 break
 
-    @property
-    def historical_quantity(self):
-        if self.history is None:
-            return None
-        self._historical_quantity = np.zeros_like(self.history.df)
-        self._historical_quantity = pd.DataFrame(
-            self._historical_quantity,
-            index=self.history.df.index,
-            columns=self.history.df.columns,
+    def historical_quantity(self, history: History | None = None):
+        if history is None:
+            history = self._history
+
+        _historical_quantity = pd.DataFrame(
+            0,
+            index=history.df["Close"].index,
+            columns=history.df["Close"].columns,
         )
 
+        # Add cash column
+        _historical_quantity[self.security_manager.cash] = 0
+
         for transaction in self.transaction_history:
-            if transaction.security not in self.history.securities:
-                continue
+            timestamp = transaction.timestamp
+            if timestamp == -1:
+                timestamp = history.df.index[0]
 
-            time_index = transaction.get_time(self.history)
-            security_weights = self._historical_quantity[transaction.security]
-
+            # Set value to current timestamp date until end
             if transaction.trade_type == TradeType.BUY:
-                security_weights.iloc[time_index:] += transaction.quantity
+                _historical_quantity.loc[timestamp:, transaction.security] += transaction.quantity
             elif transaction.trade_type == TradeType.SELL:
-                security_weights.iloc[time_index:] -= transaction.quantity
+                _historical_quantity.loc[timestamp:, transaction.security] -= transaction.quantity
 
-        return self._historical_quantity
+
+        return _historical_quantity
 
     def historical_returns(self, historical_quantity=None):
         if self.history is None:
