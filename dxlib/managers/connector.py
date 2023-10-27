@@ -52,10 +52,9 @@ class Connector:
                     print(f"Error pinging client {name}: {e}")
             await asyncio.sleep(10)
 
-
     def add_client(self, client):
         uri = client.get("uri") if isinstance(client, dict) else client
-        data_type = client.get("requesting") if isinstance(client, dict) else None
+        # data_type = client.get("requesting") if isinstance(client, dict) else None
         name = client.get("name") if isinstance(client, dict) else client
 
         async def connect_client():

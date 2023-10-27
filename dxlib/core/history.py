@@ -124,7 +124,8 @@ class History:
     @classmethod
     def from_dict(cls, attributes):
         df = attributes["df"]
-        columns = [(field, cls.security_manager.add_security(Security(**security))) for field, security in df["columns"]]
+        columns = [(field, cls.security_manager.add_security(Security(**security)))
+                   for field, security in df["columns"]]
         index = df["index"]
         data = df["data"]
         df = pd.DataFrame(data, columns=pd.MultiIndex.from_tuples(columns), index=index)

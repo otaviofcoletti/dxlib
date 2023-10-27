@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from ..strategy import Strategy
-from ...core import Signal, History, TradeType
+from ...core import TradeSignal, History, TransactionType
 
 
 class BollingerBreakoutStrategy(Strategy):
@@ -14,7 +14,7 @@ class BollingerBreakoutStrategy(Strategy):
         self.window = window
 
     def execute(self, idx: pd.Index, position: pd.Series, history: History) -> pd.Series:
-        signals = pd.Series(Signal("wait"), index=history.securities)
+        signals = pd.Series(TradeSignal("wait"), index=history.securities)
         volatility = history.indicators.volatility()
 
         upper, lower = history.indicators.bollinger_bands(self.window)
@@ -26,14 +26,14 @@ class BollingerBreakoutStrategy(Strategy):
         var_normalized = (volatility.loc[idx] - var_mean) / var_var
 
         pos = history.df.index.get_loc(idx)
-        short_ma = history.df.iloc[pos - self.short_window : pos].mean()
-        long_ma = history.df.iloc[pos - self.long_window : pos].mean()
+        short_ma = history.df.iloc[pos - self.short_window: pos].mean()
+        long_ma = history.df.iloc[pos - self.long_window: pos].mean()
 
         for idx, equity in enumerate(history.df.columns):
             if abs(var_normalized[equity]) > abs(self.multiplier * var_historical):
                 if short_ma[equity] > long_ma[equity]:
-                    signals[equity] = Signal(TradeType.BUY, 1)
+                    signals[equity] = TradeSignal(TransactionType.BUY, 1)
                 else:
-                    signals[equity] = Signal(TradeType.SELL, 1)
+                    signals[equity] = TradeSignal(TransactionType.SELL, 1)
 
         return signals
