@@ -4,7 +4,7 @@ import json
 from enum import Enum
 
 from ..security import Security
-from ... import History
+from ..history import History
 
 
 class TransactionType(Enum):
