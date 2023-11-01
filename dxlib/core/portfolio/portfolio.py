@@ -195,25 +195,28 @@ class Portfolio:
                 transaction.attributed_histories[security] = closest_index
                 break
 
-    def historical_quantity(self, history: History | None = None):
-        if history is None:
-            history = self._history
+    def historical_quantity(self, history: History | None = None, column: str = "Close", keep_cash: bool = False):
+        if history is None and self.history is None:
+            raise ValueError("No history provided.")
+        elif history is None:
+            history = self.history
 
         _historical_quantity = pd.DataFrame(
             0,
-            index=history.df["Close"].index,
-            columns=history.df["Close"].columns,
+            index=history.df[column].index,
+            columns=history.df[column].columns,
         )
 
-        # Add cash column
-        _historical_quantity[self.security_manager.cash] = 0
+        if keep_cash:
+            _historical_quantity[self.security_manager.cash] = 0
 
         for transaction in self.transaction_history:
             timestamp = transaction.timestamp
             if timestamp == -1:
                 timestamp = history.df.index[0]
+            if transaction.security.security_type == SecurityType.cash and not keep_cash:
+                continue
 
-            # Set value to current timestamp date until end
             if transaction.trade_type == TransactionType.BUY:
                 _historical_quantity.loc[timestamp:, transaction.security] += transaction.quantity
             elif transaction.trade_type == TransactionType.SELL:
@@ -221,7 +224,7 @@ class Portfolio:
 
         return _historical_quantity
 
-    def historical_returns(self, historical_quantity=None):
+    def historical_value(self, historical_quantity=None):
         if self.history is None:
             return None
 

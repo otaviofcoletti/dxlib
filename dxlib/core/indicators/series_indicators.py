@@ -1,57 +1,43 @@
 import numpy as np
 import pandas as pd
+from statsmodels.tsa import seasonal
 
 from .indicators import Indicators
 
 
 class SeriesIndicators(Indicators):
-    def __init__(self, history):
-        super().__init__(history)
-
-    @property
-    def df(self) -> pd.DataFrame:
-        return self.history.df
-
-    def sma(self, window=20):
-        ma = self.df.rolling(window=window).mean()
-        ma.iloc[0] = self.df.iloc[0]
+    def sma(self, series, window=20):
+        ma = series.rolling(window=window).mean()
+        ma.iloc[0] = series.iloc[0]
         return ma
 
-    def ema(self, window):
-        return self.df.ewm(span=window, adjust=False).mean()
+    def ema(self, series, window=20):
+        return series.ewm(span=window, adjust=False).mean()
 
-    def bollinger_bands(self, window, num_std=2):
-        rolling_mean = self.sma(window)
-        rolling_std = self.df.rolling(window=window).std()
-        upper_band = rolling_mean + (rolling_std * num_std)
-        lower_band = rolling_mean - (rolling_std * num_std)
-        upper_band.iloc[0] = self.df.iloc[0]
-        lower_band.iloc[0] = self.df.iloc[0]
-        return upper_band, lower_band
-
-    def log_change(self, window=1, progressive=False):
-        rolling_change = self.df / self.df.shift(window)
-
-        if progressive:
-            for i in range(0, window):
-                rolling_change.iloc[i] = self.df.iloc[i] / self.df.iloc[0]
+    def log_change(self, series, window=1):
+        rolling_change = series / series.shift(window)
         return np.log(rolling_change)
 
-    def relative_log_change(self, window=1):
-        relative_change = self.df / self.df.rolling(window).sum()
-
+    def relative_log_change(self, series, window=1):
+        relative_change = series / series.rolling(window).sum()
         return np.log(relative_change)
 
-    def volatility(self, window=20, period=252, progressive=False, min_interval: int = None, columns=None):
-        if progressive and min_interval is None:
-            min_interval = int(np.sqrt(window))
-        log_returns = self.log_change()
-        volatility = log_returns.rolling(window).std(ddof=0) * np.sqrt(period)
+    def autocorrelation(self, series, lag=15) -> pd.Series:
+        return series.autocorr(lag=lag)
 
-        if progressive:
-            for i in range(min_interval, window):
-                volatility.iloc[i] = (
-                    log_returns.rolling(i).std(ddof=0) * np.sqrt(period)
-                ).iloc[i]
+    def acf(self, series, lag=15) -> pd.Series:
+        autocorr_series = np.zeros(lag)
+        for i in range(lag):
+            autocorr_series[i] = series.autocorr(lag=i)
 
-        return volatility
+        return pd.Series(autocorr_series)
+
+    def pacf(self, series, lag=15) -> pd.Series:
+        pacf_series = np.zeros(lag)
+        for i in range(lag):
+            pacf_series[i] = series.pacf(lag=i)
+
+        return pd.Series(pacf_series)
+
+    def seasonal_decompose(self, series, period=252):
+        return seasonal.seasonal_decompose(series, period=period)

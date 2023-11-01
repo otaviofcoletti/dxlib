@@ -1,44 +1,44 @@
+import numpy as np
 import pandas as pd
-from statsmodels.tsa.seasonal import seasonal_decompose
 
+from .series_indicators import SeriesIndicators
 from .indicators import Indicators
 
 
 class TechnicalIndicators(Indicators):
-    def __init__(self, history):
-        super().__init__(history)
+    def __init__(self):
+        super().__init__()
+        self.series_indicators = SeriesIndicators()
 
-    @property
-    def df(self):
-        return self.history.df
+    def volatility(self, series, window=252, period=252):
+        # if window == 252 and period == 252 it is calculating annualized volatility over the past trading year
+        volatility = series.rolling(window).std() * np.sqrt(period)
+        return volatility
 
-    @property
-    def series_indicators(self):
-        return self.history.indicators.series
+    def drawdown(self, series):
+        return (series / series.cummax()) - 1
 
-    def sharpe_ratio(self, periods=252, risk_free_rate=0.05):
-        returns = self.series_indicators.log_change()
-        daily_risk_free = (1 + risk_free_rate) ** (1 / periods) - 1
-
-        excess_returns = returns - daily_risk_free
+    def sharpe_ratio(self, series, window=252, risk_free_rate=0.05):
+        returns = self.series_indicators.log_change(series, window)
+        excess_returns = returns - risk_free_rate
 
         return excess_returns.mean() / excess_returns.std()
 
-    def rsi(self, window=252):
-        delta = self.df.diff()
+    def rsi(self, series, window=252):
+        returns = self.series_indicators.log_change(series, window)
 
-        gain = delta.where(delta > 0, 0).fillna(0)
-        loss = -delta.where(delta < 0, 0).fillna(0)
+        up_returns = returns[returns > 0].fillna(0)
+        down_returns = returns[returns < 0].fillna(0).abs()
 
-        avg_gain = gain.rolling(window=window, min_periods=1).mean()
-        avg_loss = loss.rolling(window=window, min_periods=1).mean()
+        up_gain = up_returns.ewm(com=window - 1, min_periods=window).mean()
+        down_loss = down_returns.ewm(com=window - 1, min_periods=window).mean()
 
-        rs = avg_gain / avg_loss
+        rs = up_gain / down_loss
 
         return 100 - (100 / (1 + rs))
 
-    def beta(self) -> pd.Series:
-        returns = self.series_indicators.log_change().dropna()
+    def beta(self, series, window=252) -> pd.Series:
+        returns = self.series_indicators.log_change(series, window).dropna()
 
         betas = {}
 
@@ -55,18 +55,18 @@ class TechnicalIndicators(Indicators):
 
         return pd.Series(betas)
 
-    def drawdown(self):
-        return self.df / self.df.cummax() - 1
+    def bollinger_bands(self, series, window, num_std=2):
+        rolling_mean = self.series_indicators.sma(series, window)
+        rolling_std = series.rolling(window=window).std()
+        upper_band = rolling_mean + (rolling_std * num_std)
+        lower_band = rolling_mean - (rolling_std * num_std)
+        return upper_band, lower_band
 
-    def autocorrelation(self, lag=15) -> pd.Series:
-        returns = self.series_indicators.log_change()
-        acorr = returns.apply(lambda col: col.autocorr(lag=lag))
+    def macd(self, series, fast=12, slow=26, signal=9):
+        ema_fast = self.series_indicators.ema(series, fast)
+        ema_slow = self.series_indicators.ema(series, slow)
 
-        return acorr
+        macd = ema_fast - ema_slow
+        signal = self.series_indicators.ema(macd, signal)
 
-    def seasonal_decompose(self, period=252):
-        result = seasonal_decompose(self.df, model="multiplicative", period=period)
-        return result.trend, result.seasonal, result.resid
-
-    def adtv(self, window=20,column="Volume"):
-        return self.df[column].rolling(window=window).mean()
+        return macd, signal
