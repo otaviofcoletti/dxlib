@@ -138,7 +138,7 @@ class AlpacaMarketsAPI(SnapshotApi):
 
         return historical_bars
 
-    def _get_symbols(self, n=10, filter_="volume"):
+    def _get_tickers(self, n=10, filter_="volume"):
         # https://data.alpaca.markets/v1beta1/screener/stocks/most-actives?by=volume&top=100
         url = self.form_url(
             f"{self.Endpoints.screener.value}/{self.Endpoints.stocks.value}/most-actives?by={filter_}&top={n}",
@@ -146,19 +146,19 @@ class AlpacaMarketsAPI(SnapshotApi):
         response = self.get(url)
         return response
 
-    def get_symbols(self,
+    def get_tickers(self,
                     n=10,
                     filter_="volume",
-                    cache=True):
-        symbols_cache = self.symbols_cache("alpaca_markets_symbols", n, filter_)
+                    cache=True) -> pd.DataFrame:
+        tickers_cache = self.tickers_cache("alpaca_markets_tickers", n, filter_)
 
-        if os.path.exists(symbols_cache) and cache:
-            return pd.read_csv(symbols_cache, index_col=0)
+        if os.path.exists(tickers_cache) and cache:
+            return pd.read_csv(tickers_cache, index_col=0)
 
-        response = self._get_symbols(n, filter_)
-        symbols = pd.DataFrame(response["most_actives"])
+        response = self._get_tickers(n, filter_)
+        tickers = pd.DataFrame(response["most_actives"])
 
         if cache:
-            symbols.to_csv(symbols_cache)
+            tickers.to_csv(tickers_cache)
 
-        return symbols
+        return tickers

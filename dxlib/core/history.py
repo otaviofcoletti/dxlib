@@ -47,7 +47,9 @@ class History:
             else:
                 raise AttributeError(f"'IndicatorsProxy' object has no attribute '{attr}'")
 
-    def __init__(self, df: pd.DataFrame | tuple | list[dict] | dict, securities_level=None, identifier=None):
+    def __init__(self, df: pd.DataFrame | tuple | list[dict] | dict = None, securities_level=None, identifier=None):
+        if df is None:
+            df = pd.DataFrame()
         if securities_level is None:
             securities_level = -1
 
@@ -97,7 +99,7 @@ class History:
         elif isinstance(other, pd.DataFrame):
             return self + History(other)
         elif isinstance(other, History):
-            return History(pd.concat([self.df, other.df]))
+            return History(pd.concat([self.df, other.df]).sort_index())
         return self
 
     def _serialize(self, obj):
