@@ -13,7 +13,7 @@ import pandas as pd
 
 from .generic_manager import GenericManager, GenericMessageHandler
 from ..api import Endpoint
-from ..core import Portfolio, History, Signal, TradeType, no_logger
+from ..core import Portfolio, History, TradeSignal, TransactionType, no_logger
 from ..strategies import Strategy
 
 
@@ -88,7 +88,7 @@ class StrategyManager(GenericManager):
 
     @Endpoint.get("position", "Gets the current position for the simulation")
     def get_position(self):
-        return  {security.symbol: quantity for security, quantity in self.position.items()}
+        return {security.symbol: quantity for security, quantity in self.position.items()}
 
     def execute(self, bar=None):
         if bar:
@@ -102,9 +102,9 @@ class StrategyManager(GenericManager):
             signals = self.strategy.execute(idx,
                                             pd.Series(self.position, dtype=np.float64),
                                             self.history)
-        except:
+        except Exception:
             self.logger.warning("Error executing strategy", exc_info=True)
-            return   pd.Series(Signal(TradeType.WAIT), index=self.history.securities.values())
+            return pd.Series(TradeSignal(TransactionType.WAIT), index=self.history.securities.values())
 
         for security in signals.keys():
             for portfolio in self.portfolios.values():
@@ -123,16 +123,14 @@ class StrategyManager(GenericManager):
             if not self.running:
                 break
             self._history += bars
-            generated_signals = self.execute(bars)
+            self.execute(bars)
         self.running = False
-        return generated_signals
 
     def _consume(self, subscription: Generator):
         for bars in subscription:
             self._history += bars
-            generated_signals = self.execute(bars)
+            self.execute(bars)
         self.running = False
-        return generated_signals
 
     def stop(self):
         if self.running:
@@ -170,14 +168,14 @@ class StrategyMessageHandler(GenericMessageHandler):
     def _register_portfolio(self, portfolio: dict = None):
         try:
             portfolio = Portfolio(**portfolio)
-            self.manager.register(portfolio)
+            self.manager.register_portfolio(portfolio)
         except TypeError:
             raise json.dumps("Message does not contain a valid portfolio")
 
     def _register_history(self, history: dict | History = None):
         try:
             history = History(**history if history else pd.DataFrame()) if (
-                        isinstance(history, dict) or history is None) else history
+                    isinstance(history, dict) or history is None) else history
             self.manager.history = history
         except TypeError:
             raise json.dumps("Message does not contain a valid history")
@@ -188,10 +186,11 @@ class StrategyMessageHandler(GenericMessageHandler):
             if self.manager.history is None or self.manager.history.df.empty:
                 self._register_history(history)
             self.manager.run(history)
+            return history
         except TypeError:
             raise json.dumps("Message does not contain a valid snapshot")
 
-    def send_signals(self, signals: pd.Series | dict[Security, Signal]):
+    def send_signals(self, signals: pd.Series | dict[Security, TradeSignal]):
         for security in signals.keys():
             for portfolio in self.registered_portfolios:
                 if security in portfolio.position.keys():
@@ -256,7 +255,7 @@ if __name__ == "__main__":
 
     strategy_manager = StrategyManager(my_strategy, server_port=5000, websocket_port=6000, logger=my_logger)
     strategy_manager.start()
-    strategy_manager.register(my_portfolio)
+    strategy_manager.register_portfolio(my_portfolio)
 
     try:
         while True:

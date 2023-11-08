@@ -34,10 +34,10 @@ class Bar(pd.Series):
 class History:
     security_manager = SecurityManager()
 
-    class HistoryIndicators:
-        def __init__(self, history):
-            self.series: SeriesIndicators = SeriesIndicators(history)
-            self.technical: TechnicalIndicators = TechnicalIndicators(history)
+    class Indicators:
+        def __init__(self):
+            self.series: SeriesIndicators = SeriesIndicators()
+            self.technical: TechnicalIndicators = TechnicalIndicators()
 
         def __getattr__(self, attr):
             if hasattr(self.series, attr):
@@ -53,7 +53,7 @@ class History:
         if securities_level is None:
             securities_level = -1
 
-        self._indicators = self.HistoryIndicators(self)
+        self._indicators = self.Indicators()
         self._securities_level = securities_level
         self._identifier = identifier
 
@@ -126,7 +126,8 @@ class History:
     @classmethod
     def from_dict(cls, attributes):
         df = attributes["df"]
-        columns = [(field, cls.security_manager.add_security(Security(**security))) for field, security in df["columns"]]
+        columns = [(field, cls.security_manager.add_security(Security(**security)))
+                   for field, security in df["columns"]]
         index = df["index"]
         data = df["data"]
         df = pd.DataFrame(data, columns=pd.MultiIndex.from_tuples(columns), index=index)
@@ -144,7 +145,7 @@ class History:
         return self._securities
 
     @property
-    def indicators(self) -> HistoryIndicators:
+    def indicators(self) -> Indicators:
         return self._indicators
 
     @property
@@ -178,15 +179,12 @@ class History:
     def describe(self):
         return self.df.describe()
 
-    def get_securities(self, securities: Security | list[Security]):
-        return self.df[securities]
-
     def get(self, securities: Security | list[Security]):
         if isinstance(securities, str):
             securities = [securities]
         return self.df.loc[:, pd.IndexSlice[:, securities]]
 
-    def get_by_symbols(self, symbols: str | list[str]):
+    def get_symbols(self, symbols: str | list[str]):
         if isinstance(symbols, str):
             symbols = [symbols]
         securities = self.security_manager.get_securities(symbols).values()

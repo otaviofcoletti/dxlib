@@ -1,7 +1,7 @@
 import pandas as pd
 
 from ..strategy import Strategy
-from ...core import History, Signal, TradeType
+from ...core import History, TradeSignal, TransactionType
 
 
 class TrendFollowStrategy(Strategy):
@@ -46,14 +46,14 @@ class TrendFollowStrategy(Strategy):
         Returns:
         dict: Trading signals for each equity.
         """
-        signals = pd.Series(Signal(TradeType.WAIT), index=history.df.index)
+        signals = pd.Series(TradeSignal(TransactionType.WAIT), index=history.df.index)
         if idx >= self.long_window:
             short_ma = history.indicators.sma(self.short_window).mean()
             long_ma = history.indicators.sma(self.long_window).mean()
 
             for idx, equity in enumerate(history.df.columns):
                 if short_ma[equity] > long_ma[equity]:
-                    signals[idx] = Signal(TradeType.BUY, 1)
+                    signals[idx] = TradeSignal(TransactionType.BUY, 1)
                 else:
-                    signals[idx] = Signal(TradeType.SELL, 1)
+                    signals[idx] = TradeSignal(TransactionType.SELL, 1)
         return signals

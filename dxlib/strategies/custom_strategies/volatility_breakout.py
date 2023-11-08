@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from ..strategy import Strategy
-from ...core import History, Signal, TradeType
+from ...core import History, TradeSignal, TransactionType
 
 
 class VolatilityBreakoutStrategy(Strategy):
@@ -48,12 +48,12 @@ class VolatilityBreakoutStrategy(Strategy):
         Returns:
         dict: Trading signals for each equity.
         """
-        signals = pd.Series(Signal("wait"), index=history.df.columns)
+        signals = pd.Series(TradeSignal("wait"), index=history.df.columns)
         volatility = history.indicators.volatility()
 
         for idx, equity in enumerate(history.df.columns):
             if volatility[equity].iloc[idx] > self.multiplier * np.mean(
                     volatility[equity].iloc[idx - self.lookback_period: idx]
             ):
-                signals[idx] = Signal(TradeType.BUY, 1)
+                signals[idx] = TradeSignal(TransactionType.BUY, 1)
         return signals
