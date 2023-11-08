@@ -14,6 +14,15 @@ class SeriesIndicators(Indicators):
     def ema(self, series, window=20):
         return series.ewm(span=window, adjust=False).mean()
 
+    def diff(self, series, period=1):
+        return series.diff(period)
+
+    def detrend(self, series):
+        return series - self.sma(series)
+
+    def returns(self, series):
+        return series.pct_change()
+
     def log_change(self, series, window=1):
         rolling_change = series / series.shift(window)
         return np.log(rolling_change)

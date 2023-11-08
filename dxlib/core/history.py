@@ -31,6 +31,24 @@ class Bar(pd.Series):
         return self[item]
 
 
+def serialize(obj):
+    if isinstance(obj, str):
+        return obj
+    elif isinstance(obj, Security):
+        return obj.to_json()
+    elif isinstance(obj, tuple):
+        return tuple(serialize(o) for o in obj)
+    elif isinstance(obj, pd.Timestamp):
+        return obj.isoformat()
+    elif isinstance(obj, pd.DataFrame):
+        columns = [serialize(c) for c in obj.columns.to_list()]
+        index = [serialize(i) for i in obj.index.to_list()]
+        data = obj.to_numpy().tolist()
+        return {"df": {"columns": columns, "index": index, "data": data}}
+    else:
+        return obj
+
+
 class History:
     security_manager = SecurityManager()
 
@@ -102,26 +120,13 @@ class History:
             return History(pd.concat([self.df, other.df]).sort_index())
         return self
 
-    def _serialize(self, obj):
-        if isinstance(obj, str):
-            return obj
-        elif isinstance(obj, Security):
-            return obj.to_json()
-        elif isinstance(obj, tuple):
-            return tuple(self._serialize(o) for o in obj)
-        elif isinstance(obj, pd.Timestamp):
-            return obj.isoformat()
-        else:
-            return obj
-
     def __dict__(self):
         return self.to_dict()
 
-    def to_dict(self):
-        columns = [self._serialize(c) for c in self.df.columns.to_list()]
-        index = [self._serialize(i) for i in self.df.index.to_list()]
-        data = self.df.to_numpy().tolist()
-        return {"df": {"columns": columns, "index": index, "data": data}}
+    def to_dict(self, df=None):
+        if df is None:
+            df = self.df
+        return self.serialize(df)
 
     @classmethod
     def from_dict(cls, attributes):
@@ -184,11 +189,18 @@ class History:
             securities = [securities]
         return self.df.loc[:, pd.IndexSlice[:, securities]]
 
-    def get_symbols(self, symbols: str | list[str]):
-        if isinstance(symbols, str):
-            symbols = [symbols]
-        securities = self.security_manager.get_securities(symbols).values()
+    def get_by_ticker(self, ticker: str | list[str]):
+        if isinstance(ticker, str):
+            ticker = [ticker]
+        securities = self.security_manager.get_securities(ticker).values()
         return self.df.loc[:, pd.IndexSlice[:, securities]]
+
+    def set(self, df, securities_level=None):
+        self.df = df
+        if securities_level is None:
+            self._securities_level = -1
+        self._securities = self.security_manager.get_securities(df.columns.get_level_values(self._securities_level).unique())
+        return self
 
 
 if __name__ == "__main__":

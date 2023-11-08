@@ -93,8 +93,8 @@ class SecurityManager(metaclass=SingletonMeta):
             filtered_securities = {}
             for security in securities:
                 if isinstance(security, str):
-                    filtered_securities[security] = self.securities[security]
+                    filtered_securities[security] = self.securities.get(security, None)
                 elif isinstance(security, Security):
-                    filtered_securities[security.symbol] = self.securities[security.symbol]
+                    filtered_securities[security.symbol] = self.securities.get(security.symbol, None)
             return filtered_securities
         return self.securities

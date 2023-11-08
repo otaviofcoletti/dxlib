@@ -12,7 +12,7 @@ class TechnicalIndicators(Indicators):
 
     def volatility(self, series, window=252, period=252):
         # if window == 252 and period == 252 it is calculating annualized volatility over the past trading year
-        volatility = series.rolling(window).std() * np.sqrt(period)
+        volatility = series.rolling(window).std() * np.sqrt(1 / period)
         return volatility
 
     def drawdown(self, series):
