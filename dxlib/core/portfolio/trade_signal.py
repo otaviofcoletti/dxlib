@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from .transaction import TransactionType
+from dxlib.core.trading.transaction import TransactionType
 
 
 class TradeSignal:

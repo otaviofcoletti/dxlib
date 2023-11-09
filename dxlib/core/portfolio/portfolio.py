@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from .trade_signal import TradeSignal
-from .transaction import Transaction, TransactionType
+from dxlib.core.trading.transaction import Transaction, TransactionType
 from ..history import History
 from ..security import SecurityManager, Security, SecurityType
 from ..logger import no_logger

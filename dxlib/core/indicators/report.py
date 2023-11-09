@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from .portfolio import Portfolio
+from ..portfolio.portfolio import Portfolio
 from ..history import History
 from ..security import Security
-from ..indicators import TechnicalIndicators, SeriesIndicators
+from ..indicators import SeriesIndicators
 
 
 class Report:
@@ -23,15 +23,20 @@ class Report:
         value = portfolio.historical_value()
         returns = SeriesIndicators.log_change(value, window)
 
-        _metrics = {}
+        return _metrics
 
+    def profit(self, returns):
         total_net_profit = returns.sum(axis=1).sum()
         gross_profit = returns[returns > 0].sum(axis=1).sum()
         gross_loss = returns[returns < 0].sum(axis=1).sum()
 
         profit_factor = gross_profit / gross_loss
 
-        total_trades = len(portfolio.transaction_history)
-        percent_profitable = df[df > 0].count(axis=1).sum() / total_trades
+        return total_net_profit, gross_profit, gross_loss, profit_factor
 
-        return _metrics
+    def trades(self, returns):
+        average_trade_net_profit = returns.sum(axis=1).mean()
+        total_trades = len(returns)
+        percent_profitable = returns[returns > 0].count(axis=1).sum() / total_trades
+
+        return total_trades, percent_profitable

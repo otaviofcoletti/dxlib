@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 from enum import Enum
 
-from ..security import Security
-from ..history import History
+from dxlib.core.security import Security
+from dxlib.core.history import History
 
 
 class TransactionType(Enum):
