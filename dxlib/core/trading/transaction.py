@@ -18,6 +18,10 @@ class TransactionType(Enum):
         return False
 
 
+
+
+
+
 class Transaction:
     _cost = 2e-2
 
