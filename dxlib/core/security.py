@@ -29,7 +29,7 @@ class Security:
         return f"{self.symbol}"
 
     def to_dict(self):
-        return {"symbol": self.symbol, "security_type": self.security_type.value}
+        return self.symbol
 
     def to_json(self):
         serialized = self.to_dict()
