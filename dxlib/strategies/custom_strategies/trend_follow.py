@@ -1,7 +1,7 @@
 import pandas as pd
 
 from ..strategy import Strategy
-from ...core import History, TradeSignal, TransactionType
+from ...core import History, Side
 
 
 class TrendFollowStrategy(Strategy):

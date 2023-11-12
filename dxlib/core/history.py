@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import json
-from typing import Generator
-
 import numpy as np
 import pandas as pd
 
@@ -31,27 +28,7 @@ class Bar(pd.Series):
         return self[item]
 
 
-def serialize(obj):
-    if isinstance(obj, str):
-        return obj
-    elif isinstance(obj, Security):
-        return obj.to_json()
-    elif isinstance(obj, tuple):
-        return tuple(serialize(o) for o in obj)
-    elif isinstance(obj, pd.Timestamp):
-        return obj.isoformat()
-    elif isinstance(obj, pd.DataFrame):
-        columns = [serialize(c) for c in obj.columns.to_list()]
-        index = [serialize(i) for i in obj.index.to_list()]
-        data = obj.to_numpy().tolist()
-        return {"df": {"columns": columns, "index": index, "data": data}}
-    else:
-        return obj
-
-
 class History:
-    security_manager = SecurityManager()
-
     class Indicators:
         def __init__(self):
             self.series: SeriesIndicators = SeriesIndicators()
@@ -65,15 +42,17 @@ class History:
             else:
                 raise AttributeError(f"'IndicatorsProxy' object has no attribute '{attr}'")
 
-    def __init__(self, df: pd.DataFrame | tuple | list[dict] | dict = None, securities_level=None, identifier=None):
+    def __init__(self,
+                 security_manager: SecurityManager = None,
+                 df: pd.DataFrame | tuple | list[dict] | dict = None,
+                 securities_level=None,
+                 identifier=None):
+        if security_manager is None:
+            security_manager = SecurityManager()
         if df is None:
             df = pd.DataFrame()
-        if securities_level is None:
-            securities_level = -1
-
-        self._indicators = self.Indicators()
-        self._securities_level = securities_level
-        self._identifier = identifier
+        if identifier is None:
+            identifier = hash(self)
 
         if isinstance(df, tuple):
             idx, row = df
@@ -81,19 +60,24 @@ class History:
         elif isinstance(df, list):
             df = pd.DataFrame(df)
 
-        symbols = list(df.columns.get_level_values(securities_level).unique())
-        self.security_manager.add_securities(symbols)
-        self._securities: dict[str, Security] = self.security_manager.get_securities(symbols)
+        if securities_level is None:
+            securities_level = -1
 
-        security_columns = tuple(self._securities.values())
+        self.indicators = self.Indicators()
+        self._securities_level = securities_level
+        self._identifier = identifier
+        self.security_manager = security_manager
+
+        tickers = list(df.columns.get_level_values(securities_level).unique())
+        self.security_manager.add(tickers)
+        _securities: dict[str, Security] = self.security_manager.get(tickers)
+        security_columns = tuple(_securities.values())
 
         if isinstance(df.columns, pd.MultiIndex):
-            existing_multiindex = df.columns
-            new_columns = existing_multiindex.set_levels(security_columns, level=securities_level)
+            df.columns = df.columns.set_levels(security_columns, level=securities_level)
         else:
-            new_columns = security_columns
+            df.columns = security_columns
 
-        df.columns = new_columns
         self.df = df
 
     def __len__(self):
@@ -105,53 +89,41 @@ class History:
     def __getitem__(self, item):
         return self.df[item]
 
-    def __add__(self, other: Bar | tuple | Generator | pd.DataFrame | History):
-        if self.df.empty:
-            return History(other)
-        if isinstance(other, tuple):
-            idx, row = other
-            self.df.loc[idx] = row.values
-        elif isinstance(other, Generator):
-            for idx, row in other:
-                return self + (idx, row)
-        elif isinstance(other, pd.DataFrame):
-            return self + History(other)
+    def __add__(self, other: pd.DataFrame | History):
+        if isinstance(other, pd.DataFrame):
+            return self + History(self.security_manager, other)
         elif isinstance(other, History):
-            return History(pd.concat([self.df, other.df]).sort_index())
-        return self
+            return History(self.security_manager, pd.concat([self.df, other.df]).sort_index())
 
-    def __dict__(self):
-        return self.to_dict()
-
-    def to_dict(self, df=None):
-        if df is None:
-            df = self.df
-        return self.serialize(df)
+    def to_dict(self):
+        return {
+            "df": self.df.to_dict(),
+            "security_manager": self.security_manager.to_dict()
+        }
 
     @classmethod
     def from_dict(cls, attributes):
-        df = attributes["df"]
-        columns = [(field, cls.security_manager.add_security(Security(**security)))
-                   for field, security in df["columns"]]
-        index = df["index"]
-        data = df["data"]
-        df = pd.DataFrame(data, columns=pd.MultiIndex.from_tuples(columns), index=index)
-        return cls(df)
+        df = attributes.get("df", None)
+        security_manager = attributes.get("security_manager", None)
+        return cls(security_manager, df)
 
-    def to_json(self):
-        return json.dumps(self.to_dict())
+    def serialize_multiindex(self):
+        # Return list of lists for each level of the multiindex
+        return [self.df.columns.get_level_values(i).unique().tolist() for i in range(self.df.columns.nlevels)]
+
+    def serialized(self):
+        return {
+            "identifier": self._identifier,
+            "df": {
+                "index": self.df.index.strftime("%Y-%m-%d %H:%M:%S").tolist(),
+                "columns": self.serialize_multiindex(),
+            },
+            "security_manager": self.security_manager.serialized()
+        }
 
     @property
     def shape(self):
         return self.df.shape
-
-    @property
-    def securities(self):
-        return self._securities
-
-    @property
-    def indicators(self) -> Indicators:
-        return self._indicators
 
     @property
     def start(self):
@@ -161,7 +133,7 @@ class History:
     def end(self):
         return self.df.index[-1]
 
-    def add_security(self, symbol, data):
+    def add_security(self, ticker, data):
         if isinstance(data, dict):
             data = pd.Series(data)
 
@@ -170,7 +142,7 @@ class History:
         if len(new_series) > len(data):
             new_series[len(data):] = np.nan
 
-        self.df[symbol] = new_series
+        self.df[ticker] = new_series
 
     def add_row(self, rows: pd.DataFrame | pd.Series, index: pd.Index = None):
         if isinstance(rows, pd.Series):
@@ -192,40 +164,10 @@ class History:
     def get_by_ticker(self, ticker: str | list[str]):
         if isinstance(ticker, str):
             ticker = [ticker]
-        securities = self.security_manager.get_securities(ticker).values()
+        securities = self.security_manager.get(ticker).values()
         return self.df.loc[:, pd.IndexSlice[:, securities]]
 
-    def set(self, df, securities_level=None):
-        self.df = df
-        if securities_level is None:
-            self._securities_level = -1
-        self._securities = self.security_manager.get_securities(df.columns.get_level_values(self._securities_level).unique())
-        return self
-
-
-if __name__ == "__main__":
-    # syms: list[str] = ["TSLA", "GOOGL", "MSFT"]
-    # price_data = np.array(
-    #     [
-    #         [150.0, 2500.0, 300.0],
-    #         [152.0, 2550.0, 305.0],
-    #         [151.5, 2510.0, 302.0],
-    #         [155.0, 2555.0, 308.0],
-    #         [157.0, 2540.0, 306.0],
-    #     ]
-    # )
-    # price_data = pd.DataFrame(price_data, columns=syms)
-    # hist = History(price_data)
-    #
-    # print(hist.describe())
-    #
-    # moving_average = hist.indicators.series.sma(window=2)
-    # combined_df = pd.concat([hist.df, moving_average.add_suffix("_MA")], axis=1)
-    # combined_df.index = pd.to_datetime(combined_df.index)
-
-    from dxlib.api import YFinanceAPI
-    historical_bars = YFinanceAPI().get_historical_bars(["TSLA", "AAPL"], cache=False)
-    hist = History(historical_bars.iloc[:10])
-
-    hist += historical_bars.iloc[10:20]
-    print(hist.get_by_symbols("TSLA"))
+    def time(self):
+        if len(self.df) == 0:
+            return None
+        return self.df.index[-1]

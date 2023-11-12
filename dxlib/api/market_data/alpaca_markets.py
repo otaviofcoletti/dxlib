@@ -106,9 +106,9 @@ class AlpacaMarketsAPI(SnapshotApi):
         pivoted_df.columns = pivoted_df.columns.set_names(["Fields", "Ticker"])
 
         # If response incomplete, recursive call to get next page
-        if response.get("next_page_token"):
+        if response.get():
             next_query = self._query_historical_bars(tickers, timeframe, start, end,
-                                                     page_token=response.get("next_page_token"))
+                                                     page_token=response.get())
             pivoted_df = pd.concat([pivoted_df, next_query])
 
         return pivoted_df
