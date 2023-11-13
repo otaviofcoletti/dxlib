@@ -16,7 +16,7 @@ class OrderType(Enum):
 class OrderData:
     def __init__(self,
                  security: Security,
-                 price: float | int,
+                 price: float | int = None,
                  quantity: float | int = 0,
                  side: Side | str = Side.BUY,
                  order_type: str = OrderType.MARKET,
@@ -25,7 +25,7 @@ class OrderData:
         self.price = price
         self.quantity = quantity
         self.side = side if isinstance(side, Side) else Side(side)
-        self.order_type = order_type
+        self.order_type = order_type if isinstance(order_type, OrderType) else OrderType(order_type.upper())
 
     def __repr__(self):
         return f"{self.side.name}: {self.security.ticker} {self.quantity} @ {self.price}"
@@ -72,13 +72,15 @@ class Order:
         }
 
     def create_transaction(self, time, quantity=None):
-        return Transaction(
+        transaction = Transaction(
             self.data.security,
             quantity or self.data.quantity,
             self.data.price,
             self.data.side,
             time,
         )
+        self._transactions.append(transaction)
+        return transaction
 
     def add_transaction(self, transaction: Transaction):
         if not self._partial and transaction.data.quantity != self.data.quantity:

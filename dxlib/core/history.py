@@ -7,27 +7,6 @@ from .indicators import TechnicalIndicators, SeriesIndicators
 from .security import Security, SecurityManager
 
 
-class Bar(pd.Series):
-    def __init__(self, bar: str | tuple, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        symbol = None
-        if isinstance(bar, str):
-            symbol = bar
-        elif isinstance(bar, tuple):
-            symbol, data = bar
-        self.symbol = symbol
-        self.index = pd.to_datetime(kwargs["index"]) if kwargs.get("index", None) else None
-
-    def __getattr__(self, attr):
-        if hasattr(self, attr):
-            return getattr(self, attr)
-        else:
-            raise AttributeError(f"'Bar' object has no attribute '{attr}'")
-
-    def __getitem__(self, item):
-        return self[item]
-
-
 class History:
     class Indicators:
         def __init__(self):
@@ -44,24 +23,21 @@ class History:
 
     def __init__(self,
                  security_manager: SecurityManager = None,
-                 df: pd.DataFrame | tuple | list[dict] | dict = None,
-                 securities_level=None,
+                 df: pd.DataFrame | tuple | list[dict] = None,
+                 securities_level=-1,
                  identifier=None):
         if security_manager is None:
             security_manager = SecurityManager()
-        if df is None:
-            df = pd.DataFrame()
         if identifier is None:
             identifier = hash(self)
 
-        if isinstance(df, tuple):
+        if df is None:
+            df = pd.DataFrame()
+        elif isinstance(df, tuple):
             idx, row = df
             df = pd.DataFrame(row).transpose()
         elif isinstance(df, list):
             df = pd.DataFrame(df)
-
-        if securities_level is None:
-            securities_level = -1
 
         self.indicators = self.Indicators()
         self._securities_level = securities_level
@@ -133,41 +109,54 @@ class History:
     def end(self):
         return self.df.index[-1]
 
-    def add_security(self, ticker, data):
+    def add_security(self, data):
         if isinstance(data, dict):
-            data = pd.Series(data)
+            data = pd.DataFrame(data)
 
         new_series = data.reindex(self.df.index)
 
         if len(new_series) > len(data):
             new_series[len(data):] = np.nan
 
-        self.df[ticker] = new_series
+        if isinstance(self.df.columns, pd.MultiIndex):
+            pass
 
-    def add_row(self, rows: pd.DataFrame | pd.Series, index: pd.Index = None):
+    def add_rows(self, rows: pd.DataFrame | pd.Series, index: pd.Index = None):
         if isinstance(rows, pd.Series):
             rows = pd.DataFrame(rows).T
             rows.index = index
         self.df = pd.concat([self.df, rows])
 
-    def last(self):
-        return self.df.iloc[-1]
-
-    def describe(self):
-        return self.df.describe()
-
-    def get(self, securities: Security | list[Security]):
-        if isinstance(securities, str):
+    def get_security(self, securities: Security | list[Security]):
+        if isinstance(securities, Security):
             securities = [securities]
         return self.df.loc[:, pd.IndexSlice[:, securities]]
 
-    def get_by_ticker(self, ticker: str | list[str]):
+    def get_ticker(self, ticker: str | list[str]):
         if isinstance(ticker, str):
             ticker = [ticker]
         securities = self.security_manager.get(ticker).values()
         return self.df.loc[:, pd.IndexSlice[:, securities]]
 
+    def get_field(self, field: str):
+        return self.df[field]
+
     def time(self):
-        if len(self.df) == 0:
-            return None
-        return self.df.index[-1]
+        return self.df.index[-1] if len(self.df) else None
+
+    def last(self):
+        return self.df.iloc[-1]
+
+    def get_fields(self, level=0):
+        return self.df.columns.get_level_values(level)
+
+    def snapshot(self, securities=None, fields=None):
+        if securities is None:
+            securities = self.get_fields(self._securities_level)
+        elif isinstance(securities, Security):
+            securities = [securities]
+
+        if fields is None:
+            fields = self.get_fields()
+
+        return self.df.loc[fields, securities].values()[-1]

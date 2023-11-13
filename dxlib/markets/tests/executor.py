@@ -20,8 +20,8 @@ class TestSandbox(unittest.TestCase):
         order_data = OrderData(
             security=self.executor.get_market().get_securities("AAPL"),
             quantity=10,
-            price=100,
             side=Side.BUY,
+            order_type="market"
         )
 
         self.executor.send_order(order_data)

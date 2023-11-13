@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from ..core.history import History
-from ..core.security import SecurityManager
+from ..core.security import SecurityManager, Security
 
 
 class Market:
@@ -12,6 +12,13 @@ class Market:
 
     def get_securities(self, ticker: str = None):
         return self.security_manager.get(ticker)
+
+    def get_snapshot(self, security: str | Security | list[Security] = None, fields: str | list[str] = None):
+        if isinstance(security, str):
+            security = self.security_manager.get(security)
+        if fields is None:
+            fields = ["Close"]
+        return self.history.snapshot(security)
 
     @property
     def time(self):

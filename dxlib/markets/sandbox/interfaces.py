@@ -45,8 +45,12 @@ class SandboxOrder(OrderInterface):
         if order.data.order_type != OrderType.MARKET:
             raise NotImplementedError("Only market orders are supported in the sandbox.")
 
-        transaction = order.create_transaction(time)
-        order.add_transaction(transaction)
+        order.data.price = market.get_snapshot(order.data.security)
+
+        if not time:
+            raise ValueError("Market did not show any valid historical bars.")
+
+        order.create_transaction(time)
 
     def cancel(self, order):
         pass
