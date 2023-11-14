@@ -1,10 +1,32 @@
 from __future__ import annotations
 
-import numpy as np
+from dataclasses import dataclass
+from typing import Literal
+
 import pandas as pd
 
 from .indicators import TechnicalIndicators, SeriesIndicators
-from .security import Security, SecurityManager
+from .security import SecurityManager
+
+
+@dataclass
+class Bar:
+    close: float = None
+    open: float = None
+    high: float = None
+    low: float = None
+    volume: float = None
+    vwap: float = None
+
+    def serialized(self):
+        return {
+            "close": self.close,
+            "open": self.open,
+            "high": self.high,
+            "low": self.low,
+            "volume": self.volume,
+            "vwap": self.vwap,
+        }
 
 
 class History:
@@ -22,10 +44,18 @@ class History:
                 raise AttributeError(f"'IndicatorsProxy' object has no attribute '{attr}'")
 
     def __init__(self,
+                 df: pd.DataFrame | dict = None,
                  security_manager: SecurityManager = None,
-                 df: pd.DataFrame | tuple | list[dict] = None,
-                 securities_level=-1,
                  identifier=None):
+        """
+        History is a multi-indexed dataframe encapsulation
+        with dates and securities as the index and bar fields as the columns.
+
+        Args:
+            df: pandas DataFrame or dict with multi-index and bar fields as columns
+            security_manager: SecurityManager object to keep track of securities
+            identifier: unique identifier for the history object
+        """
         if security_manager is None:
             security_manager = SecurityManager()
         if identifier is None:
@@ -33,31 +63,123 @@ class History:
 
         if df is None:
             df = pd.DataFrame()
-        elif isinstance(df, tuple):
-            idx, row = df
-            df = pd.DataFrame(row).transpose()
-        elif isinstance(df, list):
-            df = pd.DataFrame(df)
-
-        self.indicators = self.Indicators()
-        self._securities_level = securities_level
-        self._identifier = identifier
-        self.security_manager = security_manager
-
-        tickers = list(df.columns.get_level_values(securities_level).unique())
-        self.security_manager.add(tickers)
-        _securities: dict[str, Security] = self.security_manager.get(tickers)
-        security_columns = tuple(_securities.values())
-
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.set_levels(security_columns, level=securities_level)
-        else:
-            df.columns = security_columns
+        elif isinstance(df, dict):
+            df = pd.DataFrame.from_dict(df, orient='index')
+            df.index = pd.MultiIndex.from_tuples(df.index, names=['date', 'security'])
 
         self.df = df
 
+        self.indicators = self.Indicators()
+        self._identifier = identifier
+        self.security_manager = security_manager
+
+        self.security_manager.add(self.get_level())
+        self.set_level(list(self.security_manager.get(self.get_level()).values()))
+
+    @classmethod
+    def from_dict(cls, attributes):
+        df = attributes.get("df", None)
+        security_manager = attributes.get("security_manager", None)
+        return cls(security_manager, df)
+
+    @classmethod
+    def serialize(cls, history: History):
+        return history.serialized()
+
+    def serialized(self):
+        df = self.to_dict(orient='bars')['df']
+        # Also serialize the security manager and the securities
+        for date, securities in df.items():
+            for security, bar in securities.items():
+                df[date][security.serialized()] = bar.serialized()
+
+    def get_level(self, level: str = 'security'):
+        return self.df.index.get_level_values(level).unique().tolist()
+
+    def set_level(self, values: list = None, level: str = 'security'):
+        if values is None:
+            values = self.get_level(level)
+        self.df.index = self.df.index.set_levels(values, level=level)
+
+    def to_dict(self, orient: Literal['dict', 'list', 'series', 'split', 'records', 'index', 'bars'] = 'bars'):
+        if orient == 'bars':
+            return {
+                "df": {
+                    date: group.droplevel(0).to_dict(orient='index')
+                    for date, group in self.df.groupby(level=0)
+                },
+                "security_manager": self.security_manager.to_dict()
+            }
+        return {
+            "df": self.df.to_dict(orient),
+            "security_manager": self.security_manager.to_dict()
+        }
+
+    def _get(self, securities=None, fields=None, dates=None):
+        mask_dates = self.df.index.get_level_values('date').isin(dates)
+        mask_securities = self.df.index.get_level_values('security').isin(securities)
+
+        return self.df[mask_dates & mask_securities][fields]
+
+    def get(self, securities=None, fields=None, dates=None):
+        """
+        Get historical data for a given security, field and date
+
+        Args:
+            securities: single security or list of securities
+            fields: single bar field or list of bar fields, such as 'close', 'open', 'high', 'low', 'volume', 'vwap'
+            dates: single date or list of dates
+
+        Returns:
+            pandas DataFrame with multi-index and fields as columns
+
+        Examples:
+            >>> data = {
+                    ('2023-01-01', 'AAPL'): Bar(close=155, open=150, high=160, low=140, volume=1000000, vwap=150),
+                    ('2023-01-01', 'MSFT'): Bar(close=255, open=250, high=260, low=240, volume=2000000, vwap=250)
+                }
+            >>> history = History(data)
+            >>> history.get(securities='AAPL', fields='close', dates='2023-01-01')
+            # Output:
+            # date        security
+            # 2023-01-01  AAPL      155
+            # Name: close, dtype: int64
+        """
+        df = self.df
+
+        securities = list(self.security_manager.get(securities).values()) or self.get_level()
+        fields = fields or df.columns.tolist()
+
+        dates = dates or self.get_level(level='date')
+        dates = [dates] if isinstance(dates, str) else dates
+
+        if len(fields) == 1 and len(securities) == 1:
+            return df.xs(securities[0], level='security')[fields[0]]
+
+        if len(fields) == 1:
+            return df.loc[(dates, securities), fields[0]].unstack()
+
+        if len(securities) == 1:
+            return df.loc[(dates, securities[0]), fields].droplevel(1)
+
+        return self._get(securities=securities, fields=fields, dates=dates)
+
+    def date(self, position=-1):
+        return self.df.index.get_level_values('date').unique().tolist()[position]
+
+    def snapshot(self, securities=None):
+        self.get(securities=securities, dates=self.date)
+
+    @property
+    def shape(self):
+        return self.df.shape
+
+    @property
+    def fields(self):
+        return self.df.columns.tolist()
+
     def __len__(self):
-        return len(self.df)
+        return len(self.df.index.levels[0])
 
     def __iter__(self):
         return self.df.iterrows()
@@ -67,96 +189,9 @@ class History:
 
     def __add__(self, other: pd.DataFrame | History):
         if isinstance(other, pd.DataFrame):
-            return self + History(self.security_manager, other)
+            return self + History(other, self.security_manager)
         elif isinstance(other, History):
-            return History(self.security_manager, pd.concat([self.df, other.df]).sort_index())
+            return History(pd.concat([self.df, other.df]), self.security_manager)
 
-    def to_dict(self):
-        return {
-            "df": self.df.to_dict(),
-            "security_manager": self.security_manager.to_dict()
-        }
-
-    @classmethod
-    def from_dict(cls, attributes):
-        df = attributes.get("df", None)
-        security_manager = attributes.get("security_manager", None)
-        return cls(security_manager, df)
-
-    def serialize_multiindex(self):
-        # Return list of lists for each level of the multiindex
-        return [self.df.columns.get_level_values(i).unique().tolist() for i in range(self.df.columns.nlevels)]
-
-    def serialized(self):
-        return {
-            "identifier": self._identifier,
-            "df": {
-                "index": self.df.index.strftime("%Y-%m-%d %H:%M:%S").tolist(),
-                "columns": self.serialize_multiindex(),
-            },
-            "security_manager": self.security_manager.serialized()
-        }
-
-    @property
-    def shape(self):
-        return self.df.shape
-
-    @property
-    def start(self):
-        return self.df.index[0]
-
-    @property
-    def end(self):
-        return self.df.index[-1]
-
-    def add_security(self, data):
-        if isinstance(data, dict):
-            data = pd.DataFrame(data)
-
-        new_series = data.reindex(self.df.index)
-
-        if len(new_series) > len(data):
-            new_series[len(data):] = np.nan
-
-        if isinstance(self.df.columns, pd.MultiIndex):
-            pass
-
-    def add_rows(self, rows: pd.DataFrame | pd.Series, index: pd.Index = None):
-        if isinstance(rows, pd.Series):
-            rows = pd.DataFrame(rows).T
-            rows.index = index
-        self.df = pd.concat([self.df, rows])
-
-    def get_security(self, securities: Security | list[Security]):
-        if isinstance(securities, Security):
-            securities = [securities]
-        return self.df.loc[:, pd.IndexSlice[:, securities]]
-
-    def get_ticker(self, ticker: str | list[str]):
-        if isinstance(ticker, str):
-            ticker = [ticker]
-        securities = self.security_manager.get(ticker).values()
-        return self.df.loc[:, pd.IndexSlice[:, securities]]
-
-    def get_field(self, field: str):
-        return self.df[field]
-
-    def time(self):
-        return self.df.index[-1] if len(self.df) else None
-
-    def last(self):
-        return self.df.iloc[-1]
-
-    def get_fields(self, level=0):
-        return self.df.columns.get_level_values(level)
-
-    def snapshot(self, securities=None, fields=None):
-        if securities is None:
-            securities = self.get_fields(self._securities_level)
-        elif isinstance(securities, Security):
-            securities = [securities]
-
-        if fields is None:
-            fields = self.get_fields()
-
-        return self.df.loc[fields, securities].values()[-1]
+    def __repr__(self):
+        return self.df.__repr__()
