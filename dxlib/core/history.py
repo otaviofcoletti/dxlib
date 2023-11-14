@@ -87,11 +87,18 @@ class History:
         return history.serialized()
 
     def serialized(self):
+        """Serialize the history object into default types for transmission, storage or visualization"""
         df = self.to_dict(orient='bars')['df']
+
         # Also serialize the security manager and the securities
         for date, securities in df.items():
             for security, bar in securities.items():
                 df[date][security.serialized()] = bar.serialized()
+
+        return {
+            "df": df,
+            "security_manager": self.security_manager.to_dict()
+        }
 
     def get_level(self, level: str = 'security'):
         return self.df.index.get_level_values(level).unique().tolist()
@@ -163,6 +170,19 @@ class History:
             return df.loc[(dates, securities[0]), fields].droplevel(1)
 
         return self._get(securities=securities, fields=fields, dates=dates)
+
+    def get_interval(self, securities=None, fields=None, intervals: list[tuple[str, str]] = None):
+        dates = self.get_level(level='date')
+
+        if len(intervals) == 1:
+            return self.get(securities=securities, fields=fields, dates=intervals[0])
+
+        filtered_dates = []
+
+        for start, end in intervals:
+            filtered_dates += dates[dates.index(start):dates.index(end)]
+
+        return self.get(securities=securities, fields=fields, dates=filtered_dates)
 
     def date(self, position=-1):
         return self.df.index.get_level_values('date').unique().tolist()[position]
