@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..interfaces import MarketInterface, PortfolioInterface, OrderInterface
+from ..interfaces import MarketInterface, PortfolioInterface, OrderInterface, MarketUtilities
 from ...core import History
 from ...core.portfolio import Portfolio
 from ...core.security import SecurityManager
@@ -38,7 +38,7 @@ class SandboxPortfolio(PortfolioInterface):
     def get(self, identifier=None) -> Portfolio:
         return self._portfolio
 
-    def add(self, order: Order, market: SandboxMarket):
+    def add(self, order: Order, market: MarketInterface):
         self._portfolio.add({str(market): order})
 
     def set(self, portfolio: Portfolio):
@@ -49,20 +49,18 @@ class SandboxOrder(OrderInterface):
     def __init__(self):
         super().__init__()
 
-    def send(self, order_data: OrderData, market: SandboxMarket):
+    def send(self, order_data: OrderData, market: MarketInterface):
         order = Order.from_type(order_data)
         time = market.history.date()
 
         if order.data.order_type != OrderType.MARKET:
             raise NotImplementedError("Only market orders are supported in the sandbox.")
-
-        order.data.price = market.get_price(order.data.security)
-
         if not time:
             raise ValueError("Market did not show any valid historical bars.")
+
+        order.data.price = MarketUtilities.get_close_price(market, order.data.security)
 
         order.create_transaction(time)
 
     def cancel(self, order):
         pass
-

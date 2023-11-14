@@ -15,10 +15,10 @@ class TestSandbox(unittest.TestCase):
         self.executor = Executor(market, portfolio, order)
 
     def test_send_order(self):
-        self.executor.market.subscribe("AAPL")
+        self.executor.security_manager.add("AAPL")
 
         order_data = OrderData(
-            security=self.executor.get_market().get_securities("AAPL"),
+            security=self.executor.security_manager.get("AAPL"),
             quantity=10,
             side=Side.BUY,
             order_type="market"

@@ -25,7 +25,7 @@ class OrderData:
         self.price = price
         self.quantity = quantity
         self.side = side if isinstance(side, Side) else Side(side)
-        self.order_type = order_type if isinstance(order_type, OrderType) else OrderType(order_type.upper())
+        self.order_type = order_type if isinstance(order_type, OrderType) else OrderType(order_type)
 
     def __repr__(self):
         return f"{self.side.name}: {self.security.ticker} {self.quantity} @ {self.price}"

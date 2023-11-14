@@ -101,9 +101,13 @@ class History:
         }
 
     def get_level(self, level: str = 'security'):
+        if self.df.empty:
+            return []
         return self.df.index.get_level_values(level).unique().tolist()
 
     def set_level(self, values: list = None, level: str = 'security'):
+        if self.df.empty:
+            return
         if values is None:
             values = self.get_level(level)
         self.df.index = self.df.index.set_levels(values, level=level)
@@ -185,6 +189,8 @@ class History:
         return self.get(securities=securities, fields=fields, dates=filtered_dates)
 
     def date(self, position=-1):
+        if self.df.empty:
+            return None
         return self.df.index.get_level_values('date').unique().tolist()[position]
 
     def snapshot(self, securities=None):

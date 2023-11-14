@@ -20,6 +20,15 @@ class MarketInterface(ABC):
         pass
 
 
+class MarketUtilities:
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def get_close_price(market, security):
+        return market.history.snapshot(security)['close']
+
+
 class PortfolioInterface(ABC):
     def __init__(self):
         pass
