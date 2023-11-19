@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import datetime
 import os
+from datetime import datetime
 from enum import Enum
 
 import pandas as pd
@@ -70,6 +73,11 @@ class AlpacaMarketsAPI(SnapshotApi):
 
         return formatted_data
 
+    @staticmethod
+    def conversion(timeframe, x):
+        return datetime.strptime(x, "%Y-%m-%dT%H:%M:%SZ").date() \
+            if timeframe == "1D" else datetime.strptime(x, "%Y-%m-%dT%H:%M:%SZ")
+
     def _query_historical_bars(self, tickers, timeframe, start, end, page_token=None):
         ticker_str = ",".join(tickers)
         url = self.form_url(
@@ -85,40 +93,40 @@ class AlpacaMarketsAPI(SnapshotApi):
         for ticker, bars in response["bars"].items():
             for bar in bars:
                 formatted_bar = {
-                    "Ticker": ticker,
-                    "Time": datetime.datetime.strptime(bar["t"], "%Y-%m-%dT%H:%M:%SZ"),
-                    "Open": bar["o"],
-                    "High": bar["h"],
-                    "Low": bar["l"],
-                    "Close": bar["c"],
-                    "Volume": bar["v"],
-                    "NumTrades": bar["n"],
-                    "VWAP": bar["vw"],
+                    "security": ticker,
+                    "date": self.conversion(timeframe, bar["t"]),
+                    "open": bar["o"],
+                    "high": bar["h"],
+                    "low": bar["l"],
+                    "close": bar["c"],
+                    "volume": bar["v"],
+                    "num_trades": bar["n"],
+                    "vwap": bar["vw"],
                 }
                 formatted_data.append(formatted_bar)
-        formatted_df = pd.DataFrame(formatted_data)
 
-        pivoted_df = formatted_df.pivot_table(
-            index="Time",
-            columns="Ticker",
-            values=["Open", "High", "Low", "Close", "Volume", "NumTrades", "VWAP"],
-        )
-        pivoted_df.columns = pivoted_df.columns.set_names(["Fields", "Ticker"])
+        # Dataframe is a multindex instead, with columns = Open, High, Low, Close, Volume, NumTrades, VWAP
+        dataframe = pd.DataFrame(formatted_data)
+
+        if dataframe.empty:
+            return dataframe
+        formatted_df = dataframe.set_index(["date", "security"])
 
         # If response incomplete, recursive call to get next page
-        if response.get():
+        next_page_token = response.get("next_page_token")
+        if next_page_token:
             next_query = self._query_historical_bars(tickers, timeframe, start, end,
-                                                     page_token=response.get())
-            pivoted_df = pd.concat([pivoted_df, next_query])
+                                                     page_token=next_page_token)
+            formatted_df = pd.concat([formatted_df, next_query])
 
-        return pivoted_df
+        return formatted_df
 
     def get_historical_bars(
             self,
             tickers,
-            start: datetime.date = None,
-            end: datetime.date = None,
-            timeframe="1Day",
+            start: datetime.date | str = None,
+            end: datetime.date | str = None,
+            timeframe="1D",
             cache=True,
     ):
         tickers = self.format_tickers(tickers)
@@ -127,9 +135,14 @@ class AlpacaMarketsAPI(SnapshotApi):
         tickers_cache = self.tickers_cache(start, end, timeframe, "alpaca_market_bars")
 
         if os.path.exists(tickers_cache) and cache:
-            return pd.read_csv(
-                tickers_cache, header=[0, 1], index_col=0, parse_dates=True
+            df = pd.read_csv(
+                tickers_cache, index_col=[0, 1], parse_dates=True
             )
+            if timeframe == "1D":
+                # Map first level of index to date instead of datetime
+                # Leave second level as ticker
+                df.index = df.index.set_levels(df.index.levels[0].map(lambda x: x.date()), level=0)
+            return df
 
         historical_bars = self._query_historical_bars(tickers, timeframe, start, end)
 
@@ -147,16 +160,16 @@ class AlpacaMarketsAPI(SnapshotApi):
         return response
 
     def get_tickers(self,
-                    n=10,
                     filter_="volume",
+                    n=10,
                     cache=True) -> pd.DataFrame:
-        tickers_cache = self.tickers_cache("alpaca_markets_tickers", n, filter_)
+        tickers_cache = f"cache/alpaca_markets_tickers_{n}_{filter_}" + ".cache.csv"
 
         if os.path.exists(tickers_cache) and cache:
             return pd.read_csv(tickers_cache, index_col=0)
 
         response = self._get_tickers(n, filter_)
-        tickers = pd.DataFrame(response["most_actives"])
+        tickers = pd.DataFrame(response["most_actives"]).rename(columns={"symbol": "ticker"})
 
         if cache:
             tickers.to_csv(tickers_cache)

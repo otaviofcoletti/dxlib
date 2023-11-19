@@ -79,12 +79,12 @@ class SecurityManager:
     def add(self, other: dict[str | Security] | list | Security | str):
         if isinstance(other, dict):
             self._securities.update(other)
-        elif isinstance(other, str):
+        elif isinstance(other, str) and other not in self.securities:
             self.securities[other] = Security(other)
         elif isinstance(other, list):
             for security in other:
                 self.add(security)
-        elif other.ticker not in self.securities:
+        elif isinstance(other, Security) and other.ticker not in self.securities:
             self.securities[other.ticker] = other
 
     def get(self, securities: list[str] | str = None) -> dict[str, Security]:
@@ -95,7 +95,10 @@ class SecurityManager:
 
         filtered_securities = {}
         for security in securities:
-            filtered_securities[security] = self.securities.get(security, None)
+            if isinstance(security, Security):
+                filtered_securities[security.ticker] = security
+            else:
+                filtered_securities[security] = self.securities.get(security, None)
         return filtered_securities
 
     def to_dict(self):

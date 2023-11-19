@@ -1,9 +1,8 @@
 import datetime
 import os
+from enum import Enum
 
 import requests
-
-from enum import Enum
 
 
 class RequestType(Enum):
@@ -85,7 +84,7 @@ class SnapshotApi(DataApi):
         self.num_calls = 0
 
     def tickers_cache(
-        self, start: str| datetime.date, end: str| datetime.date, timeframe, api_name=None, folder="cache", ext="csv"
+        self, start: str | datetime.date, end: str | datetime.date, timeframe, api_name=None, folder="cache", ext="csv"
     ):
         if not os.path.exists(folder):
             print("Creating cache folder")
