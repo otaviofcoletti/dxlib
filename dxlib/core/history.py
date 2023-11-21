@@ -66,8 +66,9 @@ class History:
         elif isinstance(df, dict):
             df = pd.DataFrame.from_dict(df, orient='index')
             df.index = pd.MultiIndex.from_tuples(df.index, names=['date', 'security'])
-
-        self.df = df
+        elif isinstance(df, pd.DataFrame):
+            self.df = df
+            df.index = pd.MultiIndex.from_tuples(df.index, names=['date', 'security'])
 
         self.indicators = self.Indicators()
         self._identifier = identifier
@@ -150,7 +151,7 @@ class History:
             df = df[fields[0]]
         if len(securities) == 1:
             df = df.xs(securities[0], level='security')
-        if len(dates) == 1:
+        elif len(dates) == 1:
             df = df.xs(dates[0], level='date')
 
         return df
@@ -194,6 +195,9 @@ class History:
 
         if len(intervals) == 1:
             interval = intervals[0]
+
+            if interval is None:
+                interval = [dates[0], dates[-1]]
 
             closest_interval = [min(dates, key=lambda x: abs(pd.to_datetime(x) - pd.to_datetime(date))) for date in interval]
             dates = dates[dates.index(closest_interval[0]):dates.index(closest_interval[1])]

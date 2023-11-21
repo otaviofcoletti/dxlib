@@ -31,22 +31,25 @@ class SeriesIndicators(Indicators):
         relative_change = series / series.rolling(window).sum()
         return np.log(relative_change)
 
-    def autocorrelation(self, series, lag=15) -> pd.Series:
-        return series.autocorr(lag=lag)
+    def autocorrelation(self, series, lag=15):
+        if isinstance(series, pd.DataFrame):
+            df = series.apply(self.autocorrelation, lag=lag)
+            # Convert to list of autocorrelation values
+            return df.iloc[0].tolist()
+        else:
+            return series.autocorr(lag=lag)
 
-    def acf(self, series, lag=15) -> pd.Series:
-        autocorr_series = np.zeros(lag)
-        for i in range(lag):
-            autocorr_series[i] = series.autocorr(lag=i)
-
-        return pd.Series(autocorr_series)
-
-    def pacf(self, series, lag=15) -> pd.Series:
-        pacf_series = np.zeros(lag)
-        for i in range(lag):
-            pacf_series[i] = series.pacf(lag=i)
-
-        return pd.Series(pacf_series)
+    def pacf(self, series, lag_range=15) -> pd.Series | pd.DataFrame:
+        if isinstance(series, pd.DataFrame):
+            pacf_series = pd.DataFrame(index=range(lag_range), columns=series.columns)
+            for column in series.columns:
+                pacf_series[column] = self.pacf(series[column], lag_range=lag_range)
+            return pacf_series
+        else:
+            pacf_series = pd.Series(index=range(lag_range))
+            for i in range(lag_range):
+                pacf_series.iloc[i] = self.autocorrelation(series, lag=i)
+            return pacf_series
 
     def seasonal_decompose(self, series, period=252):
         return seasonal.seasonal_decompose(series, period=period)
