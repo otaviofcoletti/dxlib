@@ -1,5 +1,5 @@
 sphinx-material==0.0.36
-sphinx_copybutton==0.5.2
+sphinx-copybutton==0.5.2
 numpy==1.23.5
 pandas==1.5.3
 requests~=2.31.0
