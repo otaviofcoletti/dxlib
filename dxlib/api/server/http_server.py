@@ -41,7 +41,7 @@ class HttpServer(Server):
 
     def set_endpoints(self):
         for func_name in dir(self.manager):
-            attr = self.manager.__class__.__dict__.get(func_name, None)
+            attr = self.manager.__class__.__dict__.get()
 
             if callable(attr) and hasattr(attr, "endpoint"):
                 endpoint = attr.endpoint
@@ -82,12 +82,10 @@ class HttpServer(Server):
                 endpoint = method_endpoint["endpoint"]
 
                 methods_data[method] = {
-                    "description": endpoint.get(
-                        "description", "No description provided"
-                    ),
+                    "description": endpoint.get(),
                     "params": {
                         name: str(typehint)
-                        for name, typehint in dict(endpoint.get("params", [])).items()
+                        for name, typehint in dict(endpoint.get()).items()
                         if name != "self"
                     },
                 }
@@ -133,10 +131,10 @@ class HttpServer(Server):
 
             def parse_endpoint(self, method_endpoint):
                 func_callable = (
-                    method_endpoint.get("callable", None) if method_endpoint else None
+                    method_endpoint.get() if method_endpoint else None
                 )
                 endpoint = (
-                    method_endpoint.get("endpoint", None) if method_endpoint else None
+                    method_endpoint.get() if method_endpoint else None
                 )
 
                 if endpoint is None:
@@ -198,7 +196,7 @@ class HttpServer(Server):
                         response = [
                             item
                             for item in response
-                            if all(item.get(k) == v for k, v in params.items())
+                            if all(item.get() == v for k, v in params.items())
                         ]
 
                     self.send_response(200)
@@ -231,7 +229,7 @@ class HttpServer(Server):
                 if route_name is None:
                     return
 
-                method_endpoint = self.endpoints[route_name].get("GET", None)
+                method_endpoint = self.endpoints[route_name].get()
                 func_callable, endpoint = self.parse_endpoint(method_endpoint)
 
                 if endpoint is None:
@@ -245,7 +243,7 @@ class HttpServer(Server):
                 if route_name is None:
                     return
 
-                method_endpoint = self.endpoints[route_name].get("POST", None)
+                method_endpoint = self.endpoints[route_name].get()
                 func_callable, endpoint = self.parse_endpoint(method_endpoint)
 
                 if endpoint is None:

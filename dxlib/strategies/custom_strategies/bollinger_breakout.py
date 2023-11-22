@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 from ..strategy import Strategy
-from ...core import TradeSignal, History, TransactionType
+from ...core import History, Side
 
 
 class BollingerBreakoutStrategy(Strategy):

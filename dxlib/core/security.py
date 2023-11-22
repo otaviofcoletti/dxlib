@@ -14,46 +14,49 @@ class SecurityType(Enum):
 
 class Security:
     def __init__(self,
-                 symbol: str,
+                 ticker: str,
                  security_type: str | SecurityType = SecurityType.equity,
                  source=None,
                  ):
-        self.symbol = symbol
+        self.ticker = ticker
         self.source = source
         self.security_type = security_type if isinstance(security_type, SecurityType) else SecurityType(security_type)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.symbol}, {self.security_type})"
+        return f"{self.ticker} {self.security_type}"
 
     def __str__(self):
-        return f"{self.symbol}"
+        return self.ticker
 
     def to_dict(self):
-        return self.symbol
+        return {
+            "ticker": self.ticker,
+            "security_type": self.security_type
+        }
 
-    def to_json(self):
-        serialized = self.to_dict()
-        if self.source is not None:
-            serialized["source"] = self.source
-        return serialized
+    def serialized(self):
+        s = {
+            "ticker": str(self.ticker),
+            "security_type": self.security_type.value,
+        }
+
+        if self.source:
+            s["source"] = str(self.source)
+
+        return s
+
+    @staticmethod
+    def serialize(security):
+        return security.serialized()
 
 
-class SingletonMeta(type):
-    _instances = {}
-
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super(SingletonMeta, cls).__call__(*args, **kwargs)
-        return cls._instances[cls]
-
-
-class SecurityManager(metaclass=SingletonMeta):
+class SecurityManager:
     def __init__(self):
         self._securities: dict[str, Security] = {}
         self._cash = Security("cash", SecurityType.cash)
 
-    def __iadd__(self, security_dict: dict[str, Security]):
-        self.securities = security_dict
+    def __iadd__(self, other: dict[str, Security]):
+        self._securities.update(other)
         return self
 
     @property
@@ -64,37 +67,48 @@ class SecurityManager(metaclass=SingletonMeta):
     def securities(self):
         return self._securities
 
-    @securities.setter
-    def securities(self, security_dict: dict[str, Security] | Security):
-        if isinstance(security_dict, Security):
-            security_dict = {security_dict.symbol: security_dict}
-        if not isinstance(security_dict, dict):
-            raise ValueError("security_dict must be a Security or a dictionary of securities")
+    def __add__(self, other: dict[str | Security] | list[Security | str] | Security):
+        if isinstance(other, dict):
+            self._securities.update(other)
+        elif isinstance(other, Security):
+            self.add(other)
+        elif isinstance(other, list):
+            for security in other:
+                self.add(security)
 
-        self._securities.update(security_dict)
+    def add(self, other: dict[str | Security] | list | Security | str):
+        if isinstance(other, dict):
+            self._securities.update(other)
+        elif isinstance(other, str) and other not in self.securities:
+            self.securities[other] = Security(other)
+        elif isinstance(other, list):
+            for security in other:
+                self.add(security)
+        elif isinstance(other, Security) and other.ticker not in self.securities:
+            self.securities[other.ticker] = other
 
-    def add_securities(self, securities: list[Security | str] | Security):
-        if isinstance(securities, Security):
-            securities = [securities]
+    def get(self, securities: list[str] | str = None) -> dict[str, Security]:
+        if securities is None:
+            return self.securities
+        if isinstance(securities, str):
+            return {securities: self.securities.get(securities, None)}
+
+        filtered_securities = {}
         for security in securities:
-            self.add_security(security)
+            if isinstance(security, Security):
+                filtered_securities[security.ticker] = security
+            else:
+                filtered_securities[security] = self.securities.get(security, None)
+        return filtered_securities
 
-    def add_security(self, security: Security | str):
-        if isinstance(security, str):
-            security = Security(security)
-        if security.symbol not in self.securities:
-            self.securities[security.symbol] = security
-            return security
-        else:
-            return self.securities[security.symbol]
+    def to_dict(self):
+        return {
+            "securities": {k: v.to_dict() for k, v in self.securities.items()},
+            "cash": self.cash.to_dict(),
+        }
 
-    def get_securities(self, securities: list[str, Security] = None) -> dict[str, Security]:
-        if securities is not None:
-            filtered_securities = {}
-            for security in securities:
-                if isinstance(security, str):
-                    filtered_securities[security] = self.securities.get(security, None)
-                elif isinstance(security, Security):
-                    filtered_securities[security.symbol] = self.securities.get(security.symbol, None)
-            return filtered_securities
-        return self.securities
+    def serialized(self):
+        return {
+            "securities": {k: v.serialized() for k, v in self.securities.items()},
+            "cash": self.cash.serialized(),
+        }

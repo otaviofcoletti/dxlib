@@ -13,7 +13,7 @@ import pandas as pd
 
 from .generic_manager import GenericManager, GenericMessageHandler
 from ..api import Endpoint
-from ..core import Portfolio, History, TradeSignal, TransactionType, no_logger
+from ..core import Portfolio, History, Side, no_logger
 from ..strategies import Strategy
 
 
@@ -200,9 +200,9 @@ class StrategyMessageHandler(GenericMessageHandler):
                     )
 
     def process(self, websocket, message):
-        portfolio = message.get("portfolio", None)
-        history = message.get("history", None)
-        snapshot = message.get("snapshot", None)
+        portfolio = message.get()
+        history = message.get()
+        snapshot = message.get()
 
         if portfolio is not None:
             portfolio = self._register_portfolio(portfolio)
