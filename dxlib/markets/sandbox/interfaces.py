@@ -11,7 +11,7 @@ class SandboxMarket(MarketInterface):
     def __init__(self, backtest: bool = False):
         super().__init__()
         self.markets = {"sandbox": Market("sandbox")}
-
+    
     def get(self, identifier: str | None = None) -> Market:
         return self.markets["sandbox"]
 
