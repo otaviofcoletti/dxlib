@@ -12,15 +12,12 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: "3.10"
     - name: Install pypa/build
       run: >-
         python3 -m
         pip install
         build
         --user
-    - name: Install Python development tools
-      run: python3 -m pip install packaging
     - name: Install project dependencies
       run: python3 -m pip install -r requirements.txt
     - name: Build a binary wheel and a source tarball
@@ -40,7 +37,6 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/dxlib
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
 
