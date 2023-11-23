@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import requests
 
-from ..market import Market
 from ...core.portfolio import Portfolio
 from ...core.trading.order import OrderData, Order
 from ..interfaces import MarketInterface, OrderInterface, PortfolioInterface
@@ -12,7 +11,6 @@ class AlpacaAPI:
     class UrlBuilder:
         def __init__(self):
             pass
-        
 
     from .routes import routes
 
@@ -34,10 +32,13 @@ class AlpacaAPI:
 
         return response.json()
 
-class AlpacaMarket(MarketInterface):
 
-    def get(self, identifier: str | None = None) -> Market:
+class AlpacaMarket(MarketInterface):
+    def get(self, identifier: str | None = None) -> MarketInterface:
         pass
+
+    def history(self):
+        return None
 
     def subscribe(self, security):
         pass
@@ -56,12 +57,12 @@ class AlpacaPortfolio(PortfolioInterface):
     def get_positions(self, identifier):
         pass
 
-    def add(self, order: Order, market: Market):
+    def add(self, order: Order, market: MarketInterface):
         pass
 
 
 class AlpacaOrder(OrderInterface):
-    def send(self, order_data: OrderData, market: Market) -> Order:
+    def send(self, order_data: OrderData, market: MarketInterface) -> Order:
         pass
 
     def cancel(self, order):
