@@ -1,1 +1,2 @@
-from .interfaces import AlpacaMarket, AlpacaPortfolio, AlpacaOrder, AlpacaAPI
+from .interfaces import AlpacaMarket, AlpacaPortfolio, AlpacaOrder
+from .api import AlpacaAPI

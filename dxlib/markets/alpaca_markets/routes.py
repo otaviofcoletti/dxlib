@@ -1,7 +1,8 @@
 routes = {
     "endpoints": {
         "account": "/account",
-        "orders": "/orders"
+        "orders": "/orders",
+        "positions": "/positions",
     },
     "domains": {
         "live": "https://api.alpaca.markets/{version}",

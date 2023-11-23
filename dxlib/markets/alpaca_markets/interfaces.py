@@ -1,39 +1,19 @@
 from __future__ import annotations
 
-import requests
+from datetime import datetime
 
+from .api import AlpacaAPI
+from ..interfaces import MarketInterface, OrderInterface, PortfolioInterface
+from ...core.security import Security
 from ...core.portfolio import Portfolio
 from ...core.trading.order import OrderData, Order
-from ..interfaces import MarketInterface, OrderInterface, PortfolioInterface
-
-
-class AlpacaAPI:
-    class UrlBuilder:
-        def __init__(self):
-            pass
-
-    from .routes import routes
-
-    def __init__(self, api_key, api_secret, live=False):
-        self._domain = self.routes["domains"]["live"] if live else self.routes["domains"]["sandbox"]
-        self.__api_key = api_key
-        self.__api_secret = api_secret
-        self._version = "v2"
-
-    def get_account(self):
-        response = requests.get(self._domain.format(version=self._version) + self.routes["endpoints"]["account"],
-                                headers={
-                                    "APCA-API-KEY-ID": self.__api_key,
-                                    "APCA-API-SECRET-KEY": self.__api_secret
-                                })
-
-        if response.json().get("code", None) == 40110000:
-            raise ConnectionError(f"Invalid credentials for selected environment ({self._domain})")
-
-        return response.json()
 
 
 class AlpacaMarket(MarketInterface):
+    def __init__(self, api):
+        super().__init__()
+        self.api = api
+
     def get(self, identifier: str | None = None) -> MarketInterface:
         pass
 
@@ -45,11 +25,9 @@ class AlpacaMarket(MarketInterface):
 
 
 class AlpacaPortfolio(PortfolioInterface):
-    def __init__(self, api_key, api_secret):
+    def __init__(self, api):
         super().__init__()
-
-        self.api_key = api_key
-        self.api_secret = api_secret
+        self.api = api
 
     def get(self, identifier: str | None = None) -> Portfolio:
         pass
@@ -62,8 +40,40 @@ class AlpacaPortfolio(PortfolioInterface):
 
 
 class AlpacaOrder(OrderInterface):
+    def __init__(self, api: AlpacaAPI):
+        super().__init__()
+        self.api = api
+
     def send(self, order_data: OrderData, market: MarketInterface) -> Order:
         pass
 
     def cancel(self, order):
         pass
+
+    def get(self, identifier=None, start: datetime = None, end: datetime = None):
+        orders = self.api.get_orders()
+        filtered_order = None
+
+        if identifier or start or end:
+            for order in orders:
+                date = datetime.fromisoformat(order['created_at'])
+                if order['id'] == identifier:
+                    filtered_order = order
+                elif start and date >= start:
+                    filtered_order = order
+                elif end and date <= end:
+                    filtered_order = order
+        else:
+            filtered_order = orders[0]
+
+        if not filtered_order:
+            raise ValueError("No order found with the given parameters.")
+
+        return Order(
+            security=Security(filtered_order['symbol']),
+            quantity=filtered_order['qty'],
+            price=filtered_order['filled_avg_price'],
+            side=1 if filtered_order['side'] == 'buy' else -1,
+            order_type=filtered_order['type'],
+            partial=filtered_order['filled_qty'] < filtered_order['qty'],
+        )
