@@ -5,9 +5,9 @@
 
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
-import pathlib
+import os
 import sys
-sys.path.insert(0, pathlib.Path(__file__).parents[2].resolve().as_posix())
+sys.path.insert(0, os.path.abspath('../..'))
 
 project = 'dxlib'
 copyright = '2023, Rafael Zimmer'
@@ -36,3 +36,4 @@ exclude_patterns = []
 
 html_theme = 'sphinx_material'
 html_static_path = ['_static']
+html_favicon = '_static/favicon.ico'
