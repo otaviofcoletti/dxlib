@@ -12,7 +12,7 @@ class Executor:
         self.security_manager = SecurityManager()
 
     def send_order(self, order_data: OrderData):
-        market = self.market.get()
+        market = self.market
         order = self.order.send(order_data, market)
         self.portfolio.add(order, market)
         return order
@@ -21,11 +21,5 @@ class Executor:
         partial_order = self.order.cancel(order)
         return partial_order
 
-    def get_portfolio(self):
-        return self.portfolio.get()
-
-    def get_market(self):
-        return self.market.get()
-
-    def market_subscription(self, listener: callable = None):
+    def subscribe(self, listener: callable = None):
         return self.market.subscribe(listener)
