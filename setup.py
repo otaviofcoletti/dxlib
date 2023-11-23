@@ -8,9 +8,6 @@ HERE = path.abspath(path.dirname(__file__))
 with open(path.join(HERE, 'README.md'), encoding='utf-8') as f:
     long_description = f.read()
 
-with open('requirements.txt') as f:
-    requirements = f.read().splitlines()
-
 try:
     version = (
         subprocess.run(["git", "describe", "--tags"], stdout=subprocess.PIPE)
@@ -56,5 +53,4 @@ setup(
     ],
     packages=find_packages(),
     include_package_data=True,
-    install_requires=requirements,
 )
