@@ -46,7 +46,7 @@ class Order:
                  quantity: float | int,
                  price: float | int,
                  side: Side | int,
-                 order_type: str,
+                 order_type: str | OrderType = OrderType.MARKET,
                  partial: bool = False):
         self._data = OrderData(security, quantity, price, side, order_type)
         self._transactions = []

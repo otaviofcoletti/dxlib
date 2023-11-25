@@ -4,8 +4,8 @@ from datetime import datetime
 
 from .api import AlpacaAPI
 from ..interfaces import MarketInterface, OrderInterface, PortfolioInterface
-from ...core.security import Security
 from ...core.portfolio import Portfolio
+from ...core.security import Security
 from ...core.trading.order import OrderData, Order
 
 
@@ -77,3 +77,17 @@ class AlpacaOrder(OrderInterface):
             order_type=filtered_order['type'],
             partial=filtered_order['filled_qty'] < filtered_order['qty'],
         )
+
+    def post(self, order_data: OrderData, _: MarketInterface = None):
+        status = self.api.post_order(
+            symbol=order_data.security.ticker,
+            qty=order_data.quantity,
+            side=order_data.side.name,
+            type=order_data.order_type.name,
+            time_in_force="day",
+        )
+
+        if status.get('status', None) == 'rejected':
+            raise ValueError(f"Order rejected: {status.get('reject_reason', None)}")
+
+        return Order.from_type(order_data)

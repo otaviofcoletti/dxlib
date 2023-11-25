@@ -62,7 +62,7 @@ class History:
             identifier = hash(self)
 
         if df is None:
-            df = pd.DataFrame()
+            self.df = pd.DataFrame()
         elif isinstance(df, dict):
             df = pd.DataFrame.from_dict(df, orient='index')
             df.index = pd.MultiIndex.from_tuples(df.index, names=['date', 'security'])
@@ -199,7 +199,8 @@ class History:
             if interval is None:
                 interval = [dates[0], dates[-1]]
 
-            closest_interval = [min(dates, key=lambda x: abs(pd.to_datetime(x) - pd.to_datetime(date))) for date in interval]
+            closest_interval = [min(dates, key=lambda x: abs(pd.to_datetime(x) - pd.to_datetime(date)))
+                                for date in interval]
             dates = dates[dates.index(closest_interval[0]):dates.index(closest_interval[1])]
 
             return self.get(securities=securities, fields=fields, dates=dates)

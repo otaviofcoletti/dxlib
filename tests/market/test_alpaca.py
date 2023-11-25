@@ -1,11 +1,14 @@
+import os
 import unittest
+
+import dxlib
 from dxlib.markets.alpaca_markets import AlpacaAPI, AlpacaOrder
-from config import API_KEY_PAPER, API_SECRET_PAPER
 
 
 class TestAPI(unittest.TestCase):
     def setUp(self):
-        self.api = AlpacaAPI(API_KEY_PAPER, API_SECRET_PAPER, live=False)
+        # Load API keys from environment variables
+        self.api = AlpacaAPI(os.environ.get("API_KEY_PAPER"), os.environ.get("API_SECRET_PAPER"), live=False)
 
     def test_auth(self):
         print(self.api.get_account())
@@ -19,7 +22,7 @@ class TestAPI(unittest.TestCase):
 
 class TestInterface(unittest.TestCase):
     def setUp(self):
-        self.api = AlpacaAPI(API_KEY_PAPER, API_SECRET_PAPER, live=False)
+        self.api = AlpacaAPI(os.environ.get("API_KEY_PAPER"), os.environ.get("API_SECRET_PAPER"), live=False)
         self.order_interface = AlpacaOrder(self.api)
 
     def test_market(self):
@@ -30,6 +33,10 @@ class TestInterface(unittest.TestCase):
 
     def test_order(self):
         print(self.order_interface.get())
+
+    def test_post_order(self):
+        order = dxlib.OrderData(dxlib.Security("AAPL"), 1, 1, 1, "market")
+        print(self.order_interface.post(order))
 
 
 if __name__ == '__main__':
