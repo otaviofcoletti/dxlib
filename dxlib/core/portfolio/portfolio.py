@@ -9,20 +9,21 @@ from ..trading.order import Order
 
 
 class Portfolio:
-    def __init__(self, inventories: Dict[str, Inventory] | None = None, name: str = None, logger=None):
+    def __init__(self, inventory: Inventory | None = None, name: str = None, logger=None):
         """
         Manages a collection of inventories.
         Useful for registering trading histories and calculating portfolio value.
         Can be used for backtesting and live trading, and can be used to manage multiple portfolios.
 
         Args:
-            inventories: A dictionary of inventories.
+            inventory: An inventory to initialize the portfolio with.
             name: The name of the portfolio.
             logger: A logger if you want to log actions taken by the portfolio.
         """
         self.name: str = name
 
-        self._inventories: Dict[str, Inventory] = inventories if inventories else {}
+        self._inventory: Inventory = inventory if inventory else Inventory()
+        self._orders: Dict[str, Order] = {}
 
         self.logger = logger if logger else no_logger(__name__)
 
@@ -34,31 +35,27 @@ class Portfolio:
     def to_json(self):
         return json.dumps(self.to_dict())
 
-    def register_position(self, inventory: Inventory, identifier: str | None = None):
-        if identifier is None:
-            identifier = hash(inventory)
-        self._inventories[identifier] = inventory
+    def add_inventory(self, inventory: Inventory):
+        self._inventory += inventory
+
+    @property
+    def inventory(self):
+        return self._inventory
 
     def value(self, prices: dict[str, float] | None = None):
-        return sum([inventory.value(prices) for inventory in self._inventories.values()])
+        return self._inventory.value(prices)
 
     def financial_weights(self, prices: dict[str, float] | None = None):
-        inventory = Inventory()
-        for i in self._inventories:
-            inventory += i
-        return inventory.financial_weights(prices)
+        return self._inventory.weights(prices)
 
     def add(self, orders: Dict[str, Order]):
         """
-        Adds orders to the portfolio.
+        Adds orders to the portfolio inventory and transaction history.
 
         Args:
             orders: A dictionary of orders to add to the portfolio.
         """
         self.logger.info(f"Adding order {orders}")
 
-        for identifier in orders:
-            if identifier not in self._inventories:
-                self._inventories[identifier] = Inventory()
-                self.logger.info(f"New inventory: {self._inventories[identifier]}")
-            self._inventories[identifier] += orders[identifier].data.quantity
+        self._inventory += [order for order in orders.values()]
+        self._orders.update(orders)

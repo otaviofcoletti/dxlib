@@ -4,6 +4,7 @@ from enum import Enum
 
 from .transaction import Side, Transaction
 from ..security import Security
+from ... import Signal
 
 
 class OrderType(Enum):
@@ -107,5 +108,17 @@ class Order:
             data.side,
             data.order_type,
             partial,
+            identifier,
+        )
+
+    @classmethod
+    def from_signal(cls, signal: Signal, security, order_type=OrderType.MARKET, identifier: str | None = None):
+        return cls(
+            security,
+            signal.quantity,
+            signal.price,
+            signal.side,
+            order_type,
+            False,
             identifier,
         )

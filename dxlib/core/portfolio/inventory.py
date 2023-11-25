@@ -23,6 +23,9 @@ class Inventory:
     def from_dict(cls, data: dict[Security, float | int]):
         return cls(data)
 
+    def to_dict(self):
+        return self._securities
+
     def add(self, security: Security, quantity: float | int):
         if security in self._securities:
             self._securities[security] += quantity

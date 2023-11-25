@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import logging
 import threading
-from collections import Counter
 from typing import AsyncGenerator, Generator
 
 import numpy as np
 import pandas as pd
+from websocket import WebSocket
 
 from .generic_manager import GenericManager, GenericMessageHandler
 from ..core import Portfolio, History, no_logger
@@ -20,6 +19,7 @@ from ..strategies import Strategy
 class StrategyManager(GenericManager):
     def __init__(self,
                  strategy,
+                 security_manager=None,
                  server_port=None,
                  websocket_port=None,
                  logger: logging.Logger = None,
@@ -27,10 +27,9 @@ class StrategyManager(GenericManager):
         super().__init__(server_port, websocket_port, logger)
         self.strategy: Strategy = strategy
 
-        self.portfolios: dict[str, Portfolio] = {}
-        self.histories: list[History] = []
-
-        self._history = History(pd.DataFrame())
+        self._portfolio = Portfolio()
+        self.security_manager = SecurityManager() if security_manager is None else security_manager
+        self._history = History(pd.DataFrame(), self.security_manager)
 
         self.running = False
         self.thread = None
@@ -38,37 +37,26 @@ class StrategyManager(GenericManager):
         self.message_handler = StrategyMessageHandler(self)
         self.logger = no_logger(__name__) if logger is None else logger
 
-    @Endpoint.get("portfolios", "Gets the currently registered portfolios")
-    def get_portfolios(self, identifier=None):
-        if identifier:
-            return self.portfolios[identifier]
+    @property
+    def portfolio(self) -> Portfolio:
+        return self._portfolio
 
-        return {identifier: portfolio.to_dict() for identifier, portfolio in self.portfolios.items()}
-
-    @Endpoint.get("portfolios", "Gets the currently registered portfolios")
-    def get_portfolio_values(self, identifier: str):
-        values = pd.DataFrame(np.zeros_like(self._history.df),
-                              index=self._history.df.index,
-                              columns=self._history.df.columns)
-
-        for transaction in self.portfolios[identifier]
-            if transaction.security in self._history.securities:
-                values[transaction.security][transaction.timestamp] = transaction.price * transaction.quantity
-
-        return values.cumsum()
+    @Endpoint.get("portfolio", "Gets the inventories managed by the strategy manager")
+    def get_portfolio(self):
+        return self.portfolio
 
     @Endpoint.post("portfolios", "Registers a portfolio with the strategy manager")
-    def register_portfolio(self, portfolio: Portfolio | dict, identifier: str = None):
+    def register_portfolio(self, portfolio: Portfolio = None):
+        if portfolio is None:
+            portfolio = Portfolio()
         if isinstance(portfolio, dict):
             portfolio = Portfolio(**portfolio)
 
-        if identifier in self.portfolios:
-            raise ValueError(f"Portfolio {portfolio} already registered")
-        if identifier is None:
-            identifier = hashlib.sha256(str(portfolio).encode()).hexdigest()
+        self.security_manager += {security.ticker: security
+                                  for security in portfolio.inventory.keys() if security.ticker != "cash"}
 
         self.logger.info(f"Registering portfolio {portfolio}")
-        self.portfolios[identifier] = portfolio
+        self._portfolio += portfolio
 
     @property
     @Endpoint.get("history", "Gets the currently history for the simulation")
@@ -76,19 +64,26 @@ class StrategyManager(GenericManager):
         return self._history
 
     @history.setter
-    @Endpoint.post("history", "Sets the history for the simulation")
+    @Endpoint.post("history", "Registers a history with the strategy manager")
     def history(self, value: History | pd.DataFrame | np.ndarray | dict):
         self._history = value
 
     @property
     def position(self) -> dict[Security, int]:
-        return dict(sum((Counter(
-            {security: portfolio.position[security] for security in portfolio.position.keys()}
-        ) for portfolio in self.portfolios.values()), Counter()))
+        return {security: self.portfolio.inventory[security] for security in self.portfolio.inventory.keys()}
 
-    @Endpoint.get("position", "Gets the current position for the simulation")
+    @Endpoint.get("position", "Gets the current aggregated position registered with the strategy manager")
     def get_position(self):
-        return {security.symbol: quantity for security, quantity in self.position.items()}
+        return self.position
+
+    def orders_from_signals(self, signals: pd.Series):
+        # Signals are a series, where each index is a Security, and each value is a TradeSignal
+        orders = {}
+        for security, signal in signals.items():
+            if signal is not None:
+                security = security if isinstance(security, Security) else self.security_manager.securities[security]
+                orders[security] = Order.from_signal(signal, security)
+        return orders
 
     def execute(self, bar=None):
         if bar:
@@ -104,17 +99,15 @@ class StrategyManager(GenericManager):
                                             self.history)
         except Exception:
             self.logger.warning("Error executing strategy", exc_info=True)
-            return pd.Series(TradeSignal(TransactionType.WAIT), index=self.history.securities.values())
+            return pd.Series(pd.NA, index=self.security_manager.securities)
 
-        for security in signals.keys():
-            for portfolio in self.portfolios.values():
-                if isinstance(portfolio, Portfolio):
-                    try:
-                        portfolio.trade(security, signals[security], idx)
-                    except ValueError as e:
-                        self.logger.warning(e)
-                else:
-                    self.message_handler.send_signals(signals)
+        if isinstance(self._portfolio, Portfolio):
+            try:
+                self._portfolio.add(self.orders_from_signals(signals))
+            except ValueError as e:
+                self.logger.warning(e)
+        else:
+            self.message_handler.send_signals(signals)
 
         return signals
 
@@ -132,6 +125,20 @@ class StrategyManager(GenericManager):
             self.execute(bars)
         self.running = False
 
+    def run(self, subscription: History | AsyncGenerator | Generator | pd.DataFrame | np.ndarray, threaded=False):
+        if isinstance(subscription, pd.DataFrame):
+            subscription = subscription.iterrows()
+        elif isinstance(subscription, History):
+            subscription = subscription.df.iterrows()
+        if threaded:
+            self.thread = threading.Thread(target=self._consume, args=(subscription,))
+            self.thread.start()
+        else:
+            if isinstance(subscription, AsyncGenerator):
+                asyncio.run(self._async_consume(subscription))
+            else:
+                self._consume(subscription)
+
     def stop(self):
         if self.running:
             self.running = False
@@ -139,31 +146,13 @@ class StrategyManager(GenericManager):
             self.thread.join()
         super().stop()
 
-    def run(self, subscription: History | AsyncGenerator | Generator | pd.DataFrame | np.ndarray, threaded=False):
-        if isinstance(subscription, pd.DataFrame):
-            subscription = subscription.iterrows()
-        elif isinstance(subscription, History):
-            subscription = subscription.df.iterrows()
-        if threaded:
-            if isinstance(subscription, AsyncGenerator):
-                self.thread = threading.Thread(target=asyncio.run, args=(self._async_consume(subscription),))
-            else:
-                self.thread = threading.Thread(target=self._consume, args=(subscription,))
-            self.thread.start()
-            self.running = True
-        else:
-            if isinstance(subscription, AsyncGenerator):
-                asyncio.run(self._async_consume(subscription))
-            else:
-                self._consume(subscription)
-
 
 class StrategyMessageHandler(GenericMessageHandler):
     def __init__(self, manager: StrategyManager):
         super().__init__()
         self.manager = manager
-        self.registered_portfolios: dict = {}
-        self.registered_histories: dict = {}
+        self.connected_portfolios: dict[WebSocket, Portfolio] = {}
+        self.connected_snapshots: list[WebSocket] = []
 
     def _register_portfolio(self, portfolio: dict = None):
         try:
@@ -190,41 +179,30 @@ class StrategyMessageHandler(GenericMessageHandler):
         except TypeError:
             raise json.dumps("Message does not contain a valid snapshot")
 
-    def send_signals(self, signals: pd.Series | dict[Security, TradeSignal]):
+    def send_signals(self, signals: pd.Series | dict[Security, Signal]):
         for security in signals.keys():
-            for portfolio in self.registered_portfolios:
-                if security in portfolio.position.keys():
+            for websocket, portfolio in self.connected_portfolios.items():
+                if security in portfolio.inventory:
                     self.manager.websocket_server.send_message(
                         signals[security].to_json(),
                         self.manager.websocket_server.message_subjects.signal(security)
                     )
 
-    def process(self, websocket, message):
-        portfolio = message.get()
-        history = message.get()
+    def process(self, message):
         snapshot = message.get()
 
-        if portfolio is not None:
-            portfolio = self._register_portfolio(portfolio)
-            self.registered_portfolios[websocket] = portfolio
-            return f"Portfolio registered"
-        if history is not None:
-            history = self._register_history(history)
-            self.registered_histories[websocket] = history
-            return "History registered"
         if snapshot is not None:
-            updated_history = self._register_snapshot(snapshot)
-            self.registered_histories[websocket] = updated_history
-            return f"Snapshot registered: {self.manager.history.to_json()}"
+            self._register_snapshot(snapshot)
+            return f"Snapshot registered"
 
         raise ValueError("Message does not contain any valid information")
 
     def connect(self, websocket, endpoint):
         if endpoint == "portfolio":
-            self.registered_portfolios[websocket] = self._register_portfolio()
+            self.connected_portfolios[websocket] = self._register_portfolio()
             return f"Portfolio connected"
-        elif endpoint == "history":
-            self.registered_histories[websocket] = self._register_history()
+        elif endpoint == "snapshot":
+            self.connected_snapshots.append(websocket)
             return "History connected"
 
     def handle(self, websocket, message):
@@ -234,7 +212,7 @@ class StrategyMessageHandler(GenericMessageHandler):
             raise TypeError("Message is not valid JSON")
 
         try:
-            response = str(self.process(websocket, message))
+            response = str(self.process(message))
             self.manager.websocket_server.send_message(websocket, response)
         except (ValueError, TypeError) as e:
             self.manager.logger.warning(e)
@@ -245,16 +223,18 @@ class StrategyMessageHandler(GenericMessageHandler):
 
 
 if __name__ == "__main__":
-    from .. import info_logger, Security
+    from .. import info_logger, Security, SecurityManager, Order, Signal, Inventory
     from ..strategies import RsiStrategy
 
     my_logger = info_logger(__name__)
 
     my_strategy = RsiStrategy()
-    my_portfolio = Portfolio().add_cash(1e4)
 
     strategy_manager = StrategyManager(my_strategy, server_port=5000, websocket_port=6000, logger=my_logger)
     strategy_manager.start()
+
+    # Or my_portfolio = Portfolio(Inventory({strategy_manager.security_manager.cash: 100000})), logger=my_logger)
+    my_portfolio = Portfolio(Inventory({Security("AAPL"): 100}), logger=my_logger)
     strategy_manager.register_portfolio(my_portfolio)
 
     try:

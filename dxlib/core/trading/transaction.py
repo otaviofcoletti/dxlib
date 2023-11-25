@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import math
-from enum import Enum
 from datetime import datetime
+from enum import Enum
 
 from ..security import Security
 
@@ -10,6 +10,7 @@ from ..security import Security
 class Side(Enum):
     BUY = 1
     SELL = -1
+    UNDEFINED = 0
 
     def __eq__(self, other):
         if isinstance(other, Side):
