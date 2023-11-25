@@ -4,8 +4,8 @@ import threading
 import websockets
 from websockets.exceptions import ConnectionClosedError
 
+from dxlib.core import no_logger
 from .server import Server, ServerStatus
-from ...core import no_logger
 
 
 class WebSocketServer(Server):

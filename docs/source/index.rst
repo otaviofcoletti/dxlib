@@ -15,6 +15,7 @@ trading with multiple brokers. Develop and test your own trading strategies,
 and deploy them as a fully automated trading system.
 
 Check out the :doc:`quickstart` section for further information.
+To access the official repository, visit the `GitHub page <https://www.github.com/delphos-quant/dxlib>`
 
 .. note::
 

@@ -1,4 +1,4 @@
-from . import core, api, strategies, markets, data, managers, indicators
+from . import core, strategies, markets, data, managers, indicators
 
 from .core import *
 from .managers import *

@@ -12,8 +12,8 @@ import numpy as np
 import pandas as pd
 
 from .generic_manager import GenericManager, GenericMessageHandler
-from ..api import Endpoint
-from ..core import Portfolio, History, Side, no_logger
+from ..core import Portfolio, History, no_logger
+from ..servers import Endpoint
 from ..strategies import Strategy
 
 
@@ -51,7 +51,7 @@ class StrategyManager(GenericManager):
                               index=self._history.df.index,
                               columns=self._history.df.columns)
 
-        for transaction in self.portfolios[identifier].transaction_history:
+        for transaction in self.portfolios[identifier]
             if transaction.security in self._history.securities:
                 values[transaction.security][transaction.timestamp] = transaction.price * transaction.quantity
 

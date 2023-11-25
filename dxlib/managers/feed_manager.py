@@ -82,7 +82,7 @@ class FeedMessageHandler(GenericMessageHandler):
         return "Connected"
 
     def send_snapshot(self, snapshot: History):
-        message = snapshot.to_json()
+        message = snapshot.serialized()
         for connection in self.connections:
             self.manager.websocket_server.send_message(connection, message)
 
@@ -91,11 +91,11 @@ class FeedMessageHandler(GenericMessageHandler):
 
 
 def main():
-    from dxlib.api import YFinanceAPI
+    from dxlib.data import YFinanceData
     from ..core import info_logger
     logger = info_logger()
 
-    historical_bars = YFinanceAPI().get_historical_bars(["AAPL"])
+    historical_bars = YFinanceData().get_historical_bars(["AAPL"])
     subscription = to_async(historical_bars.iterrows(), delay=0.5)
 
     feed_manager = FeedManager(subscription, logger=logger)
