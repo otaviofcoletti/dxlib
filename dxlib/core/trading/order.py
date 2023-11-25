@@ -18,7 +18,7 @@ class OrderData:
                  security: Security,
                  price: float | int = None,
                  quantity: float | int = 0,
-                 side: Side | str = Side.BUY,
+                 side: Side | int = Side.BUY,
                  order_type: str = OrderType.MARKET,
                  ):
         self.security = security
@@ -45,7 +45,7 @@ class Order:
                  security: Security,
                  quantity: float | int,
                  price: float | int,
-                 side: Side,
+                 side: Side | int,
                  order_type: str,
                  partial: bool = False):
         self._data = OrderData(security, quantity, price, side, order_type)
@@ -62,7 +62,8 @@ class Order:
         return self._remaining == 0
 
     def __repr__(self):
-        return f"{self.data.side.name}: {self.data.security.ticker} {self.data.quantity} @ {self.data.price}"
+        return (f"{self.data.side.name}: {self.data.security.ticker} "
+                f"{self.data.quantity} @ {self.data.price} ({self.data.order_type})")
 
     def serialized(self):
         return {
