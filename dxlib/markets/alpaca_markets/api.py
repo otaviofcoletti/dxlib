@@ -59,18 +59,32 @@ class AlpacaAPI:
 
         return response.json()
 
-    def post_order(self, symbol, qty, side, type, time_in_force):
+    def post_order(self, symbol, qty, side, order_type, time_in_force, limit_price=None):
+        json = {
+            "symbol": symbol,
+            "qty": qty,
+            "side": side,
+            "type": order_type,
+            "time_in_force": time_in_force,
+        }
+
+        if order_type == "limit":
+            json["limit_price"] = limit_price
+
         response = requests.post(self.url_builder.get("orders"),
-                                 json={
-                                     "symbol": symbol,
-                                     "qty": qty,
-                                     "side": side,
-                                     "type": type,
-                                     "time_in_force": time_in_force,
-                                 },
+                                 json=json,
                                  headers={
                                      "APCA-API-KEY-ID": self.__api_key,
                                      "APCA-API-SECRET-KEY": self.__api_secret
                                  })
+
+        return response.json()
+
+    def cancel_order(self, order_id):
+        response = requests.delete(self.url_builder.get("orders", order_id),
+                                   headers={
+                                       "APCA-API-KEY-ID": self.__api_key,
+                                       "APCA-API-SECRET-KEY": self.__api_secret
+                                   })
 
         return response.json()

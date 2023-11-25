@@ -15,7 +15,7 @@ class MarketInterface(ABC):
         A market is a source of data for a security and can be used to get historical data or live data.
         Also provides a way to subscribe to a security, and get data updates.
         """
-        pass
+        self.security_manager = None
 
     @property
     @abstractmethod

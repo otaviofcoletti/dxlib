@@ -3,14 +3,23 @@ from __future__ import annotations
 import json
 from typing import Dict
 
-from ..logger import no_logger
-
 from .inventory import Inventory
+from ..logger import no_logger
 from ..trading.order import Order
 
 
 class Portfolio:
     def __init__(self, inventories: Dict[str, Inventory] | None = None, name: str = None, logger=None):
+        """
+        Manages a collection of inventories.
+        Useful for registering trading histories and calculating portfolio value.
+        Can be used for backtesting and live trading, and can be used to manage multiple portfolios.
+
+        Args:
+            inventories: A dictionary of inventories.
+            name: The name of the portfolio.
+            logger: A logger if you want to log actions taken by the portfolio.
+        """
         self.name: str = name
 
         self._inventories: Dict[str, Inventory] = inventories if inventories else {}
@@ -40,6 +49,12 @@ class Portfolio:
         return inventory.financial_weights(prices)
 
     def add(self, orders: Dict[str, Order]):
+        """
+        Adds orders to the portfolio.
+
+        Args:
+            orders: A dictionary of orders to add to the portfolio.
+        """
         self.logger.info(f"Adding order {orders}")
 
         for identifier in orders:

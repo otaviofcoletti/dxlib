@@ -47,11 +47,17 @@ class Order:
                  price: float | int,
                  side: Side | int,
                  order_type: str | OrderType = OrderType.MARKET,
-                 partial: bool = False):
+                 partial: bool = False,
+                 identifier: str | None = None,):
         self._data = OrderData(security, quantity, price, side, order_type)
         self._transactions = []
         self._remaining = quantity
         self._partial = partial
+        self._identifier = identifier
+
+    @property
+    def identifier(self):
+        return self._identifier
 
     @property
     def data(self):
@@ -93,11 +99,13 @@ class Order:
             self._remaining -= transaction.data.quantity
 
     @classmethod
-    def from_type(cls, data: OrderData):
+    def from_type(cls, data: OrderData, partial: bool = False, identifier: str | None = None):
         return cls(
             data.security,
             data.quantity,
             data.price,
             data.side,
             data.order_type,
+            partial,
+            identifier,
         )

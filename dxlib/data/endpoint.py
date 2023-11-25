@@ -1,5 +1,5 @@
-from inspect import signature
 from functools import wraps
+from inspect import signature
 
 
 class Endpoint:

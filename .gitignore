@@ -11,3 +11,4 @@ tests/config.py
 *.pyc
 *.csv
 __pycache__/
+/dxlib/_core/cmake-build-debug/

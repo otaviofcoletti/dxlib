@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections import Counter
 from functools import lru_cache
 from typing import Dict
-from collections import Counter
 
 from ..security import Security
 
@@ -28,6 +28,12 @@ class Inventory:
             self._securities[security] += quantity
         else:
             self._securities[security] = quantity
+
+    def remove(self, security: Security, quantity: float | int):
+        if security in self._securities:
+            self._securities[security] -= quantity
+        else:
+            self._securities[security] = -quantity
 
     @property
     def quantities(self):

@@ -35,7 +35,7 @@ class TestInterface(unittest.TestCase):
         print(self.order_interface.get())
 
     def test_post_order(self):
-        order = dxlib.OrderData(dxlib.Security("AAPL"), 1, 1, 1, "market")
+        order = dxlib.OrderData(dxlib.Security("AAPL"), 190.5, 10, -1, "limit")
         print(self.order_interface.post(order))
 
 
