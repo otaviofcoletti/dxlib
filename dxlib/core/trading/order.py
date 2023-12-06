@@ -3,8 +3,8 @@ from __future__ import annotations
 from enum import Enum
 
 from .transaction import Side, Transaction
+from .signal import Signal
 from ..security import Security
-from ... import Signal
 
 
 class OrderType(Enum):

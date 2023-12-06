@@ -11,7 +11,7 @@ import pandas as pd
 from websocket import WebSocket
 
 from .generic_manager import GenericManager, GenericMessageHandler
-from ..core import Portfolio, History, no_logger
+from ..core import Portfolio, History, Security, Order, Inventory, Signal, SecurityManager, info_logger, no_logger
 from ..servers import Endpoint
 from ..strategies import Strategy
 
@@ -223,7 +223,6 @@ class StrategyMessageHandler(GenericMessageHandler):
 
 
 if __name__ == "__main__":
-    from .. import info_logger, Security, SecurityManager, Order, Signal, Inventory
     from ..strategies import RsiStrategy
 
     my_logger = info_logger(__name__)

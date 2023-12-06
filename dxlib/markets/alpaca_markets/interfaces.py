@@ -24,7 +24,6 @@ class AlpacaMarket(MarketInterface):
     def subscribe(self, security):
         pass
 
-
 class AlpacaPortfolio(PortfolioInterface):
     def __init__(self, api):
         super().__init__()

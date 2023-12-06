@@ -41,7 +41,7 @@ class HttpServer(Server):
 
     def set_endpoints(self):
         for func_name in dir(self.manager):
-            attr = self.manager.__class__.__dict__.get()
+            attr = self.manager.__class__.__dict__.get(func_name)
 
             if callable(attr) and hasattr(attr, "endpoint"):
                 endpoint = attr.endpoint
