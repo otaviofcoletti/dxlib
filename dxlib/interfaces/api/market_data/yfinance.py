@@ -6,7 +6,7 @@ import os
 import pandas as pd
 import requests
 
-from .data_api import SnapshotApi
+from dxlib.interfaces.data_api import SnapshotApi
 
 
 class YFinanceAPI(SnapshotApi):

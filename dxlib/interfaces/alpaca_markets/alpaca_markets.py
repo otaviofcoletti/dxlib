@@ -7,7 +7,7 @@ from enum import Enum
 
 import pandas as pd
 
-from .data_api import SnapshotApi
+from dxlib.interfaces.data_api import SnapshotApi
 
 
 class AlpacaMarketsAPI(SnapshotApi):
