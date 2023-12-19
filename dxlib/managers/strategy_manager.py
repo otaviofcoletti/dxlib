@@ -158,7 +158,7 @@ class StrategyManager(Manager):
                 self._consume(subscription)
 
 
-class StrategyMessageHandler(GenericMessageHandler):
+class StrategyMessageHandler(MessageHandler):
     def __init__(self, manager: StrategyManager):
         super().__init__()
         self.manager = manager

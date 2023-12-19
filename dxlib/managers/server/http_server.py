@@ -7,6 +7,7 @@ import threading
 from urllib.parse import parse_qs, urlparse
 
 from .server import ServerStatus, handle_exceptions_decorator, Server
+from ..handler import MessageHandler
 
 
 class ReusableTCPServer(socketserver.TCPServer):
@@ -16,14 +17,14 @@ class ReusableTCPServer(socketserver.TCPServer):
 
 
 class HttpServer(Server):
-    def __init__(self, manager, port=None, config_file=None, logger=None):
-        super().__init__(manager, logger)
+    def __init__(self, handler: MessageHandler, manager, port=None, config_file=None, logger=None):
+        super().__init__(handler, logger)
         self.endpoints = {}
+        self.manager = manager
+        self.port = port if port else self._get_free_port()
 
         if not config_file:
             self.set_endpoints()
-
-        self.port = port if port else self._get_free_port()
 
         self._error = threading.Event()
 
@@ -41,7 +42,7 @@ class HttpServer(Server):
 
     def set_endpoints(self):
         for func_name in dir(self.manager):
-            attr = self.manager.__class__.__dict__.get()
+            attr = self.manager.__class__.__dict__.get(func_name)
 
             if callable(attr) and hasattr(attr, "endpoint"):
                 endpoint = attr.endpoint

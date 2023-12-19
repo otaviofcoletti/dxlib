@@ -1,42 +1,31 @@
 import logging
-from abc import ABC, abstractmethod
+from abc import ABC
 
+from .handler import MessageHandler
 from .server import Server
-from ..core.logger import no_logger
-
-
-class MessageHandler(ABC):
-    def __init__(self):
-        pass
-
-    @abstractmethod
-    def handle(self, websocket, message):
-        pass
-
-    def listen(self, websocket, endpoint) -> str:
-        pass
-
-    def clear(self, websocket, endpoint):
-        pass
+from ..core.logger import info_logger
 
 
 class Manager(ABC):
     def __init__(self,
                  message_handler: MessageHandler,
-                 comms: list[Server],
+                 comms: list[Server] = None,
                  logger: logging.Logger = None
                  ):
         self.message_handler = message_handler
-        self.comms = comms
-        self.logger = logger if logger else no_logger(__name__)
+        self.comms = comms if comms else []
+        self.logger = logger if logger else info_logger(__name__)
 
-        for comm in comms:
+        for comm in self.comms:
             comm.logger = self.logger
 
     async def handle(self, websocket, message):
         self.message_handler.handle(websocket, message)
 
     def start(self):
+        if not self.comms:
+            self.logger.warning("No communicators to start. Skipping...")
+            return
         for comm in self.comms:
             comm.start()
 

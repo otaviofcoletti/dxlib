@@ -3,7 +3,8 @@ import threading
 from abc import ABC, abstractmethod
 from enum import Enum
 
-from dxlib.core import no_logger
+from ..handler import MessageHandler
+from ...core.logger import info_logger
 
 
 class ServerStatus(Enum):
@@ -34,10 +35,10 @@ class ExceptionContext:
 
 
 class Server(ABC):
-    def __init__(self, manager, logger=None):
-        self.logger = logger if logger else no_logger(__name__)
+    def __init__(self, handler: MessageHandler, logger=None):
+        self.logger = logger if logger else info_logger(__name__)
 
-        self.manager = manager
+        self.handler = handler
         self._running = threading.Event()
 
         self.exception_queue = queue.Queue()

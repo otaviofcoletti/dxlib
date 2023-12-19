@@ -4,7 +4,7 @@ from dxlib import Side, SecurityManager
 from dxlib.interfaces.external.alpaca_markets import AlpacaAPI, AlpacaOrder, AlpacaMarket, AlpacaPortfolio
 from dxlib.trading import OrderData
 
-from tests.interfaces.api.config import API_KEY_PAPER, API_SECRET_PAPER
+from tests.interfaces.config import API_KEY_PAPER, API_SECRET_PAPER
 
 
 class TestAlpacaInterface(unittest.TestCase):
