@@ -1,5 +1,5 @@
 import unittest
-from dxlib.interfaces.alpaca_markets import AlpacaAPI, AlpacaOrder
+from dxlib.interfaces.external.alpaca_markets import AlpacaAPI
 from config import API_KEY_PAPER, API_SECRET_PAPER
 
 
@@ -15,8 +15,6 @@ class TestAPI(unittest.TestCase):
 
     def test_get_positions(self):
         print(self.api.get_positions())
-
-
 
 
 if __name__ == '__main__':

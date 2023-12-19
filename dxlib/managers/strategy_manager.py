@@ -11,10 +11,10 @@ from typing import AsyncGenerator, Generator
 import numpy as np
 import pandas as pd
 
-from .generic_manager import GenericManager, GenericMessageHandler
-from dxlib.interfaces.api import Endpoint
-from ..core import Portfolio, History, no_logger
 from ..strategies import Strategy
+from ..core import Portfolio, History, no_logger
+from .generic_manager import GenericManager, GenericMessageHandler
+from .endpoint import Endpoint
 
 
 class StrategyManager(GenericManager):

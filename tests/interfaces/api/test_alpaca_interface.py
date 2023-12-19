@@ -1,10 +1,10 @@
 import unittest
 
 from dxlib import Side, SecurityManager
-from dxlib.interfaces.alpaca_markets import AlpacaAPI, AlpacaOrder, AlpacaMarket, AlpacaPortfolio
+from dxlib.interfaces.external.alpaca_markets import AlpacaAPI, AlpacaOrder, AlpacaMarket, AlpacaPortfolio
 from dxlib.trading import OrderData
 
-from config import API_KEY_PAPER, API_SECRET_PAPER
+from tests.interfaces.api.config import API_KEY_PAPER, API_SECRET_PAPER
 
 
 class TestAlpacaInterface(unittest.TestCase):
@@ -40,7 +40,7 @@ class TestAlpacaInterface(unittest.TestCase):
 
         order_data = OrderData(
             security=self.security_manager["AAPL"],
-            side=Side.BUY,
+            side=Side.SELL,
             quantity=1,
             order_type="market",
         )

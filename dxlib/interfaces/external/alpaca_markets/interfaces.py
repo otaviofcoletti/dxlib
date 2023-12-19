@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from dxlib.core.portfolio.inventory import Inventory
+from dxlib.core.security import Security
+from dxlib.core.portfolio import Portfolio
+from dxlib.core.trading.order import OrderData, Order, Side
+
 from .api import AlpacaAPI
-from ..interfaces import MarketInterface, OrderInterface, PortfolioInterface
-from ...core.portfolio.inventory import Inventory
-from ...core.security import Security
-from ...core.portfolio import Portfolio
-from ...core.trading.order import OrderData, Order, Side
+from ...interfaces import MarketInterface, PortfolioInterface, OrderInterface
 
 
 class AlpacaMarket(MarketInterface):
@@ -25,7 +26,8 @@ class AlpacaMarket(MarketInterface):
         pass
 
     def snapshot(self, security):
-        return self.api.g
+        pass
+
 
 class AlpacaPortfolio(PortfolioInterface):
     def __init__(self, api):
@@ -38,7 +40,7 @@ class AlpacaPortfolio(PortfolioInterface):
 
     def get(self, accumulate=False) -> Portfolio | Inventory:
         inventory = self.api.get_positions()
-        portfolio = Portfolio(Inventory.from_dict({i['symbol']: i['qty'] for i in inventory}))
+        portfolio = Portfolio(Inventory.from_dict({i['symbol']: float(i['qty']) for i in inventory}))
         if not accumulate:
             return portfolio
         return portfolio.accumulate()
@@ -74,7 +76,7 @@ class AlpacaOrder(OrderInterface):
                 symbol=order_data.security.ticker,
                 qty=order_data.quantity,
                 side='buy' if order_data.side == Side.BUY else 'sell',
-                type=order_data.order_type.name.lower(),
+                order_type=order_data.order_type.name.lower(),
                 time_in_force='gtc'
             )
 

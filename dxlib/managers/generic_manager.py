@@ -1,8 +1,8 @@
 import logging
 from abc import ABC
 
-from dxlib.interfaces.api import HttpServer, WebSocketServer
-from dxlib.core.logger import no_logger
+from .server import HttpServer, WebSocketServer
+from ..core.logger import no_logger
 
 
 class GenericManager:

@@ -1,6 +1,10 @@
 import requests
 
-from .routes import routes
+from dxlib.interfaces.external.alpaca_markets.routes import routes
+
+from .market import AlpacaMarketAPI
+from .order import AlpacaOrderAPI
+from .portfolio import AlpacaPortfolioAPI
 
 
 class UrlBuilder:
@@ -27,6 +31,11 @@ class AlpacaAPI:
     def __init__(self, api_key, api_secret, live=False):
         self.__api_key = api_key
         self.__api_secret = api_secret
+
+        self.market_api = AlpacaMarketAPI(api_key, api_secret)
+        self.portfolio_api = AlpacaPortfolioAPI()
+        self.order_api = AlpacaOrderAPI()
+
         self.url_builder = UrlBuilder("live" if live else "sandbox")
 
     def get_account(self):
@@ -50,19 +59,19 @@ class AlpacaAPI:
 
         return response.json()
 
-    def submit_order(self, symbol, qty, side, type, time_in_force=None):
+    def submit_order(self, symbol, qty, side, order_type, time_in_force=None):
         response = requests.post(self.url_builder.get("orders"),
-                                headers={
-                                    "APCA-API-KEY-ID": self.__api_key,
-                                    "APCA-API-SECRET-KEY": self.__api_secret
-                                },
-                                json={
-                                    "symbol": symbol,
-                                    "qty": qty,
-                                    "side": side,
-                                    "type": type,
-                                    "time_in_force": time_in_force
-                                })
+                                 headers={
+                                     "APCA-API-KEY-ID": self.__api_key,
+                                     "APCA-API-SECRET-KEY": self.__api_secret
+                                 },
+                                 json={
+                                     "symbol": symbol,
+                                     "qty": qty,
+                                     "side": side,
+                                     "type": order_type,
+                                     "time_in_force": time_in_force
+                                 })
 
         return response.json()
 

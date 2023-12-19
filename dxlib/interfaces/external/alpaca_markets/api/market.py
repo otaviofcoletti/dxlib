@@ -10,7 +10,7 @@ import pandas as pd
 from dxlib.interfaces.data_api import SnapshotApi
 
 
-class AlpacaMarketsAPI(SnapshotApi):
+class AlpacaMarketAPI(SnapshotApi):
     def __init__(self, api_key=None, api_secret=None):
         super().__init__("https://data.alpaca.markets", api_key, api_secret, "v2")
         self.headers = {"APCA-API-KEY-ID": api_key, "APCA-API-SECRET-KEY": api_secret}
