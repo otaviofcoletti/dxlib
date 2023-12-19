@@ -2,7 +2,7 @@ import queue
 import threading
 from enum import Enum
 
-from ...core import no_logger
+from dxlib.core import no_logger
 
 
 class ServerStatus(Enum):
