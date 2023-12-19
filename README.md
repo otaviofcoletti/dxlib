@@ -26,7 +26,8 @@ Unified data-fetching methods, ensuring consistent data structures.
 To use the individual API endpoints, simply load the respective API module:
 
 ```python
-from dxlib.api import AlpacaMarketsAPI
+from dxlib.interfaces.api import AlpacaMarketsAPI
+
 api = AlpacaMarketsAPI("<api_key>", "<api_secret>")  # If a local cache/ directory is used, no API key is needed
 
 top_symbols = api.get_symbols(n=100)
@@ -59,7 +60,7 @@ Harness `dxlib` to simulate trading strategies:
 ```python
 import dxlib as dx
 from dxlib import StrategyManager, Portfolio
-from dxlib.api import YFinanceAPI
+from dxlib.interfaces.api import YFinanceAPI
 
 data = YFinanceAPI().get_historical_bars(["AAPL", "MSFT", "GOOGL", "AMZN"], start="2022-01-01", end="2022-12-31")
 portfolio = Portfolio().add_cash(1e4)

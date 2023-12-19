@@ -8,13 +8,16 @@ from ...core.trading.order import Order, OrderData, OrderType
 
 
 class SandboxMarket(MarketInterface):
-    def __init__(self, allow_backtest: bool = False):
+    def __init__(self, security_manager=SecurityManager(), allow_backtest: bool = False):
         super().__init__()
         self.identifier = "Sandbox"
-        self.security_manager = SecurityManager()
+        self.security_manager = security_manager
         self.allow_backtest = allow_backtest
+        self._history = History()
 
-        self._history = History(security_manager=self.security_manager)
+    @property
+    def history(self) -> History:
+        return self._history
 
     def get_price(self, security):
         return self.history.snapshot(security)['close']
@@ -24,10 +27,6 @@ class SandboxMarket(MarketInterface):
 
     def __repr__(self):
         return f"{self.identifier}Market"
-
-    @property
-    def history(self):
-        return self._history
 
 
 class SandboxPortfolio(PortfolioInterface):
@@ -49,18 +48,18 @@ class SandboxOrder(OrderInterface):
     def __init__(self):
         super().__init__()
 
-    def send(self, order_data: OrderData, market: MarketInterface):
+    def send(self, order_data: OrderData, market: MarketInterface = None, *args, **kwargs) -> Order:
         order = Order.from_type(order_data)
-        time = market.history.date()
 
         if order.data.order_type != OrderType.MARKET:
             raise NotImplementedError("Only market orders are supported in the sandbox.")
-        if not time:
-            raise ValueError("Market did not show any valid historical bars.")
+        if market is None:
+            raise NotImplementedError("Pass a market to get the latest reference prices.")
 
         order.data.price = MarketUtilities.get_close_price(market, order.data.security)
 
-        order.create_transaction(time)
+        order.create_transaction()
+        return order
 
     def cancel(self, order):
         pass

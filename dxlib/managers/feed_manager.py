@@ -91,7 +91,7 @@ class FeedMessageHandler(GenericMessageHandler):
 
 
 def main():
-    from dxlib.api import YFinanceAPI
+    from dxlib.interfaces.api import YFinanceAPI
     from ..core import info_logger
     logger = info_logger()
 

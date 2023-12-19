@@ -50,6 +50,22 @@ class AlpacaAPI:
 
         return response.json()
 
+    def submit_order(self, symbol, qty, side, type, time_in_force=None):
+        response = requests.post(self.url_builder.get("orders"),
+                                headers={
+                                    "APCA-API-KEY-ID": self.__api_key,
+                                    "APCA-API-SECRET-KEY": self.__api_secret
+                                },
+                                json={
+                                    "symbol": symbol,
+                                    "qty": qty,
+                                    "side": side,
+                                    "type": type,
+                                    "time_in_force": time_in_force
+                                })
+
+        return response.json()
+
     def get_positions(self):
         response = requests.get(self.url_builder.get("positions"),
                                 headers={

@@ -62,13 +62,13 @@ class History:
             identifier = hash(self)
 
         if df is None:
-            df = pd.DataFrame()
+            self.df = pd.DataFrame()
         elif isinstance(df, dict):
-            df = pd.DataFrame.from_dict(df, orient='index')
-            df.index = pd.MultiIndex.from_tuples(df.index, names=['date', 'security'])
+            self.df = pd.DataFrame.from_dict(df, orient='index')
         elif isinstance(df, pd.DataFrame):
             self.df = df
-            df.index = pd.MultiIndex.from_tuples(df.index, names=['date', 'security'])
+
+        self.df.index = pd.MultiIndex.from_tuples(self.df.index, names=['date', 'security'])
 
         self.indicators = self.Indicators()
         self._identifier = identifier
@@ -132,10 +132,15 @@ class History:
         }
 
     def _get(self, securities, fields, dates):
+        if self.df.empty:
+            return pd.DataFrame()
+
         mask_dates = self.df.index.get_level_values('date').isin(dates)
         mask_securities = self.df.index.get_level_values('security').isin(securities)
 
-        return self.df[mask_dates & mask_securities][fields]
+        df = self.df[mask_dates & mask_securities]
+
+        return df[fields] if not df.empty else pd.DataFrame()
 
     def get_raw(self, securities=None, fields=None, dates=None) -> pd.Series | pd.DataFrame:
         if securities is None:
@@ -184,6 +189,7 @@ class History:
 
         securities = list(self.security_manager.get(securities).values()) or self.get_level()
         fields = fields or df.columns.tolist()
+        fields = [fields] if isinstance(fields, str) else fields
 
         dates = dates or self.get_level(level='date')
         dates = [dates] if isinstance(dates, str) else dates
@@ -216,7 +222,7 @@ class History:
         return self.df.index.get_level_values('date').unique().tolist()[position]
 
     def snapshot(self, securities=None):
-        self.get(securities=securities, dates=self.date)
+        return self.get(securities=securities, dates=self.date())
 
     @property
     def shape(self):

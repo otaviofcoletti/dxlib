@@ -87,11 +87,16 @@ class SecurityManager:
         elif isinstance(other, Security) and other.ticker not in self.securities:
             self.securities[other.ticker] = other
 
+    def __getitem__(self, item):
+        return self.securities[item]
+
     def get(self, securities: list[str] | str = None) -> dict[str, Security]:
         if securities is None:
             return self.securities
         if isinstance(securities, str):
             return {securities: self.securities.get(securities, None)}
+        if isinstance(securities, Security):
+            return {securities.ticker: securities}
 
         filtered_securities = {}
         for security in securities:

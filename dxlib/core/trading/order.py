@@ -72,7 +72,7 @@ class Order:
             "partial": self._partial,
         }
 
-    def create_transaction(self, time, quantity=None):
+    def create_transaction(self, time=None, quantity=None):
         transaction = Transaction(
             self.data.security,
             quantity or self.data.quantity,

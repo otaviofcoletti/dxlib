@@ -12,16 +12,31 @@ class Inventory:
         self.source = source
         self._securities: Dict[Security, float | int] = securities if securities else {}
 
+    def __repr__(self):
+        return f"Inventory({self._securities})"
+
+    def __str__(self):
+        return f"Inventory({list(self._securities.items())})"
+
     def __iadd__(self, other: Inventory):
-        self._securities = dict(Counter(self._securities) + Counter(other._securities))
+        self._securities = self.sum(other)._securities
         return self
 
     def __add__(self, other: Inventory):
-        return Inventory(dict(Counter(self._securities) + Counter(other._securities)))
+        return self.sum(other)
+
+    def __iter__(self):
+        return iter(self._securities)
 
     @classmethod
     def from_dict(cls, data: dict[Security, float | int]):
         return cls(data)
+
+    def sum(self, other: Inventory):
+        return Inventory({key: self.get(key, 0) + other.get(key, 0) for key in set(self) | set(other)})
+
+    def get(self, security: Security, default: float | int = 0):
+        return self._securities.get(security, default)
 
     def add(self, security: Security, quantity: float | int):
         if security in self._securities:

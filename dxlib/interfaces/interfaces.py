@@ -26,14 +26,24 @@ class MarketUtilities:
 
     @staticmethod
     def get_close_price(market, security):
-        return market.history.snapshot(security)['close']
+        return market.history.snapshot(security).get(fields="close")
 
 
 class PortfolioInterface(ABC):
     def __init__(self):
         pass
 
-    def get(self, identifier: str | None = None) -> Portfolio:
+    @property
+    @abstractmethod
+    def name(self):
+        pass
+
+    @abstractmethod
+    def get(self) -> Portfolio:
+        pass
+
+    @abstractmethod
+    def get_open(self) -> Portfolio:
         pass
 
     def add(self, order: Order, market: MarketInterface):
@@ -44,7 +54,8 @@ class OrderInterface(ABC):
     def __init__(self):
         pass
 
-    def send(self, order_data: OrderData, market: MarketInterface) -> Order:
+    @abstractmethod
+    def send(self, order_data: OrderData, market: MarketInterface = None, *args, **kwargs) -> Order:
         pass
 
     def cancel(self, order):
