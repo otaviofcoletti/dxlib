@@ -4,7 +4,7 @@ import asyncio
 import threading
 from typing import Generator, AsyncGenerator
 
-from .generic_manager import GenericManager, GenericMessageHandler
+from .manager import Manager, MessageHandler
 from ..core import no_logger, History
 
 
@@ -16,7 +16,7 @@ def to_async(subscription: Generator, delay=0.0):
     return async_subscription()
 
 
-class FeedManager(GenericManager):
+class FeedManager(Manager):
     def __init__(self, subscription: AsyncGenerator | Generator | None, port=6000, logger=None):
         super().__init__(None, port, logger)
         if isinstance(subscription, Generator):
@@ -71,7 +71,7 @@ class FeedManager(GenericManager):
         self.start()
 
 
-class FeedMessageHandler(GenericMessageHandler):
+class FeedMessageHandler(MessageHandler):
     def __init__(self, manager: FeedManager):
         super().__init__()
         self.manager = manager

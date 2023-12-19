@@ -7,7 +7,11 @@ from ..core.portfolio import Portfolio
 from ..core.trading.order import OrderData, Order
 
 
-class MarketInterface(ABC):
+class Interface(ABC):
+    pass
+
+
+class MarketInterface(Interface, ABC):
     def __init__(self):
         pass
 
@@ -29,7 +33,7 @@ class MarketUtilities:
         return market.history.snapshot(security).get(fields="close")
 
 
-class PortfolioInterface(ABC):
+class PortfolioInterface(Interface, ABC):
     def __init__(self):
         pass
 
@@ -50,7 +54,7 @@ class PortfolioInterface(ABC):
         pass
 
 
-class OrderInterface(ABC):
+class OrderInterface(Interface, ABC):
     def __init__(self):
         pass
 

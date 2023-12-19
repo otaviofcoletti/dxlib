@@ -73,7 +73,7 @@ class WebSocketServer(Server):
         self.logger.info("Websocket stopped")
         return ServerStatus.STOPPED
 
-    def is_alive(self):
+    def alive(self):
         return self._running.is_set()
 
 

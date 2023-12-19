@@ -13,11 +13,11 @@ import pandas as pd
 
 from ..strategies import Strategy
 from ..core import Portfolio, History, no_logger
-from .generic_manager import GenericManager, GenericMessageHandler
+from .manager import Manager, MessageHandler
 from .endpoint import Endpoint
 
 
-class StrategyManager(GenericManager):
+class StrategyManager(Manager):
     def __init__(self,
                  strategy,
                  server_port=None,

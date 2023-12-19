@@ -1,5 +1,6 @@
 import queue
 import threading
+from abc import ABC, abstractmethod
 from enum import Enum
 
 from dxlib.core import no_logger
@@ -32,7 +33,7 @@ class ExceptionContext:
         pass
 
 
-class Server:
+class Server(ABC):
     def __init__(self, manager, logger=None):
         self.logger = logger if logger else no_logger(__name__)
 
@@ -42,8 +43,17 @@ class Server:
         self.exception_queue = queue.Queue()
         self.exceptions = ExceptionContext(self)
 
-    def is_alive(self):
+    @property
+    def alive(self):
         return self._running.is_set()
+
+    @abstractmethod
+    def start(self):
+        pass
+
+    @abstractmethod
+    def stop(self):
+        pass
 
     def get_exceptions(self):
         try:
