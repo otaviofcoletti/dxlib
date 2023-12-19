@@ -41,3 +41,36 @@ class Endpoint:
             return wrapper
 
         return decorator
+
+
+def get_endpoints(instance):
+    endpoints = []
+
+    for func_name in dir(instance):
+        attr = instance.__class__.__dict__.get(func_name)
+
+        if callable(attr) and hasattr(attr, "endpoint"):
+            endpoint = attr.endpoint
+            # noinspection PyUnresolvedReferences
+            func = attr.__get__(instance)
+            endpoints.append((endpoint, func))
+
+        elif isinstance(attr, property):
+
+            if hasattr(attr.fget, "endpoint"):
+                endpoint = attr.fget.endpoint
+                # noinspection PyUnresolvedReferences
+                func = attr.fget.__get__(
+                    instance, instance.__class__
+                )
+                endpoints.append((endpoint, func))
+
+            if hasattr(attr.fset, "endpoint"):
+                endpoint = attr.fset.endpoint
+                # noinspection PyUnresolvedReferences
+                func = attr.fset.__get__(
+                    instance, instance.__class__
+                )
+                endpoints.append((endpoint, func))
+
+    return endpoints

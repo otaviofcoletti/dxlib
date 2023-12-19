@@ -3,7 +3,7 @@ import unittest
 
 from dxlib.managers.interface_manager import InterfaceManager, InterfaceMessageHandler
 from dxlib.interfaces.sandbox import SandboxMarket
-from dxlib.managers.server import HttpServer
+from dxlib.servers import HttpServer
 
 
 class TestInterfaceManager(unittest.TestCase):
@@ -14,9 +14,10 @@ class TestInterfaceManager(unittest.TestCase):
         handler = InterfaceMessageHandler()
         market = SandboxMarket()
         mm = InterfaceManager(market, handler)
-        mm.comms.append(HttpServer(handler, mm))
+        mm.add_comm(HttpServer(handler, 8000))
+
         mm.start()
-        time.sleep(1)
+        time.sleep(10)
         mm.stop()
 
 

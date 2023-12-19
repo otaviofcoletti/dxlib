@@ -1,9 +1,10 @@
 import logging
 from abc import ABC
 
-from .handler import MessageHandler
-from .server import Server
+from ..servers import Server, HttpServer
+from ..servers.endpoint import get_endpoints
 from ..core.logger import info_logger
+from .handler import MessageHandler
 
 
 class Manager(ABC):
@@ -21,6 +22,13 @@ class Manager(ABC):
 
     async def handle(self, websocket, message):
         self.message_handler.handle(websocket, message)
+
+    def add_comm(self, comm: Server):
+        if isinstance(comm, HttpServer):
+            comm.add_endpoints(get_endpoints(self))
+
+        self.comms.append(comm)
+        comm.logger = self.logger
 
     def start(self):
         if not self.comms:

@@ -14,7 +14,7 @@ import pandas as pd
 from ..strategies import Strategy
 from ..core import Portfolio, History, no_logger
 from .manager import Manager, MessageHandler
-from .endpoint import Endpoint
+from dxlib.servers.endpoint import Endpoint
 
 
 class StrategyManager(Manager):
