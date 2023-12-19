@@ -34,7 +34,7 @@ class ExceptionContext:
 
 
 class Server(ABC):
-    def __init__(self, handler: callable, logger=None):
+    def __init__(self, handler: callable = None, logger=None):
         self.logger = logger if logger else info_logger(__name__)
 
         self.handler = handler

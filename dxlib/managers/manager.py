@@ -14,7 +14,11 @@ class Manager(ABC):
                  logger: logging.Logger = None
                  ):
         self.message_handler = message_handler
+
         self.comms = comms if comms else []
+        if isinstance(self.comms, Server):
+            self.comms = [self.comms]
+
         self.logger = logger if logger else info_logger(__name__)
 
         for comm in self.comms:
@@ -23,7 +27,9 @@ class Manager(ABC):
     async def handle(self, websocket, message):
         self.message_handler.handle(websocket, message)
 
-    def add_comm(self, comm: Server):
+    def add_comm(self, comm: Server = None):
+        if comm is None:
+            return
         if isinstance(comm, HttpServer):
             comm.add_endpoints(get_endpoints(self))
 

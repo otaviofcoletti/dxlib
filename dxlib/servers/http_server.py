@@ -16,7 +16,7 @@ class ReusableTCPServer(socketserver.TCPServer):
 
 
 class HttpServer(Server):
-    def __init__(self, handler: callable, port=None, endpoints: dict = None, logger=None):
+    def __init__(self, handler: callable = None, port=None, endpoints: dict = None, logger=None):
         super().__init__(handler, logger)
         self.endpoints = {}
         self.port = port if port else self._get_free_port()

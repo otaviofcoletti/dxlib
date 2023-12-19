@@ -43,7 +43,7 @@ class Endpoint:
         return decorator
 
 
-def get_endpoints(instance):
+def get_endpoints(instance: object = None):
     endpoints = []
 
     for func_name in dir(instance):

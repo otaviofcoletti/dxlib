@@ -5,34 +5,34 @@ import websockets
 from websockets.exceptions import ConnectionClosedError
 
 from .server import Server, ServerStatus
-from dxlib.core import no_logger
+from ..managers.handler import MessageHandler
+from ..core import no_logger
 
 
-class WebSocketServer(Server):
-    def __init__(self, manager, port=None, logger=None):
-        super().__init__(manager, logger)
+class WebsocketServer(Server):
+    def __init__(self, handler: MessageHandler = None, port=None, logger=None):
+        super().__init__(handler, logger)
         self._websocket_thread = None
         self._websocket_server = None
         self._running = threading.Event()
         self._stop_event = asyncio.Event()
 
         self.port = port if port else 8765
-        self.manager = manager
 
         self.logger = logger if logger else no_logger(__name__)
 
     async def websocket_handler(self, websocket, endpoint):
         self.logger.info("New websocket connection")
-        self.manager.message_handler.connect(websocket, endpoint)
+        self.handler.connect(websocket, endpoint)
 
         try:
             async for message in websocket:
-                if self.manager.message_handler:
-                    self.manager.message_handler.handle(websocket, message)
+                if self.handler:
+                    self.handler.handle(websocket, message)
         except ConnectionClosedError:
             self.logger.warning("Websocket connection closed")
 
-        self.manager.message_handler.disconnect(websocket, endpoint)
+        self.handler.disconnect(websocket, endpoint)
 
     @classmethod
     async def _send_message(cls, websocket, message):
@@ -78,7 +78,7 @@ class WebSocketServer(Server):
 
 
 if __name__ == "__main__":
-    websocket_server = WebSocketServer(None)
+    websocket_server = WebsocketServer(None)
     websocket_server.start()
     try:
         input("Press any key to exit...")
