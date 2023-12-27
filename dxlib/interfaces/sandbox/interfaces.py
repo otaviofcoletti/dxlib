@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from ...core import History
 from ...core.portfolio import Portfolio
 from ...core.security import SecurityManager
 from ...core.trading.order import Order, OrderData, OrderType
+from ...core import History
 from ...servers.endpoint import Endpoint
 from ..interfaces import MarketInterface, PortfolioInterface, OrderInterface, MarketUtilities
 

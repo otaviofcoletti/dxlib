@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import hashlib
 import json
 import logging
@@ -90,47 +91,64 @@ class StrategyManager(Manager):
     def get_position(self):
         return {security.symbol: quantity for security, quantity in self.position.items()}
 
-    def execute(self, bar=None):
-        if bar:
-            idx, _ = bar
-        elif self.history:
-            idx = self.history.df.index[-1]
+    def convert(self, history: History | pd.DataFrame | np.ndarray | Generator):
+        if isinstance(history, History):
+            return history
+        elif isinstance(history, pd.DataFrame):
+            return History(history)
+        elif isinstance(history, (np.ndarray, list, Generator)):
+            return History(pd.DataFrame(history))
+
+    def run(self, obj, threaded=False):
+        if isinstance(obj, (pd.DataFrame, np.ndarray, Generator)):
+            history = self._convert_to_history(obj)
+            if threaded:
+                return self._get_threaded_promise(history)
+            else:
+                return self._process_history(history)
+        elif asyncio.iscoroutinefunction(getattr(obj, '__aiter__', None)):
+            if threaded:
+                return self._get_threaded_subscription(obj)
+            else:
+                return self._async_consume(obj)
         else:
-            raise ValueError("No history or bar provided")
+            raise ValueError("Unsupported input type")
 
-        try:
-            signals = self.strategy.execute(idx,
-                                            pd.Series(self.position, dtype=np.float64),
-                                            self.history)
-        except Exception:
-            self.logger.warning("Error executing strategy", exc_info=True)
-            return pd.Series(TradeSignal(TransactionType.WAIT), index=self.history.securities.values())
+    def _convert_to_history(self, data):
+        if isinstance(data, pd.DataFrame):
+            return History(data)
+        elif isinstance(data, np.ndarray) or isinstance(data, Generator):
+            return History(pd.DataFrame(data))
+        else:
+            raise ValueError("Unsupported data type for history")
 
-        for security in signals.keys():
-            for portfolio in self.portfolios.values():
-                if isinstance(portfolio, Portfolio):
-                    try:
-                        portfolio.trade(security, signals[security], idx)
-                    except ValueError as e:
-                        self.logger.warning(e)
-                else:
-                    self.message_handler.send_signals(signals)
+    def _process_history(self, history):
+        # Replace with actual history processing logic
+        return []
 
-        return signals
+    def _get_threaded_promise(self, history):
+        # Placeholder for threaded promise (replace with actual implementation)
+        future = concurrent.futures.Future()
+        executor = concurrent.futures.ThreadPoolExecutor()
 
-    async def _async_consume(self, subscription: AsyncGenerator):
-        async for bars in subscription:
-            if not self.running:
-                break
-            self._history += bars
-            self.execute(bars)
-        self.running = False
+        def threaded_task():
+            result = self._process_history(history)
+            future.set_result(result)
 
-    def _consume(self, subscription: Generator):
-        for bars in subscription:
-            self._history += bars
-            self.execute(bars)
-        self.running = False
+        executor.submit(threaded_task)
+        return future
+
+    def _get_threaded_subscription(self, subscription):
+        # Placeholder for threaded subscription (replace with actual implementation)
+        # For now, just return the original subscription
+        return subscription
+
+    async def _async_consume(self, subscription):
+        async for signal in subscription:
+            # Replace with actual processing logic
+            processed_signal = signal + 1
+            print(f"Processed signal: {processed_signal}")
+
 
     def stop(self):
         if self.running:

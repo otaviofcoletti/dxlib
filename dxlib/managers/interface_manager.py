@@ -2,11 +2,9 @@ from __future__ import annotations
 
 from abc import ABC
 
-
-from ..servers import Server, HttpServer
 from ..interfaces import Interface
+from ..servers import Server, HttpServer, get_endpoints
 from .manager import Manager, MessageHandler
-from ..servers.endpoint import get_endpoints
 
 
 class InterfaceMessageHandler(MessageHandler):
@@ -25,6 +23,8 @@ class InterfaceManager(Manager, ABC):
                  *args,
                  **kwargs):
         self.interface = interface
+        message_handler = message_handler if message_handler else interface.message_handler
+
         super().__init__(message_handler, comms, *args, **kwargs)
 
     async def serve(self):
