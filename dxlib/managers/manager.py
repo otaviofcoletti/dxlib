@@ -9,12 +9,9 @@ from .handler import MessageHandler
 
 class Manager(ABC):
     def __init__(self,
-                 message_handler: MessageHandler,
                  comms: list[Server] = None,
                  logger: logging.Logger = None
                  ):
-        self.message_handler = message_handler
-
         self.comms = comms if comms else []
         if isinstance(self.comms, Server):
             self.comms = [self.comms]
@@ -23,9 +20,6 @@ class Manager(ABC):
 
         for comm in self.comms:
             comm.logger = self.logger
-
-    async def handle(self, websocket, message):
-        self.message_handler.handle(websocket, message)
 
     def add_comm(self, comm: Server = None):
         if comm is None:
@@ -48,4 +42,4 @@ class Manager(ABC):
             comm.stop()
 
     def alive(self):
-        return all([comm.alive for comm in self.comms])
+        return all([comm.alive for comm in self.comms]) and any([comm.alive for comm in self.comms])

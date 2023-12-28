@@ -9,17 +9,11 @@ import numpy as np
 from scipy.stats import norm
 
 
-class Security:
-    def __init__(self, symbol: str, price: float = None):
-        self.symbol: str = symbol
-        self.price: float | None = price
-
-
-class Future(Security):
-    def __init__(self, symbol, underlying: Security, **kwargs):
+class Future:
+    def __init__(self, symbol, underlying, **kwargs):
         super().__init__(symbol, **kwargs)
 
-        self.underlying: Security = underlying
+        self.underlying = underlying
 
 
 class ExerciseStyle(enum.Enum):
@@ -35,12 +29,12 @@ class ExerciseType(enum.Enum):
 
 class GenericOption:
     def __init__(
-        self,
-        security: Security,
-        exercise_style: ExerciseStyle = ExerciseStyle.american,
-        risk_free_rate: float = None,
-        country: str = None,
-        dividend_yield: float = None,
+            self,
+            security,
+            exercise_style: ExerciseStyle = ExerciseStyle.american,
+            risk_free_rate: float = None,
+            country: str = None,
+            dividend_yield: float = None,
     ):
         """GenericOption to take care of risk_free_rate, dividend yield and correct pricing engine"""
         self.security = security
@@ -55,21 +49,22 @@ class GenericOption:
             self.risk_free_rate = int(country)
 
 
-class Option(Security):
+class Option:
     def __init__(
-        self,
-        symbol: str,
-        underlying: GenericOption,
-        strike: float,
-        maturity: float | date,
-        exercise_type: ExerciseType = ExerciseType.call,
-        future: Security = None,
-        **kwargs,
+            self,
+            symbol: str,
+            underlying: GenericOption,
+            strike: float,
+            maturity: float | date,
+            exercise_type: ExerciseType = ExerciseType.call,
+            future = None,
+            **kwargs,
     ):
         super().__init__(symbol, **kwargs)
 
+        self.symbol = None
         self.underlying: GenericOption = underlying
-        self.future: Security | None = future
+        self.future = future
 
         self.strike: float = strike
         self.maturity: float | date = maturity
@@ -167,17 +162,17 @@ class PricingEngine:
         risk_free_rate = underlying.risk_free_rate
 
         d_1 = np.log(underlying.security.price / strike) + (
-            (np.power(volatility, 2) / 2) * maturity
+                (np.power(volatility, 2) / 2) * maturity
         ) / (volatility * np.sqrt(maturity))
         d_2 = d_1 - (volatility * np.sqrt(maturity))
 
         if option.exercise_type == "call":
             price = np.exp(-risk_free_rate * maturity) * (
-                underlying.security.price * norm.pdf(d_1) - strike * norm.pdf(d_2)
+                    underlying.security.price * norm.pdf(d_1) - strike * norm.pdf(d_2)
             )
         else:
             price = np.exp(-risk_free_rate * maturity) * (
-                underlying.security.price * norm.pdf(-d_1) + strike * norm.pdf(-d_2)
+                    underlying.security.price * norm.pdf(-d_1) + strike * norm.pdf(-d_2)
             )
 
         def delta():
@@ -188,71 +183,71 @@ class PricingEngine:
 
         def gamma():
             return (
-                np.exp(-risk_free_rate * maturity)
-                / (underlying.security.price * volatility * np.sqrt(maturity))
-                * norm.cdf(d_1)
+                    np.exp(-risk_free_rate * maturity)
+                    / (underlying.security.price * volatility * np.sqrt(maturity))
+                    * norm.cdf(d_1)
             )
 
         def vega():
             return (
-                np.exp(-risk_free_rate * maturity)
-                * norm.cdf(d_1)
-                * underlying.security.price
-                * np.sqrt(maturity)
+                    np.exp(-risk_free_rate * maturity)
+                    * norm.cdf(d_1)
+                    * underlying.security.price
+                    * np.sqrt(maturity)
             )
 
         def theta():
             if option.exercise_type == ExerciseType.call:
                 return (
-                    -(
-                        underlying.security.price
-                        * volatility
+                        -(
+                                underlying.security.price
+                                * volatility
+                                * np.exp(-risk_free_rate * maturity)
+                                * norm.cdf(d_1)
+                        )
+                        / (2 * np.sqrt(maturity))
+                        + risk_free_rate
+                        * underlying.security.price
                         * np.exp(-risk_free_rate * maturity)
-                        * norm.cdf(d_1)
-                    )
-                    / (2 * np.sqrt(maturity))
-                    + risk_free_rate
-                    * underlying.security.price
-                    * np.exp(-risk_free_rate * maturity)
-                    * norm.pdf(d_1)
-                    - risk_free_rate
-                    * strike
-                    * np.exp(-risk_free_rate * maturity)
-                    * norm.pdf(d_2)
+                        * norm.pdf(d_1)
+                        - risk_free_rate
+                        * strike
+                        * np.exp(-risk_free_rate * maturity)
+                        * norm.pdf(d_2)
                 )
             else:
                 return (
-                    -(
-                        underlying.security.price
-                        * volatility
+                        -(
+                                underlying.security.price
+                                * volatility
+                                * np.exp(-risk_free_rate * maturity)
+                                * norm.cdf(d_1)
+                        )
+                        / (2 * np.sqrt(maturity))
+                        - risk_free_rate
+                        * underlying.security.price
                         * np.exp(-risk_free_rate * maturity)
-                        * norm.cdf(d_1)
-                    )
-                    / (2 * np.sqrt(maturity))
-                    - risk_free_rate
-                    * underlying.security.price
-                    * np.exp(-risk_free_rate * maturity)
-                    * norm.pdf(-d_1)
-                    + risk_free_rate
-                    * strike
-                    * np.exp(-risk_free_rate * maturity)
-                    * norm.pdf(-d_2)
+                        * norm.pdf(-d_1)
+                        + risk_free_rate
+                        * strike
+                        * np.exp(-risk_free_rate * maturity)
+                        * norm.pdf(-d_2)
                 )
 
         def rho():
             if option.exercise_type == ExerciseType.call:
                 return (
-                    strike
-                    * maturity
-                    * np.exp(-risk_free_rate * maturity)
-                    * norm.pdf(d_2)
+                        strike
+                        * maturity
+                        * np.exp(-risk_free_rate * maturity)
+                        * norm.pdf(d_2)
                 )
             else:
                 return (
-                    -strike
-                    * maturity
-                    * np.exp(-risk_free_rate * maturity)
-                    * norm.pdf(-d_2)
+                        -strike
+                        * maturity
+                        * np.exp(-risk_free_rate * maturity)
+                        * norm.pdf(-d_2)
                 )
 
         # AmericanPricing <- function(type, underlying, strike, risk_free_rate, dividendYield, maturity, volatility) {
@@ -275,29 +270,3 @@ class PricingEngine:
         }
 
         return value
-
-
-def main():
-    security = Security("PETR4 BR Index", price=40.5)
-
-    underlying = GenericOption(
-        security,
-        risk_free_rate=10 / 100,
-        dividend_yield=30 / 100,
-        exercise_style=ExerciseStyle.european,
-    )
-
-    option = Option(
-        "PETR4 BR 2023/7/20 C40",
-        underlying,
-        strike=40,
-        maturity=date(2023, 7, 20),
-        price=8,
-    )
-
-    option.implied_volatility = 4 / 100
-    print(option.implied_value)
-
-
-if __name__ == "__main__":
-    main()

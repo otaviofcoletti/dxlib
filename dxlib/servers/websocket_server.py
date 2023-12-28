@@ -28,7 +28,7 @@ class WebsocketServer(Server):
         try:
             async for message in websocket:
                 if self.handler:
-                    self.handler.handle(websocket, message)
+                    await self.handler.handle(websocket, endpoint, message)
         except ConnectionClosedError:
             self.logger.warning("Websocket connection closed")
 
@@ -60,15 +60,15 @@ class WebsocketServer(Server):
 
     def stop(self):
         self.logger.info("Stopping websocket")
-        if self._websocket_server is None:
-            return ServerStatus.STOPPED
         self._running.clear()
 
-        self._websocket_server.close()
-        self._websocket_server = None
+        if self._websocket_server:
+            self._websocket_server.close()
+            self._websocket_server = None
 
-        self._websocket_thread.join()
-        self._websocket_thread = None
+        if self._websocket_thread:
+            self._websocket_thread.join()
+            self._websocket_thread = None
 
         self.logger.info("Websocket stopped")
         return ServerStatus.STOPPED

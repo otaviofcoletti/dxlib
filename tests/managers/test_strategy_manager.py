@@ -1,55 +1,35 @@
+import time
 import unittest
 from random import random
 
 import pandas as pd
 
-from dxlib import History
+from dxlib import History, Strategy, StrategyManager
+from dxlib.core.portfolio.inventory import Inventory
+from dxlib.servers import WebsocketServer
 
 
 class TestStrategyManager(unittest.TestCase):
-    class SimpleStrategy:
+    class SimpleStrategy(Strategy):
         def __init__(self):
             super().__init__()
 
-        def execute(
-                self, idx, position: pd.Series, history: History
-        ) -> pd.Series:
-            return pd.Series([random() for _ in range(len(position))], index=position.index)
+        def execute(self, idx, position: Inventory, history: History) -> pd.DataFrame:
+            return pd.DataFrame()
 
     def test_execute(self):
-        import asyncio
+        strategy = self.SimpleStrategy()
+        sm = StrategyManager(strategy, comms=[WebsocketServer(port=6000)])
 
-        async def printable(subscription):
-            async def process_signal(value):
-                # Process the signal (in this case, just print it)
-                print(f"Received signal: {value}")
+        sm.start()
 
-                # Return the processed signal
-                return value + 1
-
-            async def subscription_handler():
-                async for value in subscription:
-                    processed_value = await process_signal(value)
-                    yield processed_value
-
-            return subscription_handler()
-
-        # Example usage
-        async def main():
-            async def fake_subscription():
-                for i in range(5):
-                    yield i
-                    await asyncio.sleep(1)  # Simulate asynchronous signal emission
-
-            subscription = fake_subscription()
-            processed_subscription = await printable(subscription)
-
-            async for processed_value in processed_subscription:
-                # Do something with the processed value (in this case, just print it)
-                print(f"Processed value: {processed_value}")
-
-        # Run the example
-        asyncio.run(main())
+        try:
+            while sm.alive():
+                time.sleep(1)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            sm.stop()
 
 
 if __name__ == '__main__':

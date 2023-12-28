@@ -91,7 +91,7 @@ class HttpServer(Server):
 
             def parse_route(self):
                 path_parts = urlparse(self.path)
-                route_name = path_parts.path.lstrip("/")
+                route_name = path_parts.path
                 params = parse_qs(path_parts.query)
 
                 if route_name not in self.endpoints:

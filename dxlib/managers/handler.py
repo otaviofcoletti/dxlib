@@ -6,7 +6,13 @@ class MessageHandler(ABC):
         pass
 
     @abstractmethod
-    def handle(self, websocket, message):
+    async def handle(self, websocket, endpoint, message):
+        pass
+
+    def connect(self, websocket, endpoint):
+        pass
+
+    def disconnect(self, websocket, endpoint):
         pass
 
     def listen(self, websocket, endpoint) -> str:

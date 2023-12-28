@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import pandas as pd
 
 from ..core import History
+from ..core.portfolio.inventory import Inventory
 
 
 class Strategy(ABC):
@@ -14,6 +15,6 @@ class Strategy(ABC):
 
     @abstractmethod
     def execute(
-        self, idx, position, history: History
+        self, idx, position: Inventory, history: History
     ) -> pd.Series:  # expected element type: Signal
         pass

@@ -2,42 +2,38 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures
-import hashlib
-import json
-import logging
 import threading
-from collections import Counter
 from typing import AsyncGenerator, Generator
 
 import numpy as np
 import pandas as pd
+import websockets
 
+from ..core import Portfolio, History
+from ..core.portfolio.inventory import Inventory
+from ..servers import WebsocketServer
+from ..servers.endpoint import Endpoint
 from ..strategies import Strategy
-from ..core import Portfolio, History, no_logger
 from .manager import Manager, MessageHandler
-from dxlib.servers.endpoint import Endpoint
 
 
 class StrategyManager(Manager):
     def __init__(self,
                  strategy,
-                 server_port=None,
-                 websocket_port=None,
-                 logger: logging.Logger = None,
+                 *args,
+                 **kwargs
                  ):
-        super().__init__(server_port, websocket_port, logger)
+        super().__init__(
+            *args,
+            **kwargs)
+
         self.strategy: Strategy = strategy
-
         self.portfolios: dict[str, Portfolio] = {}
-        self.histories: list[History] = []
+        self.executors: set[Executor] = set()
 
-        self._history = History(pd.DataFrame())
-
-        self.running = False
-        self.thread = None
-
-        self.message_handler = StrategyMessageHandler(self)
-        self.logger = no_logger(__name__) if logger is None else logger
+        for comm in kwargs.get('comms', []):
+            if isinstance(comm, WebsocketServer) and comm.handler is None:
+                comm.handler = StrategyMessageHandler(self, comm)
 
     @Endpoint.get("portfolios", "Gets the currently registered portfolios")
     def get_portfolios(self, identifier=None):
@@ -47,16 +43,13 @@ class StrategyManager(Manager):
         return {identifier: portfolio.to_dict() for identifier, portfolio in self.portfolios.items()}
 
     @Endpoint.get("portfolios", "Gets the currently registered portfolios")
-    def get_portfolio_values(self, identifier: str):
-        values = pd.DataFrame(np.zeros_like(self._history.df),
-                              index=self._history.df.index,
-                              columns=self._history.df.columns)
+    def get_values(self, identifier: str, prices: dict[str, float] | None = None):
+        if identifier and identifier in self.portfolios:
+            return self.portfolios[identifier].value(prices)
+        elif identifier:
+            raise ValueError(f"Portfolio {identifier} not registered")
 
-        for transaction in self.portfolios[identifier].transaction_history:
-            if transaction.security in self._history.securities:
-                values[transaction.security][transaction.timestamp] = transaction.price * transaction.quantity
-
-        return values.cumsum()
+        return {identifier: portfolio.value(prices) for identifier, portfolio in self.portfolios.items()}
 
     @Endpoint.post("portfolios", "Registers a portfolio with the strategy manager")
     def register_portfolio(self, portfolio: Portfolio | dict, identifier: str = None):
@@ -66,223 +59,190 @@ class StrategyManager(Manager):
         if identifier in self.portfolios:
             raise ValueError(f"Portfolio {portfolio} already registered")
         if identifier is None:
-            identifier = hashlib.sha256(str(portfolio).encode()).hexdigest()
+            identifier = hash(portfolio)
 
         self.logger.info(f"Registering portfolio {portfolio}")
         self.portfolios[identifier] = portfolio
 
     @property
-    @Endpoint.get("history", "Gets the currently history for the simulation")
+    def position(self) -> Inventory:
+        portfolio = Portfolio()
+        for identifier in self.portfolios:
+            portfolio += self.portfolios[identifier]
+
+        return portfolio.accumulate()
+
+    def run(self,
+            obj: History | Generator | AsyncGenerator | pd.DataFrame | np.ndarray | dict,
+            threaded=False,
+            executor: Executor = None,
+            position: Inventory = None) -> History | Generator | AsyncGenerator | concurrent.futures.Future | None:
+        if position is None:
+            position = self.position
+
+        if executor is None:
+            executor = Executor(self.strategy, position)
+            self.executors.add(executor)
+
+        return executor.run(obj, threaded)
+
+
+class Executor:
+    def __init__(self, strategy: Strategy, position: Inventory = None):
+        self.strategy = strategy
+        self._position = position
+        self._history = None
+
+        self._running = threading.Event()
+
+    @property
     def history(self):
         return self._history
 
     @history.setter
-    @Endpoint.post("history", "Sets the history for the simulation")
     def history(self, value: History | pd.DataFrame | np.ndarray | dict):
-        self._history = value
+        self._history = self.format(value)
 
-    @property
-    def position(self) -> dict[Security, int]:
-        return dict(sum((Counter(
-            {security: portfolio.position[security] for security in portfolio.position.keys()}
-        ) for portfolio in self.portfolios.values()), Counter()))
+    def run(self,
+            obj: History | Generator | AsyncGenerator | pd.DataFrame | np.ndarray | dict,
+            threaded=False) -> History | Generator | AsyncGenerator | concurrent.futures.Future | None:
+        obj = self.format(obj) if isinstance(obj, (pd.DataFrame, np.ndarray, dict)) else obj
+        if obj is None:
+            return
 
-    @Endpoint.get("position", "Gets the current position for the simulation")
-    def get_position(self):
-        return {security.symbol: quantity for security, quantity in self.position.items()}
+        if not self._history:
+            self._history = History()
 
-    def convert(self, history: History | pd.DataFrame | np.ndarray | Generator):
-        if isinstance(history, History):
-            return history
-        elif isinstance(history, pd.DataFrame):
-            return History(history)
-        elif isinstance(history, (np.ndarray, list, Generator)):
-            return History(pd.DataFrame(history))
-
-    def run(self, obj, threaded=False):
-        if isinstance(obj, (pd.DataFrame, np.ndarray, Generator)):
-            history = self._convert_to_history(obj)
-            if threaded:
-                return self._get_threaded_promise(history)
-            else:
-                return self._process_history(history)
-        elif asyncio.iscoroutinefunction(getattr(obj, '__aiter__', None)):
-            if threaded:
-                return self._get_threaded_subscription(obj)
-            else:
-                return self._async_consume(obj)
+        self._running.set()
+        if threaded:
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                future = executor.submit(self._consume, obj)
+                return future
         else:
-            raise ValueError("Unsupported input type")
-
-    def _convert_to_history(self, data):
-        if isinstance(data, pd.DataFrame):
-            return History(data)
-        elif isinstance(data, np.ndarray) or isinstance(data, Generator):
-            return History(pd.DataFrame(data))
-        else:
-            raise ValueError("Unsupported data type for history")
-
-    def _process_history(self, history):
-        # Replace with actual history processing logic
-        return []
-
-    def _get_threaded_promise(self, history):
-        # Placeholder for threaded promise (replace with actual implementation)
-        future = concurrent.futures.Future()
-        executor = concurrent.futures.ThreadPoolExecutor()
-
-        def threaded_task():
-            result = self._process_history(history)
-            future.set_result(result)
-
-        executor.submit(threaded_task)
-        return future
-
-    def _get_threaded_subscription(self, subscription):
-        # Placeholder for threaded subscription (replace with actual implementation)
-        # For now, just return the original subscription
-        return subscription
-
-    async def _async_consume(self, subscription):
-        async for signal in subscription:
-            # Replace with actual processing logic
-            processed_signal = signal + 1
-            print(f"Processed signal: {processed_signal}")
-
+            return self._consume(obj)
 
     def stop(self):
-        if self.running:
-            self.running = False
-        if self.thread:
-            self.thread.join()
-        super().stop()
+        self._running.clear()
 
-    def run(self, subscription: History | AsyncGenerator | Generator | pd.DataFrame | np.ndarray, threaded=False):
-        if isinstance(subscription, pd.DataFrame):
-            subscription = subscription.iterrows()
-        elif isinstance(subscription, History):
-            subscription = subscription.df.iterrows()
-        if threaded:
-            if isinstance(subscription, AsyncGenerator):
-                self.thread = threading.Thread(target=asyncio.run, args=(self._async_consume(subscription),))
-            else:
-                self.thread = threading.Thread(target=self._consume, args=(subscription,))
-            self.thread.start()
-            self.running = True
+    def _consume(self, obj: History | Generator | AsyncGenerator) -> History | Generator | AsyncGenerator | None:
+        if isinstance(obj, History):
+            return self._consume_sync(obj)
+        elif isinstance(obj, Generator):
+            return self._consume_subscription(obj)
+        elif isinstance(obj, AsyncGenerator):
+            return self._consume_async_subscription(obj)
         else:
-            if isinstance(subscription, AsyncGenerator):
-                asyncio.run(self._async_consume(subscription))
-            else:
-                self._consume(subscription)
+            raise TypeError(f"Object {obj} is not a valid type")
+
+    @staticmethod
+    def format(obj: History | pd.DataFrame | np.ndarray | dict):
+        if isinstance(obj, dict):
+            obj = History.from_dict(obj)
+        elif isinstance(obj, (pd.DataFrame, np.ndarray)):
+            obj = History(obj)
+
+        return obj
+
+    def _consume_sync(self, obj: History) -> History | None:
+        signals_history = History()
+        dates = obj.get_level('date')
+
+        try:
+            for date in sorted(dates):
+                if not self._running.is_set():
+                    return signals_history
+                bars = obj.get(dates=[date])
+                self._history += bars
+
+                signals = self.strategy.execute(date, self._position, self._history)
+
+                signals_history += signals
+        finally:
+            self._running.clear()
+            return signals_history
+
+    def _consume_subscription(self, obj: Generator):
+        try:
+            for bar in obj:
+                if not self._running.is_set():
+                    break
+                bar_df = self._transform_bar(bar)
+                self._history += bar_df
+                signals = self._process_bar(bar_df)
+                yield signals
+        finally:
+            self._running.clear()
+
+    async def _consume_async_subscription(self, obj: AsyncGenerator):
+        try:
+            async for bar in obj:
+                if not self._running.is_set():
+                    break
+                bar_df = self._transform_bar(bar)
+                self._history += bar_df
+                signals = self._process_bar(bar_df)
+                yield signals
+        finally:
+            self._running.clear()
+
+    def _transform_bar(self, bar):
+        bar_df = pd.DataFrame.from_dict(bar, orient='index')
+        bar_df.index = pd.MultiIndex.from_tuples(
+            [(bar_df.index.name, list(self._history.security_manager.get(security).values())[0]) for security in
+             bar_df.index])
+
+        return bar_df
+
+    def _process_bar(self, bar_df):
+        date = bar_df.index.get_level_values('date').unique().tolist()[0]
+        date_idx = self._history.get_level('date').sorted().index(date)
+
+        signals = self.strategy.execute(date_idx, self._position, self._history)
+        signals_df = pd.DataFrame(signals, columns=['signal'])
+
+        return signals_df
 
 
 class StrategyMessageHandler(MessageHandler):
-    def __init__(self, manager: StrategyManager):
+    def __init__(self, manager: StrategyManager, websocket_server: WebsocketServer = None):
         super().__init__()
         self.manager = manager
-        self.registered_portfolios: dict = {}
-        self.registered_histories: dict = {}
+        self.websocket_server = websocket_server
+        self.websocket_queue = asyncio.Queue()
 
-    def _register_portfolio(self, portfolio: dict = None):
+        self.send_lock = asyncio.Lock()
+
+    async def run_async_generator(self, websocket):
+        async_generator = self._message_generator()
+        asyncio.ensure_future(self._send_to_async_generator(websocket, async_generator))
+
+        response = self.manager.run(async_generator)
+
+        if isinstance(response, AsyncGenerator):
+            async with self.send_lock:
+                await response.asend(None)
+
+    async def _send_to_async_generator(self, websocket, async_generator):
         try:
-            portfolio = Portfolio(**portfolio)
-            self.manager.register_portfolio(portfolio)
-        except TypeError:
-            raise json.dumps("Message does not contain a valid portfolio")
+            while True:
+                message = await self.websocket_queue.get()
+                async with self.send_lock:
+                    print(message)
+                    await async_generator.asend(message)
+        except websockets.ConnectionClosed:
+            pass
 
-    def _register_history(self, history: dict | History = None):
-        try:
-            history = History(**history if history else pd.DataFrame()) if (
-                    isinstance(history, dict) or history is None) else history
-            self.manager.history = history
-        except TypeError:
-            raise json.dumps("Message does not contain a valid history")
+    async def _message_generator(self):
+        while True:
+            try:
+                message = await asyncio.wait_for(self.websocket_queue.get(), timeout=1)
+                yield message
+            except asyncio.TimeoutError:
+                pass
 
-    def _register_snapshot(self, snapshot: dict) -> History:
-        try:
-            history = History.from_dict(snapshot)
-            if self.manager.history is None or self.manager.history.df.empty:
-                self._register_history(history)
-            self.manager.run(history)
-            return history
-        except TypeError:
-            raise json.dumps("Message does not contain a valid snapshot")
-
-    def send_signals(self, signals: pd.Series | dict[Security, TradeSignal]):
-        for security in signals.keys():
-            for portfolio in self.registered_portfolios:
-                if security in portfolio.position.keys():
-                    self.manager.websocket_server.send_message(
-                        signals[security].to_json(),
-                        self.manager.websocket_server.message_subjects.signal(security)
-                    )
-
-    def process(self, websocket, message):
-        portfolio = message.get()
-        history = message.get()
-        snapshot = message.get()
-
-        if portfolio is not None:
-            portfolio = self._register_portfolio(portfolio)
-            self.registered_portfolios[websocket] = portfolio
-            return f"Portfolio registered"
-        if history is not None:
-            history = self._register_history(history)
-            self.registered_histories[websocket] = history
-            return "History registered"
-        if snapshot is not None:
-            updated_history = self._register_snapshot(snapshot)
-            self.registered_histories[websocket] = updated_history
-            return f"Snapshot registered: {self.manager.history.to_json()}"
-
-        raise ValueError("Message does not contain any valid information")
+    async def handle(self, websocket, endpoint, message):
+        if endpoint == "/bar":
+            await self.websocket_queue.put(message)
 
     def connect(self, websocket, endpoint):
-        if endpoint == "portfolio":
-            self.registered_portfolios[websocket] = self._register_portfolio()
-            return f"Portfolio connected"
-        elif endpoint == "history":
-            self.registered_histories[websocket] = self._register_history()
-            return "History connected"
-
-    def handle(self, websocket, message):
-        try:
-            message = json.loads(message)
-        except json.JSONDecodeError:
-            raise TypeError("Message is not valid JSON")
-
-        try:
-            response = str(self.process(websocket, message))
-            self.manager.websocket_server.send_message(websocket, response)
-        except (ValueError, TypeError) as e:
-            self.manager.logger.warning(e)
-            self.manager.websocket_server.send_message(websocket, str(e))
-
-    def disconnect(self, websocket, endpoint):
-        pass
-
-
-if __name__ == "__main__":
-    from .. import info_logger, Security
-    from ..strategies import RsiStrategy
-
-    my_logger = info_logger(__name__)
-
-    my_strategy = RsiStrategy()
-    my_portfolio = Portfolio().add_cash(1e4)
-
-    strategy_manager = StrategyManager(my_strategy, server_port=5000, websocket_port=6000, logger=my_logger)
-    strategy_manager.start()
-    strategy_manager.register_portfolio(my_portfolio)
-
-    try:
-        while True:
-            with strategy_manager.websocket_server.exceptions as exceptions:
-                if exceptions:
-                    raise exceptions[0]
-    except ConnectionError:
-        my_logger.warning("Exception occurred", exc_info=True)
-    except KeyboardInterrupt:
-        my_logger.info("User interrupted program")
-    finally:
-        strategy_manager.stop()
+        asyncio.ensure_future(self.run_async_generator(websocket))
