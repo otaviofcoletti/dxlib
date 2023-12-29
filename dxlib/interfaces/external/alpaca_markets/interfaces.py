@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import AsyncGenerator, Callable
 
 from dxlib.core.portfolio.inventory import Inventory
 from dxlib.core.security import Security
@@ -12,9 +13,10 @@ from ...interfaces import MarketInterface, PortfolioInterface, OrderInterface
 
 
 class AlpacaMarket(MarketInterface):
-    def __init__(self, api):
+    def __init__(self, api: AlpacaAPI):
         super().__init__()
         self.api = api
+        self.subscriptions = {}
 
     def get(self, identifier: str | None = None) -> MarketInterface:
         pass
@@ -22,7 +24,9 @@ class AlpacaMarket(MarketInterface):
     def history(self):
         return None
 
-    def subscribe(self, security):
+    def subscribe(self, security, method: Callable = None) -> AsyncGenerator | None:
+        # If method is passed, call method when new data is received
+        # else, return AsyncGenerator
         pass
 
     def snapshot(self, security):

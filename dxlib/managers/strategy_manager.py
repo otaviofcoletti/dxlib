@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import websockets
 
+from ..core.logger import info_logger
 from ..core import Portfolio, History
 from ..core.portfolio.inventory import Inventory
 from ..servers import WebsocketServer
@@ -88,8 +89,9 @@ class StrategyManager(Manager):
 
 
 class Executor:
-    def __init__(self, strategy: Strategy, position: Inventory = None):
+    def __init__(self, strategy: Strategy, position: Inventory = None, logger=None):
         self.strategy = strategy
+        self.logger = logger if logger else info_logger(__name__)
         self._position = position
         self._history = None
 
@@ -157,6 +159,8 @@ class Executor:
                 signals = self.strategy.execute(date, self._position, self._history)
 
                 signals_history += signals
+        except:
+            self.logger.exception("Error in strategy execution")
         finally:
             self._running.clear()
             return signals_history

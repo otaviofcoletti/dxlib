@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import datetime
+import json
 import os
 from datetime import datetime
 from enum import Enum
 
 import pandas as pd
+import websocket
 
 from dxlib.interfaces.data_api import SnapshotApi
 
@@ -175,3 +177,46 @@ class AlpacaMarketAPI(SnapshotApi):
             tickers.to_csv(tickers_cache)
 
         return tickers
+
+
+class AlpacaStreamAPI:
+    def __init__(self, api_key=None, api_secret=None, feed="iex"):
+        self.api_key = api_key
+        self.api_secret = api_secret
+
+        self.headers = {"APCA-API-KEY-ID": api_key, "APCA-API-SECRET-KEY": api_secret}
+
+        self.url = f"wss://stream.data.alpaca.markets/v2/{feed}"
+        self.ws = None
+
+    def on_open(self):
+        msg = json.loads(self.ws.recv())
+        print(msg)
+        # send {"action": "auth", "key": "{KEY_ID}", "secret": "{SECRET}"}
+        msg = json.loads(self.ws.recv())
+        print(msg)
+        # test {"action":"subscribe","trades":["AAPL"],"quotes":["AMD","CLDR"],"bars":["*"]}
+        self.ws.send(
+            json.dumps(
+                {
+                    "action": "subscribe",
+                    "trades": ["AAPL"],
+                    "quotes": ["AMD", "CLDR"],
+                    "bars": ["*"],
+                }
+            )
+        )
+        # listen for messages
+        for i in range(10):
+            msg = json.loads(self.ws.recv())
+            print(msg)
+
+        self.ws.close()
+
+    def connect(self):
+        # Send a request to the server to establish a connection
+        self.ws = websocket.create_connection(self.url, header=self.headers)
+        self.on_open()
+
+    def on_error(self, error):
+        print(error)

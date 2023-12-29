@@ -19,7 +19,7 @@ class SimpleStrategy(dx.Strategy):
         # For simple strategy buy 1 of each security if price is below 10
         # and sell 1 of each security if price is above 10
 
-        prices = history.get(fields=['close'], dates=[]).df
+        prices = history.get(fields=['close'], dates=[idx]).df
         prices.index = prices.index.droplevel('date')
 
         signals = pd.DataFrame(columns=['signal'], index=[])
@@ -50,7 +50,7 @@ class TestSTrategy(unittest.TestCase):
 
         self.portfolio = dx.Portfolio()
 
-        self.api = AlpacaAPI(config.API_KEY_PAPER, config.API_SECRET_PAPER, live=False)
+        self.api = AlpacaAPI(config.API_KEY, config.API_SECRET)
 
         self.market_interface = AlpacaMarket(self.api)
         self.order_interface = AlpacaOrder(self.api)
@@ -59,12 +59,14 @@ class TestSTrategy(unittest.TestCase):
     def test_execute(self):
         self.sm.start()
 
+        stream = self.api.stream_api.connect()
+
         try:
             obj = self.api.market_api.get_historical_bars("AAPL", start="2020-01-01", end="2021-01-01", timeframe="1D")
-            print(obj)
-
             signals = self.sm.run(obj)
-            print(signals)
+
+            signal = signals.get(dates=[signals.date(0)]).df.iloc[-1].to_dict().get('signal')
+            self.order_interface.send(signal)
 
         except KeyboardInterrupt:
             pass
