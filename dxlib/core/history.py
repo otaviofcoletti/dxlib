@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import enum
 from dataclasses import dataclass
 from typing import Literal
 
@@ -27,6 +28,11 @@ class Bar:
             "volume": self.volume,
             "vwap": self.vwap,
         }
+
+
+class HistoryLevel(enum.Enum):
+    DATE = "date"
+    SECURITY = "security"
 
 
 class History:
@@ -103,9 +109,10 @@ class History:
             "security_manager": self.security_manager.to_dict()
         }
 
-    def get_level(self, level: str = 'security'):
+    def get_level(self, level: HistoryLevel = HistoryLevel.SECURITY):
         if self.df.empty:
             return []
+        level = level.value
         return self.df.index.get_level_values(level).unique().tolist()
 
     def set_level(self, values: list = None, level: str = 'security'):

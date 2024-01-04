@@ -1,44 +1,36 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Dict
-from collections import Counter
+from typing import Dict, Union
 
 from ..security import Security
 
 
-class Inventory:
-    def __init__(self, securities: Dict[Security, float | int] | None = None, source=None):
-        self.source = source
+class Inventory(dict[Security, Union[float, int]]):
+    def __init__(self, securities: Dict[Security, float | int] | None = None):
+        super().__init__()
         self._securities: Dict[Security, float | int] = securities if securities else {}
 
-    def __repr__(self):
-        return f"Inventory({self._securities})"
+    def __len__(self):
+        return len(self._securities)
 
-    def __str__(self):
-        return f"Inventory({list(self._securities.items())})"
+    def __getitem__(self, item: Security):
+        return self._securities[item]
+
+    def get(self, item: Security, default: float | int = None):
+        return self._securities.get(item, default)
+
+    def __iter__(self):
+        return iter(self._securities.keys())
 
     def __iadd__(self, other: Inventory):
-        self._securities = self.sum(other)._securities
+        self._securities = (self + other)._securities
         return self
 
     def __add__(self, other: Inventory):
-        return self.sum(other)
-
-    def __iter__(self):
-        return iter(self._securities)
-
-    @classmethod
-    def from_dict(cls, data: dict[Security, float | int]):
-        return cls(data)
-
-    def sum(self, other: Inventory):
         return Inventory({key: self.get(key, 0) + other.get(key, 0) for key in set(self) | set(other)})
 
-    def get(self, security: Security, default: float | int = 0):
-        return self._securities.get(security, default)
-
-    def add(self, security: Security, quantity: float | int):
+    def increase(self, security: Security, quantity: float | int):
         if security in self._securities:
             self._securities[security] += quantity
         else:

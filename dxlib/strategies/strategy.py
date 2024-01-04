@@ -7,8 +7,8 @@ from ..core.portfolio.inventory import Inventory
 
 
 class Strategy(ABC):
-    def __init__(self, identifier: str = None):
-        self.identifier = identifier
+    def __init__(self):
+        pass
 
     def fit(self, history: History):
         pass

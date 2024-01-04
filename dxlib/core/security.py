@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from typing import List
 
 
 class SecurityType(Enum):
@@ -11,109 +12,98 @@ class SecurityType(Enum):
     crypto = "crypto"
     cash = "cash"
 
+    def __str__(self):
+        return self.name
+
+    def __dict__(self):
+        return self.value
+
 
 class Security:
     def __init__(self,
                  ticker: str,
-                 security_type: str | SecurityType = SecurityType.equity,
-                 source=None,
+                 security_type: SecurityType | str = SecurityType.equity,
                  ):
         self.ticker = ticker
-        self.source = source
         self.security_type = security_type if isinstance(security_type, SecurityType) else SecurityType(security_type)
 
     def __repr__(self):
-        return f"{self.ticker} {self.security_type}"
+        return f"Security({self.ticker}, {self.security_type.__repr__()})"
 
     def __str__(self):
-        return self.ticker
+        return f"{self.ticker} ({self.security_type})"
 
-    def to_dict(self):
+    def __dict__(self):
         return {
             "ticker": self.ticker,
-            "security_type": self.security_type
+            "security_type": self.security_type.__dict__(),
         }
 
-    def serialized(self):
-        s = {
-            "ticker": str(self.ticker),
-            "security_type": self.security_type.value,
-        }
 
-        if self.source:
-            s["source"] = str(self.source)
-
-        return s
-
-    @staticmethod
-    def serialize(security):
-        return security.serialized()
-
-
-class SecurityManager:
-    def __init__(self):
+class SecurityManager(dict[str, Security]):
+    def __init__(self, cash: Security | str | None = None):
+        super().__init__()
         self._securities: dict[str, Security] = {}
-        self._cash = Security("cash", SecurityType.cash)
+        self._cash = Security("cash", SecurityType.cash) if cash is None else cash
 
-    def __iadd__(self, other: dict[str, Security]):
-        self._securities.update(other)
-        return self
+    @classmethod
+    def from_list(cls, securities: List[Security | str], cash: Security | str | None = None):
+        security_manager = SecurityManager(cash)
+        for security in securities:
+            security_manager.add(security)
+        return security_manager
+
+    def __repr__(self):
+        return f"SecurityManager({len(self._securities)})"
 
     @property
     def cash(self):
         return self._cash
 
-    @property
-    def securities(self):
-        return self._securities
+    def __len__(self):
+        return len(self._securities)
 
-    def __add__(self, other: dict[str | Security] | list[Security | str] | Security):
-        if isinstance(other, dict):
-            self._securities.update(other)
-        elif isinstance(other, Security):
-            self.add(other)
-        elif isinstance(other, list):
-            for security in other:
-                self.add(security)
+    def __getitem__(self, item: str):
+        return self._securities[item]
 
-    def add(self, other: dict[str | Security] | list | Security | str):
-        if isinstance(other, dict):
-            self._securities.update(other)
-        elif isinstance(other, str) and other not in self.securities:
-            self.securities[other] = Security(other)
-        elif isinstance(other, list):
-            for security in other:
-                self.add(security)
-        elif isinstance(other, Security) and other.ticker not in self.securities:
-            self.securities[other.ticker] = other
+    def get(self, item: str, default: Security | None = None):
+        return self._securities.get(item, default)
 
-    def __getitem__(self, item):
-        return self.securities[item]
+    def __contains__(self, item: str):
+        return item in self._securities
 
-    def get(self, securities: list[str] | str = None) -> dict[str, Security]:
-        if securities is None:
-            return self.securities
-        if isinstance(securities, str):
-            return {securities: self.securities.get(securities, None)}
-        if isinstance(securities, Security):
-            return {securities.ticker: securities}
+    def __iter__(self):
+        return iter(self._securities.keys())
 
-        filtered_securities = {}
+    def __dict__(self):
+        return {
+            "securities": [s.__dict__() for s in self._securities.values()],
+            "cash": self._cash.__dict__(),
+        }
+
+    def __add__(self, other: SecurityManager):
+        if not isinstance(other, SecurityManager):
+            raise ValueError(f"Invalid security manager type {type(other)}")
+        return SecurityManager.from_list(list(self) + list(other), cash=self.cash)
+
+    def add(self, security: Security | List[Security] | str):
+        if isinstance(security, Security):
+            self.add_security(security)
+        elif isinstance(security, list):
+            self.add_securities(security)
+        elif isinstance(security, str):
+            self.add_ticker(security)
+        else:
+            raise ValueError(f"Invalid security type {type(security)}")
+
+    def add_security(self, security: Security):
+        if security.ticker in self._securities:
+            raise ValueError(f"Security {security} already exists in manager")
+        self._securities[security.ticker] = security
+
+    def add_securities(self, securities: List[Security]):
         for security in securities:
-            if isinstance(security, Security):
-                filtered_securities[security.ticker] = security
-            else:
-                filtered_securities[security] = self.securities.get(security, None)
-        return filtered_securities
+            self.add_security(security)
 
-    def to_dict(self):
-        return {
-            "securities": {k: v.to_dict() for k, v in self.securities.items()},
-            "cash": self.cash.to_dict(),
-        }
-
-    def serialized(self):
-        return {
-            "securities": {k: v.serialized() for k, v in self.securities.items()},
-            "cash": self.cash.serialized(),
-        }
+    def add_ticker(self, ticker: str):
+        self.add_security(Security(ticker))

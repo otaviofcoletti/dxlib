@@ -1,2 +1,4 @@
-from .transaction import Transaction, Side, TransactionData
-from .order import Order, OrderData
+from .utils import *
+
+from .transaction import Transaction
+from .order import Order, OrderDetails, OrderType

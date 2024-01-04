@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from enum import Enum
 
-from .transaction import Side, Transaction
+from .transaction import Transaction
+from .utils import Side
 from ..security import Security
 
 
@@ -12,92 +14,85 @@ class OrderType(Enum):
     STOP = "stop"
     STOP_LIMIT = "stop_limit"
 
+    def __repr__(self):
+        return self.name
 
-class OrderData:
+    def __dict__(self):
+        return self.value
+
+
+@dataclass
+class OrderDetails:
     def __init__(self,
                  security: Security,
                  price: float | int = None,
                  quantity: float | int = 0,
                  side: Side | int = Side.BUY,
-                 order_type: str = OrderType.MARKET,
+                 order_type: OrderType = OrderType.MARKET,
                  ):
         self.security = security
         self.price = price
         self.quantity = quantity
-        self.side = side if isinstance(side, Side) else Side(side)
-        self.order_type = order_type if isinstance(order_type, OrderType) else OrderType(order_type)
+        self.side = side
+        self.order_type = order_type
 
     def __repr__(self):
-        return f"{self.side.name}: {self.security.ticker} {self.quantity} @ {self.price}"
+        return f"OrderDetails({self.side}: {self.security} {self.quantity} @ {self.price})"
 
-    def serialized(self):
+    def __str__(self):
+        return f"{self.side}: {self.security} {self.quantity} @ {self.price}"
+
+    def __dict__(self):
         return {
-            "security": self.security.serialized(),
-            "quantity": self.quantity,
+            "security": self.security,
             "price": self.price,
-            "side": self.side.serialized(),
-            "order_type": self.order_type,
+            "quantity": self.quantity,
+            "side": self.side.__dict__(),
+            "order_type": self.order_type.__dict__()
         }
 
 
 class Order:
     def __init__(self,
-                 security: Security,
-                 quantity: float | int,
-                 price: float | int,
-                 side: Side | int,
-                 order_type: str,
-                 partial: bool = False):
-        self._data = OrderData(security, quantity, price, side, order_type)
-        self._transactions = []
-        self._remaining = quantity
-        self._partial = partial
+                 data: OrderDetails,
+                 transactions: list[Transaction] = None,
+                 ):
+        self._data = data
+        self._transactions: list[Transaction] = transactions or []
 
     @property
     def data(self):
         return self._data
 
-    @property
-    def finished(self):
-        return self._remaining == 0
-
     def __repr__(self):
-        return (f"{self.data.side.name}: {self.data.security.ticker} "
-                f"{self.data.quantity} @ {self.data.price} ({self.data.order_type})")
+        return f"Order({self.data.__repr__()}, [{len(self._transactions)}])"
 
-    def serialized(self):
+    def __str__(self):
+        return f"{self.data} -> [{len(self._transactions)} transactions]"
+
+    def __dict__(self):
         return {
-            "data": self.data.serialized(),
-            "transactions": [transaction.serialized() for transaction in self._transactions],
-            "partial": self._partial,
+            "data": self._data.__dict__(),
+            "transactions": [t.__dict__() for t in self._transactions]
         }
 
-    def create_transaction(self, time=None, quantity=None):
-        transaction = Transaction(
-            self.data.security,
-            quantity or self.data.quantity,
-            self.data.price,
-            self.data.side,
-            time,
-        )
-        self._transactions.append(transaction)
-        return transaction
+    def __getitem__(self, item):
+        return self._transactions[item]
 
-    def add_transaction(self, transaction: Transaction):
-        if not self._partial and transaction.data.quantity != self.data.quantity:
-            raise ValueError("Order is not partial and transaction quantity does not match order quantity")
+    def __len__(self):
+        return len(self._transactions)
 
-        self._transactions.append(transaction)
+    def __iter__(self):
+        return iter(self._transactions)
 
-        if self._partial:
-            self._remaining -= transaction.data.quantity
+    def add_transaction(self, transaction: Transaction | list[Transaction]):
+        if transaction.security != self._data.security:
+            raise ValueError("Transaction security must match order security")
+        if isinstance(transaction, list):
+            self._transactions.extend(transaction)
+        elif isinstance(transaction, Transaction):
+            self._transactions.append(transaction)
 
-    @classmethod
-    def from_type(cls, data: OrderData):
-        return cls(
-            data.security,
-            data.quantity,
-            data.price,
-            data.side,
-            data.order_type,
-        )
+    @property
+    def executed_quantity(self):
+        return sum([t.quantity for t in self._transactions])
