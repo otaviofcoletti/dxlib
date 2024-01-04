@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 
 
@@ -38,3 +40,9 @@ class InfoLogger(logging.Logger):
 
         self.setLevel(logging.INFO)
         self.addHandler(ch)
+
+
+class LoggerMixin:
+    def __init__(self, logger: logging.Logger | None = None):
+        self.logger = logger if logger else CriticalLogger(__name__)
+

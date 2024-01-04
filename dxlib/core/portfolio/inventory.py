@@ -23,14 +23,19 @@ class Inventory(dict[Security, Union[float, int]]):
     def __iter__(self):
         return iter(self._securities.keys())
 
+    def __add__(self, other: Inventory):
+        return Inventory({key: self.get(key, 0) + other.get(key, 0) for key in set(self) | set(other)})
+
     def __iadd__(self, other: Inventory):
         self._securities = (self + other)._securities
         return self
 
-    def __add__(self, other: Inventory):
-        return Inventory({key: self.get(key, 0) + other.get(key, 0) for key in set(self) | set(other)})
+    def __dict__(self):
+        return {
+            "securities": {security.__dict__(): quantity for security, quantity in self._securities.items()}
+        }
 
-    def increase(self, security: Security, quantity: float | int):
+    def add(self, security: Security, quantity: float | int):
         if security in self._securities:
             self._securities[security] += quantity
         else:
@@ -40,16 +45,12 @@ class Inventory(dict[Security, Union[float, int]]):
     def quantities(self):
         return self._securities
 
-    @lru_cache(maxsize=128)
-    def security_value(self, security: Security, prices: dict[str, float | int] | float | int):
-        return self._securities[security] * prices.get(security.ticker, 0) if isinstance(prices, dict) \
-            else self._securities[security] * prices
+    def _value(self, security: Security, prices: dict[Security, float]):
+        return self._securities.get(security, 0) * prices.get(security, 0)
 
-    @lru_cache(maxsize=4)
-    def value(self, prices: dict[str, float] | None = None):
-        if prices is None:
-            prices = {}
-        return sum([self.security_value(security, prices) for security in self._securities])
+    @lru_cache(maxsize=128)
+    def value(self, prices: Dict[Security, float]):
+        return sum([self._value(security, prices) for security in self._securities])
 
     @property
     @lru_cache(maxsize=4)
@@ -58,9 +59,6 @@ class Inventory(dict[Security, Union[float, int]]):
         return {security: quantity / total for security, quantity in self._securities.items()}
 
     @lru_cache(maxsize=4)
-    def financial_weights(self, prices: dict[str, float] | None = None):
+    def financial_weights(self, prices: dict[Security, float]):
         value = self.value(prices)
-        return {security: (self.security_value(security, prices) / value) for security in self._securities}
-
-    def add_transaction(self, transaction):
-        self.add(transaction.security, transaction.quantity)
+        return {security: (self._value(security, prices) / value) for security in self._securities}
