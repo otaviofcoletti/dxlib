@@ -11,14 +11,16 @@ class Inventory(dict[Security, Union[float, int]]):
         super().__init__()
         self._securities: Dict[Security, float | int] = securities if securities else {}
 
+    def __dict__(self):
+        return {
+            "securities": {security.__dict__(): quantity for security, quantity in self._securities.items()}
+        }
+
     def __len__(self):
         return len(self._securities)
 
     def __getitem__(self, item: Security):
         return self._securities[item]
-
-    def get(self, item: Security, default: float | int = None):
-        return self._securities.get(item, default)
 
     def __iter__(self):
         return iter(self._securities.keys())
@@ -30,10 +32,8 @@ class Inventory(dict[Security, Union[float, int]]):
         self._securities = (self + other)._securities
         return self
 
-    def __dict__(self):
-        return {
-            "securities": {security.__dict__(): quantity for security, quantity in self._securities.items()}
-        }
+    def get(self, item: Security, default: float | int = None):
+        return self._securities.get(item, default)
 
     def add(self, security: Security, quantity: float | int):
         if security in self._securities:

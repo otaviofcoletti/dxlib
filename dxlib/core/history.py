@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 import enum
-from dataclasses import dataclass
-from typing import Literal
+from typing import List, Dict
 
 import pandas as pd
 
-from .indicators import TechnicalIndicators, SeriesIndicators
 from .security import SecurityManager
 
 
 class HistoryLevel(enum.Enum):
     DATE = "date"
     SECURITY = "security"
+
+    @classmethod
+    def levels(cls):
+        return list(cls.__members__.values())
 
 
 class History:
@@ -43,12 +45,39 @@ class History:
 
         self.security_manager: SecurityManager = security_manager
         self.security_manager.add(self.get_level())
+        self.fields = self.df.columns.tolist()
+
+    def __repr__(self):
+        return self.df.__repr__()
 
     def __dict__(self):
         return {
             "df": self.df.to_dict(),
             "security_manager": self.security_manager.__dict__(),
         }
+
+    def __iter__(self):
+        return self.df.iterrows()
+
+    def __getitem__(self, item):
+        return self.df.loc[item]
+
+    def __add__(self, other: pd.DataFrame | History):
+        if isinstance(other, pd.DataFrame):
+            other = History(other)
+
+        securities = set(self.get_level(HistoryLevel.SECURITY) + other.get_level(HistoryLevel.SECURITY))
+        security_manager = SecurityManager.from_list(list(securities))
+
+        return History(pd.concat([self.df, other.df]), security_manager)
+
+    def __iadd__(self, other: pd.DataFrame | History):
+        self.df = self + other
+        return self
+
+    @property
+    def shape(self):
+        return self.df.shape
 
     def get_level(self, level: HistoryLevel = HistoryLevel.SECURITY):
         if self.df.empty:
@@ -61,110 +90,135 @@ class History:
             return
         self.df.index = self.df.index.set_levels(values, level=level)
 
-    def _get(self, securities, fields, dates):
+    def _get(self, levels: Dict[HistoryLevel, list] = None, fields: List[str] = None) -> pd.DataFrame:
         if self.df.empty:
             return pd.DataFrame()
 
-        mask_dates = self.df.index.get_level_values(HistoryLevel.DATE).isin(dates)
-        mask_securities = self.df.index.get_level_values(HistoryLevel.SECURITY).isin(securities)
+        # If default levels
+        # mask_dates = self.df.index.get_level_values(HistoryLevel.DATE).isin(dates)
+        # mask_securities = self.df.index.get_level_values(HistoryLevel.SECURITY).isin(securities)
+        #
+        # df = self.df[mask_dates & mask_securities]
 
-        df = self.df[mask_dates & mask_securities]
+        # If generic levels
+        if levels is None:
+            levels = {
+                level: self.get_level(level) for level in HistoryLevel.levels()
+            }
+
+        if fields is None:
+            fields = self.fields
+
+        masks = []
+        for level, values in levels.items():
+            masks.append(self.df.index.get_level_values(level).isin(values))
+
+        df = self.df[tuple(masks)]
 
         return df[fields] if not df.empty else pd.DataFrame()
 
-    def get_raw(self, securities=None, fields=None, dates=None) -> pd.Series | pd.DataFrame:
-        if securities is None:
-            securities = self.get_level()
+    def _set(self,
+             levels: Dict[HistoryLevel, list] = None,
+             fields: List[str] = None,
+             values: pd.DataFrame | dict = None):
+        if self.df.empty:
+            return
+
+        if levels is None:
+            levels = {
+                level: self.get_level(level) for level in HistoryLevel.levels()
+            }
+
         if fields is None:
-            fields = self.df.columns.tolist()
-        if dates is None:
-            dates = self.get_level(level='date')
+            fields = self.fields
 
-        df = self._get(securities=securities, fields=fields, dates=dates)
+        if values is None:
+            values = pd.DataFrame()
 
-        if len(fields) == 1:
-            df = df[fields[0]]
-        if len(securities) == 1:
-            df = df.xs(securities[0], level='security')
-        elif len(dates) == 1:
-            df = df.xs(dates[0], level='date')
+        df = self.df.copy()
 
-        return df
+        for level, value in levels.items():
+            df.index = df.index.set_levels(value, level=level)
 
-    def get(self, securities=None, fields=None, dates=None) -> History:
+        df[fields] = values[fields]
+
+        self.df = df
+
+    def get(self, levels: Dict[HistoryLevel, list] = None, fields: List[str] = None) -> History:
         """
         Get historical data for a given security, field and date
 
         Args:
-            securities: single security or list of securities
-            fields: single bar field or list of bar fields, such as 'close', 'open', 'high', 'low', 'volume', 'vwap'
-            dates: single date or list of dates
 
         Returns:
             pandas DataFrame with multi-index and fields as columns
 
         Examples:
             >>> data = {
-                    ('2023-01-01', 'AAPL'): Bar(close=155, open=150, high=160, low=140, volume=1000000, vwap=150),
-                    ('2023-01-01', 'MSFT'): Bar(close=255, open=250, high=260, low=240, volume=2000000, vwap=250)
+                    ('2024-01-01', 'AAPL'): Bar(close=155, open=150, high=160, low=140, volume=1000000, vwap=150),
+                    ('2024-01-01', 'MSFT'): Bar(close=255, open=250, high=260, low=240, volume=2000000, vwap=250)
                 }
             >>> history = History(data)
-            >>> history.get(securities='AAPL', fields='close', dates='2023-01-01')
+            >>> history.get(
             # Output:
             # date        security
-            # 2023-01-01  AAPL      155
+            # 2024-01-01  AAPL      155
             # Name: close, dtype: int64
         """
-        df = self.df
+        return History(self._get(levels, fields), self.security_manager)
 
-        securities = list(self.security_manager.get(securities).values()) or self.get_level()
-        fields = fields or df.columns.tolist()
-        fields = [fields] if isinstance(fields, str) else fields
+    def add(self, data: pd.DataFrame | History):
+        """
+        Add historical data to history
 
-        dates = dates or self.get_level(level=HistoryLevel.DATE)
-        dates = [dates] if isinstance(dates, str) else dates
-        df = self._get(securities=securities, fields=fields, dates=dates)
-        return History(df, self.security_manager, identifier=self._identifier)
+        Args:
+            data: pandas DataFrame or History object
 
-    def date(self, position=-1):
-        if self.df.empty:
-            return None
-        return self.df.index.get_level_values('date').unique().tolist()[position]
+        Examples:
+            >>> bars = {
+                    ('2024-01-01', 'AAPL'): Bar(close=155, open=150, high=160, low=140, volume=1000000, vwap=150),
+                    ('2024-01-01', 'MSFT'): Bar(close=255, open=250, high=260, low=240, volume=2000000, vwap=250)
+                }
+            >>> history = History(data)
+            >>> history.add({
+                    ('2024-01-02', 'AAPL'): Bar(close=160, open=155, high=165, low=145, volume=1000000, vwap=155),
+                    ('2024-01-02', 'MSFT'): Bar(close=260, open=255, high=265, low=245, volume=2000000, vwap=255)
+                })
+            >>> history.get(securities='AAPL', fields='close', dates='2024-01-02')
+            # Output:
+            # date        security
+            # 2024-01-02  AAPL      160
+            # Name: close, dtype: int64
+        """
+        self.df = self + data
+        self._update()
 
-    def snapshot(self, securities=None):
-        return self.get(securities=securities, dates=self.date())
+    def set(self, fields: List[str] = None, values: pd.DataFrame | dict = None):
+        """
+        Set historical data for a given security, field and date
 
-    @property
-    def shape(self):
-        return self.df.shape
+        Args:
+            fields: list of bar fields
+            values: pandas DataFrame or dict with multi-index and bar fields as columns
 
-    @property
-    def fields(self):
-        return self.df.columns.tolist()
+        Examples:
+            >>> history = History()
+            >>> history.set(
+                    fields=['close'],
+                    values={
+                        ('2024-01-01', 'AAPL'): 155,
+                        ('2024-01-01', 'MSFT'): 255
+                    }
+                )
+            >>> history.get(securities='AAPL', fields='close', dates='2024-01-01')
+            # Output:
+            # date        security
+            # 2024-01-01  AAPL      155
+            # Name: close, dtype: int64
+        """
+        self._set(fields=fields, values=values)
+        self._update()
 
-    def __len__(self):
-        return len(self.df.index.levels[0])
-
-    def __iter__(self):
-        return self.df.iterrows()
-
-    def __getitem__(self, item):
-        return self.df[item]
-
-    def __add__(self, other: pd.DataFrame | History):
-        other = other.df if isinstance(other, History) else other
-        # Map other index securities to securities in self using security manager
-        other_securities = other.index.get_level_values('security').unique().tolist()
-        other = other.rename(index=self.security_manager.get(other_securities))
-        return History(pd.concat([self.df, other]).drop_duplicates().sort_index(), self.security_manager)
-
-    def __iadd__(self, other: pd.DataFrame | History):
-        other = other.df if isinstance(other, History) else other
-        # Map other index securities to securities in self using security manager
-        other_securities = other.index.get_level_values('security').unique().tolist()
-        other = other.rename(index=self.security_manager.get(other_securities))
-        self.df = pd.concat([self.df, other]).drop_duplicates().sort_index()
-        return self
-
-    def __repr__(self):
-        return self.df.__repr__()
+    def _update(self):
+        self.security_manager.add(self.get_level())
+        self.fields = self.df.columns.tolist()
