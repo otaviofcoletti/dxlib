@@ -10,49 +10,16 @@ from .indicators import TechnicalIndicators, SeriesIndicators
 from .security import SecurityManager
 
 
-@dataclass
-class Bar:
-    close: float = None
-    open: float = None
-    high: float = None
-    low: float = None
-    volume: float = None
-    vwap: float = None
-
-    def serialized(self):
-        return {
-            "close": self.close,
-            "open": self.open,
-            "high": self.high,
-            "low": self.low,
-            "volume": self.volume,
-            "vwap": self.vwap,
-        }
-
-
 class HistoryLevel(enum.Enum):
     DATE = "date"
     SECURITY = "security"
 
 
 class History:
-    class Indicators:
-        def __init__(self):
-            self.series: SeriesIndicators = SeriesIndicators()
-            self.technical: TechnicalIndicators = TechnicalIndicators()
-
-        def __getattr__(self, attr):
-            if hasattr(self.series, attr):
-                return getattr(self.series, attr)
-            elif hasattr(self.technical, attr):
-                return getattr(self.technical, attr)
-            else:
-                raise AttributeError(f"'IndicatorsProxy' object has no attribute '{attr}'")
-
     def __init__(self,
                  df: pd.DataFrame | dict = None,
                  security_manager: SecurityManager = None,
-                 identifier=None):
+                 ):
         """
         History is a multi-indexed dataframe encapsulation
         with dates and securities as the index and bar fields as the columns.
@@ -60,12 +27,9 @@ class History:
         Args:
             df: pandas DataFrame or dict with multi-index and bar fields as columns
             security_manager: SecurityManager object to keep track of securities
-            identifier: unique identifier for the history object
         """
         if security_manager is None:
             security_manager = SecurityManager()
-        if identifier is None:
-            identifier = hash(self)
 
         if df is None:
             self.df = pd.DataFrame()
@@ -74,39 +38,16 @@ class History:
         elif isinstance(df, pd.DataFrame):
             self.df = df
 
-        self.df.index = pd.MultiIndex.from_tuples(self.df.index, names=['date', 'security'])
+        self.df.index = pd.MultiIndex.from_tuples(self.df.index, names=[HistoryLevel.DATE.value,
+                                                                        HistoryLevel.SECURITY.value])
 
-        self.indicators = self.Indicators()
-        self._identifier = identifier
         self.security_manager: SecurityManager = security_manager
-
         self.security_manager.add(self.get_level())
-        self.set_level(list(self.security_manager.get(self.get_level()).values()))
 
-    @classmethod
-    def from_dict(cls, attributes):
-        df = attributes.get("df", None)
-        security_manager = attributes.get("security_manager", None)
-        return cls(security_manager, df)
-
-    @classmethod
-    def serialize(cls, history: History):
-        return history.serialized()
-
-    def serialized(self):
-        """Serialize the history object into default types for transmission, storage or visualization"""
-        df = self.to_dict(orient='bars')['df']
-        serial = {}
-
-        for security in df:
-            serial[security.ticker] = {
-                "bars": df[security]["bars"],
-                "dates": [date.strftime("%Y-%m-%d") for date in df[security]["dates"]]
-            }
-
+    def __dict__(self):
         return {
-            "df": serial,
-            "security_manager": self.security_manager.to_dict()
+            "df": self.df.to_dict(),
+            "security_manager": self.security_manager.__dict__(),
         }
 
     def get_level(self, level: HistoryLevel = HistoryLevel.SECURITY):
@@ -115,35 +56,17 @@ class History:
         level = level.value
         return self.df.index.get_level_values(level).unique().tolist()
 
-    def set_level(self, values: list = None, level: str = 'security'):
+    def set_level(self, values, level: HistoryLevel = HistoryLevel.SECURITY):
         if self.df.empty:
             return
-        if values is None:
-            values = self.get_level(level)
         self.df.index = self.df.index.set_levels(values, level=level)
-
-    def to_dict(self, orient: Literal['dict', 'list', 'series', 'split', 'records', 'index', 'bars'] = 'bars'):
-        if orient == 'bars':
-            return {
-                "df": {
-                    security: {
-                        "dates": self.get_raw(securities=[security]).index.get_level_values('date').tolist(),
-                        "bars": self.get_raw(securities=[security]).values.tolist()
-                    } for security in self.get_level()
-                },
-                "security_manager": self.security_manager.to_dict()
-            }
-        return {
-            "df": self.df.to_dict(orient),
-            "security_manager": self.security_manager.to_dict()
-        }
 
     def _get(self, securities, fields, dates):
         if self.df.empty:
             return pd.DataFrame()
 
-        mask_dates = self.df.index.get_level_values('date').isin(dates)
-        mask_securities = self.df.index.get_level_values('security').isin(securities)
+        mask_dates = self.df.index.get_level_values(HistoryLevel.DATE).isin(dates)
+        mask_securities = self.df.index.get_level_values(HistoryLevel.SECURITY).isin(securities)
 
         df = self.df[mask_dates & mask_securities]
 
@@ -198,30 +121,10 @@ class History:
         fields = fields or df.columns.tolist()
         fields = [fields] if isinstance(fields, str) else fields
 
-        dates = dates or self.get_level(level='date')
+        dates = dates or self.get_level(level=HistoryLevel.DATE)
         dates = [dates] if isinstance(dates, str) else dates
         df = self._get(securities=securities, fields=fields, dates=dates)
         return History(df, self.security_manager, identifier=self._identifier)
-
-    def get_interval(self, securities=None, fields=None, intervals: list[tuple[str, str]] = None) -> History:
-        dates = self.get_level(level='date')
-
-        if len(intervals) == 1:
-            interval = intervals[0]
-
-            if interval is None:
-                interval = [dates[0], dates[-1]]
-
-            closest_interval = [min(dates, key=lambda x: abs(pd.to_datetime(x) - pd.to_datetime(date))) for date in interval]
-            dates = dates[dates.index(closest_interval[0]):dates.index(closest_interval[1])]
-
-            return self.get(securities=securities, fields=fields, dates=dates)
-
-        filtered_dates = []
-        for start, end in intervals:
-            filtered_dates += dates[dates.index(start):dates.index(end)]
-
-        return self.get(securities=securities, fields=fields, dates=filtered_dates)
 
     def date(self, position=-1):
         if self.df.empty:
