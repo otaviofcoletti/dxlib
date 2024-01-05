@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from ..strategy import Strategy
-from ...core import History, Side
+from dxlib.core.strategy import Strategy
+from ...core import History
 
 
 class VolatilityBreakoutStrategy(Strategy):
@@ -36,7 +36,9 @@ class VolatilityBreakoutStrategy(Strategy):
         """
         pass
 
-    def execute(self, idx: pd.Index, position: pd.Series, history: History) -> pd.Series:
+    def execute(
+        self, idx: pd.Index, position: pd.Series, history: History
+    ) -> pd.Series:
         """
         Generate trading signals based on volatility breakout.
 
@@ -53,7 +55,7 @@ class VolatilityBreakoutStrategy(Strategy):
 
         for idx, equity in enumerate(history.df.columns):
             if volatility[equity].iloc[idx] > self.multiplier * np.mean(
-                    volatility[equity].iloc[idx - self.lookback_period: idx]
+                volatility[equity].iloc[idx - self.lookback_period : idx]
             ):
                 signals[idx] = TradeSignal(TransactionType.BUY, 1)
         return signals

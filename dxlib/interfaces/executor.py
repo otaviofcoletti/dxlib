@@ -4,7 +4,12 @@ from ..core.trading.order import Order, OrderData
 
 
 class Executor:
-    def __init__(self, market: MarketInterface, portfolio: PortfolioInterface, order: OrderInterface):
+    def __init__(
+        self,
+        market: MarketInterface,
+        portfolio: PortfolioInterface,
+        order: OrderInterface,
+    ):
         self.market = market
         self.portfolio = portfolio
         self.order = order

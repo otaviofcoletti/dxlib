@@ -56,21 +56,16 @@ def get_endpoints(instance: object = None):
             endpoints.append((endpoint, func))
 
         elif isinstance(attr, property):
-
             if hasattr(attr.fget, "endpoint"):
                 endpoint = attr.fget.endpoint
                 # noinspection PyUnresolvedReferences
-                func = attr.fget.__get__(
-                    instance, instance.__class__
-                )
+                func = attr.fget.__get__(instance, instance.__class__)
                 endpoints.append((endpoint, func))
 
             if hasattr(attr.fset, "endpoint"):
                 endpoint = attr.fset.endpoint
                 # noinspection PyUnresolvedReferences
-                func = attr.fset.__get__(
-                    instance, instance.__class__
-                )
+                func = attr.fset.__get__(instance, instance.__class__)
                 endpoints.append((endpoint, func))
 
     return endpoints

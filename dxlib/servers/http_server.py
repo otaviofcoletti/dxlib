@@ -16,7 +16,9 @@ class ReusableTCPServer(socketserver.TCPServer):
 
 
 class HttpServer(Server):
-    def __init__(self, handler: callable = None, port=None, endpoints: dict = None, logger=None):
+    def __init__(
+        self, handler: callable = None, port=None, endpoints: dict = None, logger=None
+    ):
         super().__init__(handler, logger)
         self.endpoints = {}
         self.port = port if port else self._get_free_port()
@@ -106,12 +108,8 @@ class HttpServer(Server):
                 return route_name, params
 
             def parse_endpoint(self, method_endpoint):
-                func_callable = (
-                    method_endpoint.get() if method_endpoint else None
-                )
-                endpoint = (
-                    method_endpoint.get() if method_endpoint else None
-                )
+                func_callable = method_endpoint.get() if method_endpoint else None
+                endpoint = method_endpoint.get() if method_endpoint else None
 
                 if endpoint is None:
                     self.send_response(405)
@@ -249,9 +247,7 @@ class HttpServer(Server):
             with ReusableTCPServer(
                 ("", self.port), SimulationManagerHTTPRequestHandler
             ) as self._httpd_server:
-                self.logger.info(
-                    f"Server started. Press Ctrl+C to stop..."
-                )
+                self.logger.info(f"Server started. Press Ctrl+C to stop...")
                 self._httpd_server.serve_forever()
         except Exception as e:
             self.logger.error(f"Server error: {e}")

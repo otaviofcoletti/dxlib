@@ -13,11 +13,14 @@ def to_async(subscription: Generator, delay=0.0):
         for item in subscription:
             yield item
             await asyncio.sleep(delay)
+
     return async_subscription()
 
 
 class FeedManager(Manager):
-    def __init__(self, subscription: AsyncGenerator | Generator | None, port=6000, logger=None):
+    def __init__(
+        self, subscription: AsyncGenerator | Generator | None, port=6000, logger=None
+    ):
         super().__init__(None, port, logger)
         if isinstance(subscription, Generator):
             self.subscription = to_async(subscription)
@@ -93,6 +96,7 @@ class FeedMessageHandler(MessageHandler):
 def main():
     from dxlib.interfaces.api import YFinanceAPI
     from ..core import info_logger
+
     logger = info_logger()
 
     historical_bars = YFinanceAPI().get_historical_bars(["AAPL"])

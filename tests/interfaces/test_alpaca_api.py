@@ -17,5 +17,5 @@ class TestAPI(unittest.TestCase):
         print(self.api.get_positions())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

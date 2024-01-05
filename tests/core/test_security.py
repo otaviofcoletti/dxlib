@@ -32,5 +32,5 @@ class TestSecurityManager(unittest.TestCase):
         self.assertEqual(self.security_manager.cash.security_type, dx.SecurityType.cash)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

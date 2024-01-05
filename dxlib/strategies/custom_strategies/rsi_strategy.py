@@ -1,7 +1,7 @@
 import pandas as pd
 
-from ..strategy import Strategy
-from ...core import History, Side
+from dxlib.core.strategy import Strategy
+from ...core import History
 
 
 class RsiStrategy(Strategy):
@@ -36,7 +36,9 @@ class RsiStrategy(Strategy):
         """
         pass
 
-    def execute(self, idx: pd.Index, position: pd.Series, history: History) -> pd.Series:
+    def execute(
+        self, idx: pd.Index, position: pd.Series, history: History
+    ) -> pd.Series:
         """
         Generate trading signals based on Relative Strength Index(RSI).
 
@@ -48,7 +50,9 @@ class RsiStrategy(Strategy):
         Returns:
         dict: Trading signals for each equity.
         """
-        signals = pd.Series(TradeSignal(TransactionType.WAIT), index=history.securities.values())
+        signals = pd.Series(
+            TradeSignal(TransactionType.WAIT), index=history.securities.values()
+        )
         loc = history.df.index.get_loc(idx)
 
         if loc > self.window:
@@ -57,9 +61,13 @@ class RsiStrategy(Strategy):
             price = history.df.iloc[loc]["Close"]
 
             # TODO: Add a "allocation" parameter to the strategy to determine how much to buy/sell
-            signals[rsi > self.upper_bound] = [TradeSignal(TransactionType.BUY, 1, price[security])
-                                               for security in (rsi > self.upper_bound).keys()]
-            signals[rsi < self.lower_bound] = [TradeSignal(TransactionType.SELL, 1, price[security])
-                                               for security in (rsi < self.lower_bound).keys()]
+            signals[rsi > self.upper_bound] = [
+                TradeSignal(TransactionType.BUY, 1, price[security])
+                for security in (rsi > self.upper_bound).keys()
+            ]
+            signals[rsi < self.lower_bound] = [
+                TradeSignal(TransactionType.SELL, 1, price[security])
+                for security in (rsi < self.lower_bound).keys()
+            ]
 
         return signals

@@ -40,56 +40,68 @@ class AlpacaAPI:
         self.url_builder = UrlBuilder("live" if live else "sandbox")
 
     def get_account(self):
-        response = requests.get(self.url_builder.get("account"),
-                                headers={
-                                    "APCA-API-KEY-ID": self.__api_key,
-                                    "APCA-API-SECRET-KEY": self.__api_secret
-                                })
+        response = requests.get(
+            self.url_builder.get("account"),
+            headers={
+                "APCA-API-KEY-ID": self.__api_key,
+                "APCA-API-SECRET-KEY": self.__api_secret,
+            },
+        )
 
         if response.json().get("code", None) == 40110000:
-            raise ConnectionError(f"Invalid credentials for selected environment ({self.url_builder.domain})")
+            raise ConnectionError(
+                f"Invalid credentials for selected environment ({self.url_builder.domain})"
+            )
 
         return response.json()
 
     def get_orders(self):
-        response = requests.get(self.url_builder.get("orders"),
-                                headers={
-                                    "APCA-API-KEY-ID": self.__api_key,
-                                    "APCA-API-SECRET-KEY": self.__api_secret
-                                })
+        response = requests.get(
+            self.url_builder.get("orders"),
+            headers={
+                "APCA-API-KEY-ID": self.__api_key,
+                "APCA-API-SECRET-KEY": self.__api_secret,
+            },
+        )
 
         return response.json()
 
     def submit_order(self, symbol, qty, side, order_type, time_in_force=None):
-        response = requests.post(self.url_builder.get("orders"),
-                                 headers={
-                                     "APCA-API-KEY-ID": self.__api_key,
-                                     "APCA-API-SECRET-KEY": self.__api_secret
-                                 },
-                                 json={
-                                     "symbol": symbol,
-                                     "qty": qty,
-                                     "side": side,
-                                     "type": order_type,
-                                     "time_in_force": time_in_force
-                                 })
+        response = requests.post(
+            self.url_builder.get("orders"),
+            headers={
+                "APCA-API-KEY-ID": self.__api_key,
+                "APCA-API-SECRET-KEY": self.__api_secret,
+            },
+            json={
+                "symbol": symbol,
+                "qty": qty,
+                "side": side,
+                "type": order_type,
+                "time_in_force": time_in_force,
+            },
+        )
 
         return response.json()
 
     def get_positions(self):
-        response = requests.get(self.url_builder.get("positions"),
-                                headers={
-                                    "APCA-API-KEY-ID": self.__api_key,
-                                    "APCA-API-SECRET-KEY": self.__api_secret
-                                })
+        response = requests.get(
+            self.url_builder.get("positions"),
+            headers={
+                "APCA-API-KEY-ID": self.__api_key,
+                "APCA-API-SECRET-KEY": self.__api_secret,
+            },
+        )
 
         return response.json()
 
     def get_stream(self, stream):
-        response = requests.get(self.url_builder.get("stream", stream),
-                                headers={
-                                    "APCA-API-KEY-ID": self.__api_key,
-                                    "APCA-API-SECRET-KEY": self.__api_secret
-                                })
+        response = requests.get(
+            self.url_builder.get("stream", stream),
+            headers={
+                "APCA-API-KEY-ID": self.__api_key,
+                "APCA-API-SECRET-KEY": self.__api_secret,
+            },
+        )
 
         return response.json()

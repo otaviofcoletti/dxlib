@@ -12,12 +12,14 @@ class TestInterfaceManager(unittest.TestCase):
 
     def test_market_manager(self):
         market = SandboxMarket()
-        mm = InterfaceManager(market, comms=[HttpServer(port=8001), WebsocketServer(port=5001)])
+        mm = InterfaceManager(
+            market, comms=[HttpServer(port=8001), WebsocketServer(port=5001)]
+        )
 
         mm.start()
         time.sleep(1)
         mm.stop()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

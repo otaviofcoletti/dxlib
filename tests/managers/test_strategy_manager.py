@@ -1,11 +1,10 @@
 import time
 import unittest
-from random import random
 
 import pandas as pd
 
 from dxlib import History, Strategy, StrategyManager
-from dxlib.core.portfolio.inventory import Inventory
+from dxlib.core.components.inventory import Inventory
 from dxlib.servers import WebsocketServer
 
 
@@ -32,5 +31,5 @@ class TestStrategyManager(unittest.TestCase):
             sm.stop()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -8,10 +8,11 @@ from .handler import MessageHandler
 
 
 class Manager(ABC, LoggerMixin):
-    def __init__(self,
-                 comms: list[Server] = None,
-                 logger: logging.Logger = None,
-                 ):
+    def __init__(
+        self,
+        comms: list[Server] = None,
+        logger: logging.Logger = None,
+    ):
         super().__init__(logger)
         if isinstance(self.comms, Server):
             self.comms = [self.comms]
@@ -42,4 +43,6 @@ class Manager(ABC, LoggerMixin):
             comm.stop()
 
     def alive(self):
-        return all([comm.alive for comm in self.comms]) and any([comm.alive for comm in self.comms])
+        return all([comm.alive for comm in self.comms]) and any(
+            [comm.alive for comm in self.comms]
+        )

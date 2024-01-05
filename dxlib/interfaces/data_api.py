@@ -84,7 +84,13 @@ class SnapshotApi(DataApi):
         self.num_calls = 0
 
     def tickers_cache(
-        self, start: str | datetime.date, end: str | datetime.date, timeframe, api_name=None, folder="cache", ext="csv"
+        self,
+        start: str | datetime.date,
+        end: str | datetime.date,
+        timeframe,
+        api_name=None,
+        folder="cache",
+        ext="csv",
     ):
         if not os.path.exists(folder):
             print("Creating cache folder")
@@ -96,7 +102,9 @@ class SnapshotApi(DataApi):
         return filename
 
     @classmethod
-    def symbols_cache(cls, api_name=None, n=10, filter_="volume", folder="cache", ext="csv"):
+    def symbols_cache(
+        cls, api_name=None, n=10, filter_="volume", folder="cache", ext="csv"
+    ):
         if not os.path.exists(folder):
             print("Creating cache folder")
             os.mkdir(folder)

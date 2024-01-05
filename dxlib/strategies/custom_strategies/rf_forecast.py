@@ -1,6 +1,6 @@
 import pandas as pd
 
-from ..strategy import Strategy
+from dxlib.core.strategy import Strategy
 from ...core import History
 
 

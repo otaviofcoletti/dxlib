@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from ..core.history import History
+from dxlib.core.components.history import History
 from ..core.portfolio import Portfolio
 from ..core.trading.order import OrderDetails, Order
 from ..managers.handler import MessageHandler
@@ -11,6 +11,7 @@ from ..managers.handler import MessageHandler
 class Interface(ABC):
     def __init__(self):
         self.message_handler: MessageHandler | None = None
+
     pass
 
 
@@ -53,7 +54,9 @@ class PortfolioInterface(Interface, ABC):
 
 class OrderInterface(Interface, ABC):
     @abstractmethod
-    def send(self, order_data: OrderDetails, market: MarketInterface = None, *args, **kwargs) -> Order:
+    def send(
+        self, order_data: OrderDetails, market: MarketInterface = None, *args, **kwargs
+    ) -> Order:
         pass
 
     def cancel(self, order):

@@ -1,7 +1,7 @@
 import pandas as pd
 
-from ..strategy import Strategy
-from ...core import History, Side
+from dxlib.core.strategy import Strategy
+from ...core import History
 
 
 class TrendFollowStrategy(Strategy):
@@ -34,7 +34,9 @@ class TrendFollowStrategy(Strategy):
         """
         pass
 
-    def execute(self, idx: pd.Index, position: pd.Series, history: History) -> pd.Series:
+    def execute(
+        self, idx: pd.Index, position: pd.Series, history: History
+    ) -> pd.Series:
         """
         Generate trading signals based on moving average crossovers.
 

@@ -16,14 +16,18 @@ class InterfaceMessageHandler(MessageHandler):
 
 
 class InterfaceManager(Manager, ABC):
-    def __init__(self,
-                 interface: Interface,
-                 message_handler: InterfaceMessageHandler = None,
-                 comms: list[Server] | Server = None,
-                 *args,
-                 **kwargs):
+    def __init__(
+        self,
+        interface: Interface,
+        message_handler: InterfaceMessageHandler = None,
+        comms: list[Server] | Server = None,
+        *args,
+        **kwargs,
+    ):
         self.interface = interface
-        message_handler = message_handler if message_handler else interface.message_handler
+        message_handler = (
+            message_handler if message_handler else interface.message_handler
+        )
 
         super().__init__(message_handler, comms, *args, **kwargs)
 

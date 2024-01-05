@@ -30,7 +30,9 @@ class Connector:
                     while self._running.is_set():
                         message = await websocket.recv()
                         print(f"{data_type} received: ", message)
-                        await self.forward_to_clients(json.dumps({data_type: json.loads(message)}))
+                        await self.forward_to_clients(
+                            json.dumps({data_type: json.loads(message)})
+                        )
 
             except ConnectionRefusedError as e:
                 print(f"Connection refused: {e}")
@@ -85,7 +87,12 @@ class Connector:
                     server = self.path.split("=")[1]
                     self.send_response(200)
                     self.end_headers()
-                    self.wfile.write(bytes(self.connector.servers.get(server, {}).get("uri", None), "utf-8"))
+                    self.wfile.write(
+                        bytes(
+                            self.connector.servers.get(server, {}).get("uri", None),
+                            "utf-8",
+                        )
+                    )
                 else:
                     self.send_response(404)
 
@@ -121,7 +128,9 @@ class Connector:
 
         threads = []
         for server_name in self.servers.keys():
-            thread = threading.Thread(target=asyncio.run, args=(self.connect_server(server_name),))
+            thread = threading.Thread(
+                target=asyncio.run, args=(self.connect_server(server_name),)
+            )
             thread.start()
             threads.append(thread)
 

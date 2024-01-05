@@ -6,7 +6,6 @@ from dxlib.trading import OrderData
 
 
 class TestSandbox(unittest.TestCase):
-
     def setUp(self):
         self.security_manager = SecurityManager()
 
@@ -21,7 +20,7 @@ class TestSandbox(unittest.TestCase):
             security=self.security_manager["AAPL"],
             quantity=10,
             side=Side.BUY,
-            order_type="market"
+            order_type="market",
         )
 
         self.order.send(order_data, self.market)
@@ -35,5 +34,5 @@ class TestSandbox(unittest.TestCase):
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

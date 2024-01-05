@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from ..strategy import Strategy
-from ...core import History, Side
+from dxlib.core.strategy import Strategy
+from ...core import History
 
 
 class BollingerBreakoutStrategy(Strategy):
@@ -13,7 +13,9 @@ class BollingerBreakoutStrategy(Strategy):
         self.long_window = long_window
         self.window = window
 
-    def execute(self, idx: pd.Index, position: pd.Series, history: History) -> pd.Series:
+    def execute(
+        self, idx: pd.Index, position: pd.Series, history: History
+    ) -> pd.Series:
         signals = pd.Series(TradeSignal("wait"), index=history.securities)
         volatility = history.indicators.volatility()
 
@@ -26,8 +28,8 @@ class BollingerBreakoutStrategy(Strategy):
         var_normalized = (volatility.loc[idx] - var_mean) / var_var
 
         pos = history.df.index.get_loc(idx)
-        short_ma = history.df.iloc[pos - self.short_window: pos].mean()
-        long_ma = history.df.iloc[pos - self.long_window: pos].mean()
+        short_ma = history.df.iloc[pos - self.short_window : pos].mean()
+        long_ma = history.df.iloc[pos - self.long_window : pos].mean()
 
         for idx, equity in enumerate(history.df.columns):
             if abs(var_normalized[equity]) > abs(self.multiplier * var_historical):
