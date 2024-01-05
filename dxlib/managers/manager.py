@@ -3,27 +3,27 @@ from abc import ABC
 
 from ..servers import Server, HttpServer
 from ..servers.endpoint import get_endpoints
-from ..core.logger import info_logger
+from ..core.logger import LoggerMixin
 from .handler import MessageHandler
 
 
-class Manager(ABC):
+class Manager(ABC, LoggerMixin):
     def __init__(self,
                  comms: list[Server] = None,
-                 logger: logging.Logger = None
+                 logger: logging.Logger = None,
                  ):
-        self.comms = comms if comms else []
+        super().__init__(logger)
         if isinstance(self.comms, Server):
             self.comms = [self.comms]
 
-        self.logger = logger if logger else info_logger(__name__)
+        self.set_comms(comms or [])
 
+    def set_comms(self, comms: list[Server]):
+        self.comms = comms
         for comm in self.comms:
             comm.logger = self.logger
 
-    def add_comm(self, comm: Server = None):
-        if comm is None:
-            return
+    def add_comm(self, comm: Server):
         if isinstance(comm, HttpServer):
             comm.add_endpoints(get_endpoints(self))
 

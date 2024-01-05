@@ -5,6 +5,7 @@ from typing import List, Dict
 
 import pandas as pd
 
+from .logger import LoggerMixin
 from .security import SecurityManager
 
 
@@ -17,10 +18,11 @@ class HistoryLevel(enum.Enum):
         return list(cls.__members__.values())
 
 
-class History:
+class History(LoggerMixin):
     def __init__(self,
                  df: pd.DataFrame | dict = None,
                  security_manager: SecurityManager = None,
+                 logger=None
                  ):
         """
         History is a multi-indexed dataframe encapsulation
@@ -30,6 +32,7 @@ class History:
             df: pandas DataFrame or dict with multi-index and bar fields as columns
             security_manager: SecurityManager object to keep track of securities
         """
+        super().__init__(logger)
         if security_manager is None:
             security_manager = SecurityManager()
 
@@ -73,6 +76,7 @@ class History:
 
     def __iadd__(self, other: pd.DataFrame | History):
         self.df = self + other
+        self._update()
         return self
 
     @property
@@ -94,13 +98,6 @@ class History:
         if self.df.empty:
             return pd.DataFrame()
 
-        # If default levels
-        # mask_dates = self.df.index.get_level_values(HistoryLevel.DATE).isin(dates)
-        # mask_securities = self.df.index.get_level_values(HistoryLevel.SECURITY).isin(securities)
-        #
-        # df = self.df[mask_dates & mask_securities]
-
-        # If generic levels
         if levels is None:
             levels = {
                 level: self.get_level(level) for level in HistoryLevel.levels()
@@ -192,6 +189,7 @@ class History:
         """
         self.df = self + data
         self._update()
+        self.logger.debug(f"Added {data.shape[0]} bars to history")
 
     def set(self, fields: List[str] = None, values: pd.DataFrame | dict = None):
         """
@@ -218,6 +216,7 @@ class History:
         """
         self._set(fields=fields, values=values)
         self._update()
+        self.logger.debug(f"Set {values.shape[0]} bars in history")
 
     def _update(self):
         self.security_manager.add(self.get_level())

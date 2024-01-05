@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 import websockets
 
-from ..core.logger import info_logger
 from ..core import Portfolio, History
 from ..core.portfolio.inventory import Inventory
 from ..servers import WebsocketServer
