@@ -1,18 +1,20 @@
 from __future__ import annotations
 
 from ..portfolio.portfolio import Portfolio
-from ..history import History
+from dxlib.core.components.history import History
 from ..security import Security
 from ..indicators import SeriesIndicators
 
 
 class Report:
-    def metrics(self,
-                portfolio: Portfolio,
-                history: History = None,
-                baseline: Security | list[Security] = None,
-                risk_free_rate: float = 0.05,
-                window: int = 252):
+    def metrics(
+        self,
+        portfolio: Portfolio,
+        history: History = None,
+        baseline: Security | list[Security] = None,
+        risk_free_rate: float = 0.05,
+        window: int = 252,
+    ):
         _metrics = {}
         if history is None and portfolio.history is None:
             raise ValueError("History is not provided")

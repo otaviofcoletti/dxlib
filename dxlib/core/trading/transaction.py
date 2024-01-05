@@ -8,13 +8,14 @@ from ..security import Security
 
 @dataclass
 class Transaction:
-    def __init__(self,
-                 security: Security,
-                 quantity: float,
-                 price: float,
-                 execution_time: datetime | None = None,
-                 exchange: str | None = None,
-                 ):
+    def __init__(
+        self,
+        security: Security,
+        quantity: float,
+        price: float,
+        execution_time: datetime | None = None,
+        exchange: str | None = None,
+    ):
         self.security = security
         self.quantity = quantity
         self.price = price
@@ -25,7 +26,9 @@ class Transaction:
         return f"Transaction({self.security} {self.quantity} @ {self.price}, T={self.execution_time})"
 
     def __str__(self):
-        return f"{self.security} {self.quantity} @ {self.price}, T={self.execution_time}"
+        return (
+            f"{self.security} {self.quantity} @ {self.price}, T={self.execution_time}"
+        )
 
     def __dict__(self):
         return {

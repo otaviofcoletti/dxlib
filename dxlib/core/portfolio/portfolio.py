@@ -4,12 +4,14 @@ from typing import Dict
 
 from ..logger import LoggerMixin
 
-from .inventory import Inventory
-from ... import Security
+from dxlib.core.components.inventory import Inventory
+from ..components import Security
 
 
 class Portfolio(LoggerMixin):
-    def __init__(self, inventories: Dict[str, Inventory] | Inventory | None = None, logger=None):
+    def __init__(
+        self, inventories: Dict[str, Inventory] | Inventory | None = None, logger=None
+    ):
         super().__init__(logger)
 
         if isinstance(inventories, Inventory):
@@ -39,7 +41,8 @@ class Portfolio(LoggerMixin):
     def __dict__(self):
         return {
             "inventories": {
-                identifier: inventory.__dict__() for identifier, inventory in self._inventories.items()
+                identifier: inventory.__dict__()
+                for identifier, inventory in self._inventories.items()
             }
         }
 
@@ -50,7 +53,9 @@ class Portfolio(LoggerMixin):
         return inventory
 
     def value(self, prices: dict[Security, float] | None = None):
-        return sum([inventory.value(prices) for inventory in self._inventories.values()])
+        return sum(
+            [inventory.value(prices) for inventory in self._inventories.values()]
+        )
 
     def add(self, inventory: Inventory, identifier: str = None):
         self.logger.debug(f"Adding inventory {inventory} to portfolio")

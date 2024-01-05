@@ -45,4 +45,3 @@ class InfoLogger(logging.Logger):
 class LoggerMixin:
     def __init__(self, logger: logging.Logger | None = None):
         self.logger = logger if logger else CriticalLogger(__name__)
-

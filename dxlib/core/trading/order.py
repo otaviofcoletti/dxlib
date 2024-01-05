@@ -3,9 +3,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from ..components import Security
 from .transaction import Transaction
-from .utils import Side
-from ..security import Security
+from .signal import Side
 
 
 class OrderType(Enum):
@@ -23,13 +23,14 @@ class OrderType(Enum):
 
 @dataclass
 class OrderDetails:
-    def __init__(self,
-                 security: Security,
-                 price: float | int = None,
-                 quantity: float | int = 0,
-                 side: Side | int = Side.BUY,
-                 order_type: OrderType = OrderType.MARKET,
-                 ):
+    def __init__(
+        self,
+        security: Security,
+        price: float | int = None,
+        quantity: float | int = 0,
+        side: Side | int = Side.BUY,
+        order_type: OrderType = OrderType.MARKET,
+    ):
         self.security = security
         self.price = price
         self.quantity = quantity
@@ -37,7 +38,9 @@ class OrderDetails:
         self.order_type = order_type
 
     def __repr__(self):
-        return f"OrderDetails({self.side}: {self.security} {self.quantity} @ {self.price})"
+        return (
+            f"OrderDetails({self.side}: {self.security} {self.quantity} @ {self.price})"
+        )
 
     def __str__(self):
         return f"{self.side}: {self.security} {self.quantity} @ {self.price}"
@@ -48,15 +51,16 @@ class OrderDetails:
             "price": self.price,
             "quantity": self.quantity,
             "side": self.side.__dict__(),
-            "order_type": self.order_type.__dict__()
+            "order_type": self.order_type.__dict__(),
         }
 
 
 class Order:
-    def __init__(self,
-                 data: OrderDetails,
-                 transactions: list[Transaction] = None,
-                 ):
+    def __init__(
+        self,
+        data: OrderDetails,
+        transactions: list[Transaction] = None,
+    ):
         self._data = data
         self._transactions: list[Transaction] = transactions or []
 
@@ -73,7 +77,7 @@ class Order:
     def __dict__(self):
         return {
             "data": self._data.__dict__(),
-            "transactions": [t.__dict__() for t in self._transactions]
+            "transactions": [t.__dict__() for t in self._transactions],
         }
 
     def __getitem__(self, item):

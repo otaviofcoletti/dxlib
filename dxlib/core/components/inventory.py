@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Dict, Union
 
-from ..security import Security
+from .security import Security
 
 
 class Inventory(dict[Security, Union[float, int]]):
@@ -13,7 +13,10 @@ class Inventory(dict[Security, Union[float, int]]):
 
     def __dict__(self):
         return {
-            "securities": {security.__dict__(): quantity for security, quantity in self._securities.items()}
+            "securities": {
+                security.__dict__(): quantity
+                for security, quantity in self._securities.items()
+            }
         }
 
     def __len__(self):
@@ -26,7 +29,12 @@ class Inventory(dict[Security, Union[float, int]]):
         return iter(self._securities.keys())
 
     def __add__(self, other: Inventory):
-        return Inventory({key: self.get(key, 0) + other.get(key, 0) for key in set(self) | set(other)})
+        return Inventory(
+            {
+                key: self.get(key, 0) + other.get(key, 0)
+                for key in set(self) | set(other)
+            }
+        )
 
     def __iadd__(self, other: Inventory):
         self._securities = (self + other)._securities
@@ -56,9 +64,15 @@ class Inventory(dict[Security, Union[float, int]]):
     @lru_cache(maxsize=4)
     def weights(self):
         total = sum(self._securities.values())
-        return {security: quantity / total for security, quantity in self._securities.items()}
+        return {
+            security: quantity / total
+            for security, quantity in self._securities.items()
+        }
 
     @lru_cache(maxsize=4)
     def financial_weights(self, prices: dict[Security, float]):
         value = self.value(prices)
-        return {security: (self._value(security, prices) / value) for security in self._securities}
+        return {
+            security: (self._value(security, prices) / value)
+            for security in self._securities
+        }

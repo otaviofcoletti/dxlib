@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 
 import pandas as pd
 
-from ..core import History
-from ..core.portfolio.inventory import Inventory
+from .history import History
+from .inventory import Inventory
 
 
 class Strategy(ABC):
