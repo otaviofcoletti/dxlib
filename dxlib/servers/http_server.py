@@ -7,7 +7,6 @@ import threading
 from urllib.parse import parse_qs, urlparse
 
 from .server import ServerStatus, handle_exceptions_decorator, Server
-from ..handler import MessageHandler
 
 
 class ReusableTCPServer(socketserver.TCPServer):
@@ -17,19 +16,23 @@ class ReusableTCPServer(socketserver.TCPServer):
 
 
 class HttpServer(Server):
-    def __init__(self, handler: MessageHandler, manager, port=None, config_file=None, logger=None):
+    def __init__(self, handler: callable = None, port=None, endpoints: dict = None, logger=None):
         super().__init__(handler, logger)
         self.endpoints = {}
-        self.manager = manager
         self.port = port if port else self._get_free_port()
 
-        if not config_file:
-            self.set_endpoints()
+        self.add_endpoints(endpoints)
 
         self._error = threading.Event()
 
         self._httpd_server = None
         self._httpd_thread = None
+
+    def add_endpoints(self, endpoints):
+        if endpoints is None:
+            return
+        for endpoint, func in endpoints:
+            self.add_endpoint(endpoint, func)
 
     def add_endpoint(self, endpoint, callable_func):
         route_name = endpoint["route_name"]
@@ -39,33 +42,6 @@ class HttpServer(Server):
             "endpoint": endpoint,
             "callable": callable_func,
         }
-
-    def set_endpoints(self):
-        for func_name in dir(self.manager):
-            attr = self.manager.__class__.__dict__.get(func_name)
-
-            if callable(attr) and hasattr(attr, "endpoint"):
-                endpoint = attr.endpoint
-                # noinspection PyUnresolvedReferences
-                callable_func = attr.__get__(self.manager)
-                self.add_endpoint(endpoint, callable_func)
-
-            elif isinstance(attr, property):
-                if hasattr(attr.fget, "endpoint"):
-                    endpoint = attr.fget.endpoint
-                    # noinspection PyUnresolvedReferences
-                    callable_func = attr.fget.__get__(
-                        self.manager, self.manager.__class__
-                    )
-                    self.add_endpoint(endpoint, callable_func)
-
-                if hasattr(attr.fset, "endpoint"):
-                    endpoint = attr.fset.endpoint
-                    # noinspection PyUnresolvedReferences
-                    callable_func = attr.fset.__get__(
-                        self.manager, self.manager.__class__
-                    )
-                    self.add_endpoint(endpoint, callable_func)
 
     @staticmethod
     def _get_free_port():
@@ -83,10 +59,10 @@ class HttpServer(Server):
                 endpoint = method_endpoint["endpoint"]
 
                 methods_data[method] = {
-                    "description": endpoint.get(),
+                    "description": endpoint.get("description"),
                     "params": {
                         name: str(typehint)
-                        for name, typehint in dict(endpoint.get()).items()
+                        for name, typehint in dict(endpoint.get("params")).items()
                         if name != "self"
                     },
                 }
@@ -102,7 +78,6 @@ class HttpServer(Server):
         class SimulationManagerHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
             endpoints = self.endpoints
             list_endpoints = self.list_endpoints
-            manager = self.manager
 
             exception_queue = self.exception_queue
             running = self._running
@@ -116,7 +91,7 @@ class HttpServer(Server):
 
             def parse_route(self):
                 path_parts = urlparse(self.path)
-                route_name = path_parts.path.lstrip("/")
+                route_name = path_parts.path
                 params = parse_qs(path_parts.query)
 
                 if route_name not in self.endpoints:
@@ -295,7 +270,7 @@ class HttpServer(Server):
     def stop(self) -> ServerStatus:
         if self._error.is_set():
             self.logger.warning(
-                "Could not stop server. Server might not have started properly"
+                "Could not stop servers. Server might not have started properly"
             )
             return ServerStatus.ERROR
 
@@ -305,7 +280,7 @@ class HttpServer(Server):
         self._running.wait()
         self._running.clear()
 
-        self.logger.info("Stopping server")
+        self.logger.info("Stopping servers")
         self._httpd_server.shutdown()
         self._httpd_server = None
         self._httpd_thread.join()

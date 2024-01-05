@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 
 
@@ -23,20 +25,24 @@ class CustomFormatter(logging.Formatter):
         return formatter.format(record)
 
 
-def no_logger(name: str = None) -> logging.Logger:
-    logger = logging.getLogger(name if name else __name__)
-    logger.setLevel(logging.CRITICAL)
-    return logger
+class CriticalLogger(logging.Logger):
+    def __init__(self, name: str):
+        super().__init__(name)
+        self.setLevel(logging.CRITICAL)
 
 
-def info_logger(name: str = None) -> logging.Logger:
-    logger = logging.getLogger(name if name else __name__)
-    logger.setLevel(logging.INFO)
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.DEBUG)
+class InfoLogger(logging.Logger):
+    def __init__(self, name: str):
+        super().__init__(name)
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.DEBUG)
+        ch.setFormatter(CustomFormatter())
 
-    ch.setFormatter(CustomFormatter())
+        self.setLevel(logging.INFO)
+        self.addHandler(ch)
 
-    logger.addHandler(ch)
 
-    return logger
+class LoggerMixin:
+    def __init__(self, logger: logging.Logger | None = None):
+        self.logger = logger if logger else CriticalLogger(__name__)
+

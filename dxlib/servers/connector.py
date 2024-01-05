@@ -81,7 +81,7 @@ class Connector:
                     self.send_response(200)
                     self.end_headers()
                     self.wfile.write(bytes(str(self.connector.servers), "utf-8"))
-                elif self.path.startswith("/?server="):
+                elif self.path.startswith("/?servers="):
                     server = self.path.split("=")[1]
                     self.send_response(200)
                     self.end_headers()

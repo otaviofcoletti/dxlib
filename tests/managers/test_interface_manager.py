@@ -3,7 +3,7 @@ import unittest
 
 from dxlib.managers.interface_manager import InterfaceManager, InterfaceMessageHandler
 from dxlib.interfaces.sandbox import SandboxMarket
-from dxlib.managers.server import HttpServer
+from dxlib.servers import HttpServer, WebsocketServer
 
 
 class TestInterfaceManager(unittest.TestCase):
@@ -11,10 +11,9 @@ class TestInterfaceManager(unittest.TestCase):
         self.assertEqual(True, False)  # add assertion here
 
     def test_market_manager(self):
-        handler = InterfaceMessageHandler()
         market = SandboxMarket()
-        mm = InterfaceManager(market, handler)
-        mm.comms.append(HttpServer(handler, mm))
+        mm = InterfaceManager(market, comms=[HttpServer(port=8001), WebsocketServer(port=5001)])
+
         mm.start()
         time.sleep(1)
         mm.stop()

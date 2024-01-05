@@ -3,8 +3,8 @@ import threading
 from abc import ABC, abstractmethod
 from enum import Enum
 
-from ..handler import MessageHandler
-from ...core.logger import info_logger
+from ..managers.handler import MessageHandler
+from ..core.logger import info_logger
 
 
 class ServerStatus(Enum):
@@ -35,7 +35,7 @@ class ExceptionContext:
 
 
 class Server(ABC):
-    def __init__(self, handler: MessageHandler, logger=None):
+    def __init__(self, handler: MessageHandler = None, logger=None):
         self.logger = logger if logger else info_logger(__name__)
 
         self.handler = handler

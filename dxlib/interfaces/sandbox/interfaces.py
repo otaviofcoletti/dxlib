@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from ..interfaces import MarketInterface, PortfolioInterface, OrderInterface, MarketUtilities
-from ...core import History
 from ...core.portfolio import Portfolio
 from ...core.security import SecurityManager
 from ...core.trading.order import Order, OrderData, OrderType
+from ...core import History
+from ...servers.endpoint import Endpoint
+from ..interfaces import MarketInterface, PortfolioInterface, OrderInterface, MarketUtilities
 
 
 class SandboxMarket(MarketInterface):
@@ -16,6 +17,7 @@ class SandboxMarket(MarketInterface):
         self._history = History()
 
     @property
+    @Endpoint.get("/market/{security}", "Get the entire market history.")
     def history(self) -> History:
         return self._history
 

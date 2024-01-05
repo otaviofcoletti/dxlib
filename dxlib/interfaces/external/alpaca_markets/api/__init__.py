@@ -2,7 +2,7 @@ import requests
 
 from dxlib.interfaces.external.alpaca_markets.routes import routes
 
-from .market import AlpacaMarketAPI
+from .market import AlpacaMarketAPI, AlpacaStreamAPI
 from .order import AlpacaOrderAPI
 from .portfolio import AlpacaPortfolioAPI
 
@@ -35,6 +35,7 @@ class AlpacaAPI:
         self.market_api = AlpacaMarketAPI(api_key, api_secret)
         self.portfolio_api = AlpacaPortfolioAPI()
         self.order_api = AlpacaOrderAPI()
+        self.stream_api = AlpacaStreamAPI(api_key, api_secret)
 
         self.url_builder = UrlBuilder("live" if live else "sandbox")
 
@@ -77,6 +78,15 @@ class AlpacaAPI:
 
     def get_positions(self):
         response = requests.get(self.url_builder.get("positions"),
+                                headers={
+                                    "APCA-API-KEY-ID": self.__api_key,
+                                    "APCA-API-SECRET-KEY": self.__api_secret
+                                })
+
+        return response.json()
+
+    def get_stream(self, stream):
+        response = requests.get(self.url_builder.get("stream", stream),
                                 headers={
                                     "APCA-API-KEY-ID": self.__api_key,
                                     "APCA-API-SECRET-KEY": self.__api_secret
