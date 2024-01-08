@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import enum
+from dataclasses import dataclass
 from typing import List, Dict
 
 import pandas as pd
@@ -16,12 +17,43 @@ class HistoryLevel(enum.Enum):
     def levels(cls):
         return list(cls.__members__.values())
 
+    def __dict__(self):
+        return self.value
+
+
+@dataclass
+class HistorySchema:
+    levels: List[HistoryLevel]
+    fields: List[str]
+    security_manager: SecurityManager
+
+    def __init__(
+            self,
+            levels: List[HistoryLevel] = None,
+            fields: List[str] = None,
+            security_manager: SecurityManager = None,
+    ):
+        self.levels = levels if levels else HistoryLevel.levels()
+        self.fields = fields if fields else []
+        self.security_manager = security_manager if security_manager else SecurityManager()
+
+    def __dict__(self):
+        return {
+            "levels": [level.__dict__() for level in self.levels],
+            "fields": self.fields,
+            "security_manager": self.security_manager.__dict__(),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        return HistorySchema(**data)
+
 
 class History:
     def __init__(
-        self,
-        df: pd.DataFrame | dict = None,
-        security_manager: SecurityManager = None,
+            self,
+            df: pd.DataFrame | dict | None = None,
+            schema: HistorySchema | None = None,
     ):
         """
         History is a multi-indexed dataframe encapsulation
@@ -29,25 +61,44 @@ class History:
 
         Args:
             df: pandas DataFrame or dict with multi-index and bar fields as columns
-            security_manager: SecurityManager object to keep track of securities
+
         """
-        if security_manager is None:
-            security_manager = SecurityManager()
-
         if df is None:
-            self.df = pd.DataFrame()
+            df = pd.DataFrame()
         elif isinstance(df, dict):
-            self.df = pd.DataFrame.from_dict(df, orient="index")
-        elif isinstance(df, pd.DataFrame):
-            self.df = df
+            df = pd.DataFrame.from_dict(df, orient="index")
+        elif not isinstance(df, pd.DataFrame):
+            raise ValueError(f"Invalid type {type(df)} for df")
 
-        self.df.index = pd.MultiIndex.from_tuples(
-            self.df.index, names=[HistoryLevel.DATE.value, HistoryLevel.SECURITY.value]
+        if schema is None:
+            schema = HistorySchema.from_dict({})
+        elif not isinstance(schema, HistorySchema):
+            raise ValueError(f"Invalid type {type(schema)} for schema")
+
+        df.index = pd.MultiIndex.from_tuples(
+            df.index, names=[level.value for level in schema.levels]
         )
 
-        self.security_manager: SecurityManager = security_manager
-        self.security_manager.add(self.get_level())
-        self.fields = self.df.columns.tolist()
+        self.df = df
+        self.schema = schema
+        self.update_schema()
+
+    def update_schema(self):
+        self.schema.security_manager.add([security for security in self.level_unique(HistoryLevel.SECURITY)
+                                          if security not in self.schema.security_manager])
+        self.schema.fields = self.df.columns.tolist()
+
+    def update_df(self):
+        # rename df index levels to schema levels
+        self.df.index = pd.MultiIndex.from_tuples(
+            self.df.index, names=[level.value for level in self.schema.levels]
+        )
+        # convert index securities to Security objects (just have to verify if security is in levels)
+        if HistoryLevel.SECURITY in self.schema.levels:
+            self.df.index = self.df.index.set_levels(
+                [self.schema.security_manager.convert(security) for security in self.df.index.levels[1]],
+                level=HistoryLevel.SECURITY.value
+            )
 
     def __repr__(self):
         return self.df.__repr__()
@@ -55,7 +106,7 @@ class History:
     def __dict__(self):
         return {
             "df": self.df.to_dict(),
-            "security_manager": self.security_manager.__dict__(),
+            "schema": self.schema.__dict__(),
         }
 
     def __iter__(self):
@@ -64,53 +115,66 @@ class History:
     def __getitem__(self, item):
         return self.df.loc[item]
 
-    def __add__(self, other: pd.DataFrame | History):
-        if isinstance(other, pd.DataFrame):
-            other = History(other)
+    @classmethod
+    def from_dict(cls, history: dict, schema: HistorySchema | None = None):
+        return cls(
+            history.get("df", None), HistorySchema.from_dict(history.get("schema", {}) if schema is None else schema)
+        )
+
+    @classmethod
+    def from_tuple(cls, history: tuple, schema: HistorySchema | None = None):
+        return cls(pd.DataFrame([history[1]], index=pd.MultiIndex.from_tuples([history[0]])), schema)
+
+    def __add__(self, other: History):
+        if not isinstance(other, History):
+            raise ValueError(f"Invalid type {type(other)} for other")
 
         securities = set(
-            self.get_level(HistoryLevel.SECURITY)
-            + other.get_level(HistoryLevel.SECURITY)
+            self.level_unique(HistoryLevel.SECURITY)
+            + other.level_unique(HistoryLevel.SECURITY)
         )
         security_manager = SecurityManager.from_list(list(securities))
 
-        return History(pd.concat([self.df, other.df]), security_manager)
+        # Can't infer schema between two histories
+        return History(pd.concat([self.df, other.df]), schema=HistorySchema(security_manager=security_manager))
 
-    def __iadd__(self, other: pd.DataFrame | History):
-        self.df = self + other
-        self._update()
+    def __iadd__(self, other: History):
+        if not isinstance(other, History):
+            raise ValueError(f"Invalid type {type(other)} for other")
+
+        self.df = pd.concat([self.df, other.df])
+
+        # Infer schema to left history
+        self.update_schema()
         return self
 
     @property
     def shape(self):
         return self.df.shape
 
-    @classmethod
-    def from_dict(cls, data: dict):
-        return cls(data.get("df", None), SecurityManager(**data.get("security_manager", {})))
+    def level_unique(self, level: HistoryLevel = HistoryLevel.SECURITY):
+        return self.df.index.get_level_values(level.value).unique().tolist()
 
-    def get_level(self, level: HistoryLevel = HistoryLevel.SECURITY):
-        if self.df.empty:
-            return []
-        level = level.value
-        return self.df.index.get_level_values(level).unique().tolist()
+    def levels_unique(self, levels: List[HistoryLevel] = None) -> Dict[HistoryLevel, list]:
+        if levels is None:
+            levels = self.schema.levels
+        return {level: self.level_unique(level) for level in levels if level in self.schema.levels}
 
     def set_level(self, values, level: HistoryLevel = HistoryLevel.SECURITY):
         if self.df.empty:
             return
         self.df.index = self.df.index.set_levels(values, level=level)
 
-    def _get(
-        self, levels: Dict[HistoryLevel, list] = None, fields: List[str] = None
+    def get_df(
+            self, levels: Dict[HistoryLevel, list] = None, fields: List[str] = None
     ) -> pd.DataFrame:
         if self.df.empty:
             return pd.DataFrame()
 
         if levels is None:
-            levels = {level: self.get_level(level) for level in HistoryLevel.levels()}
-
+            levels = self.levels_unique()
         if fields is None:
-            fields = self.fields
+            fields = self.schema.fields
 
         masks = []
         for level, values in levels.items():
@@ -120,20 +184,19 @@ class History:
 
         return df[fields] if not df.empty else pd.DataFrame()
 
-    def _set(
-        self,
-        levels: Dict[HistoryLevel, list] = None,
-        fields: List[str] = None,
-        values: pd.DataFrame | dict = None,
+    def set_df(
+            self,
+            levels: Dict[HistoryLevel, list] = None,
+            fields: List[str] = None,
+            values: pd.DataFrame | dict = None,
     ):
         if self.df.empty:
             return
 
         if levels is None:
-            levels = {level: self.get_level(level) for level in HistoryLevel.levels()}
-
+            levels = self.levels_unique()
         if fields is None:
-            fields = self.fields
+            fields = self.schema.fields
 
         if values is None:
             values = pd.DataFrame()
@@ -148,7 +211,7 @@ class History:
         self.df = df
 
     def get(
-        self, levels: Dict[HistoryLevel, list] = None, fields: List[str] = None
+            self, levels: Dict[HistoryLevel, list] = None, fields: List[str] = None
     ) -> History:
         """
         Get historical data for a given security, field and date
@@ -157,22 +220,10 @@ class History:
 
         Returns:
             pandas DataFrame with multi-index and fields as columns
-
-        Examples:
-            >>> data = {
-                    ('2024-01-01', 'AAPL'): Bar(close=155, open=150, high=160, low=140, volume=1000000, vwap=150),
-                    ('2024-01-01', 'MSFT'): Bar(close=255, open=250, high=260, low=240, volume=2000000, vwap=250)
-                }
-            >>> history = History(data)
-            >>> history.get(
-            # Output:
-            # date        security
-            # 2024-01-01  AAPL      155
-            # Name: close, dtype: int64
         """
-        return History(self._get(levels, fields), self.security_manager)
+        return History(self.get_df(levels, fields), self.schema)
 
-    def add(self, data: pd.DataFrame | History):
+    def add(self, data: History | pd.DataFrame | tuple | dict):
         """
         Add historical data to history
 
@@ -195,8 +246,19 @@ class History:
             # 2024-01-02  AAPL      160
             # Name: close, dtype: int64
         """
-        self.df = self + data
-        self._update()
+        if isinstance(data, History):
+            data = data.df
+        elif isinstance(data, tuple):
+            data = pd.DataFrame([data[1]], index=pd.MultiIndex.from_tuples([data[0]]))
+        elif isinstance(data, dict):
+            data = pd.DataFrame(data)
+        elif not isinstance(data, pd.DataFrame):
+            raise ValueError(f"Invalid type {type(data)} for data")
+        # Dangerous to concat here because it might not keep index
+        self.df = pd.concat([self.df, data])
+        # so we call update_df to make sure index is correct
+        self.update_df()
+        self.update_schema()
 
     def set(self, fields: List[str] = None, values: pd.DataFrame | dict = None):
         """
@@ -221,9 +283,12 @@ class History:
             # 2024-01-01  AAPL      155
             # Name: close, dtype: int64
         """
-        self._set(fields=fields, values=values)
-        self._update()
+        if values is None:
+            values = pd.DataFrame()
 
-    def _update(self):
-        self.security_manager.add(self.get_level())
-        self.fields = self.df.columns.tolist()
+        if isinstance(values, pd.DataFrame):
+            values = values.to_dict()
+        elif not isinstance(values, dict):
+            raise ValueError(f"Invalid type {type(values)} for values")
+
+        self.set_df(fields=fields, values=values)

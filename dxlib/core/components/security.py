@@ -46,7 +46,9 @@ class Security:
 
 
 class SecurityManager(dict[str, Security]):
-    def __init__(self, cash: Security | str | None = None, securities: List[Security] = None):
+    def __init__(
+        self, cash: Security | str | None = None, securities: List[Security] = None
+    ):
         super().__init__()
         self._cash = Security("cash", SecurityType.cash) if cash is None else cash
         self._securities: dict[str, Security] = securities if securities else {}
@@ -93,11 +95,14 @@ class SecurityManager(dict[str, Security]):
             raise ValueError(f"Invalid security manager type {type(other)}")
         return SecurityManager.from_list(list(self) + list(other), cash=self.cash)
 
-    def add(self, security: Security | List[Security] | str):
+    def add(self, security: Security | List[Security] | List[str] | str):
         if isinstance(security, Security):
             self.add_security(security)
         elif isinstance(security, list):
-            self.add_securities(security)
+            if all(isinstance(item, Security) for item in security):
+                self.add_securities(security)
+            else:
+                self.add_tickers(security)
         elif isinstance(security, str):
             self.add_ticker(security)
         else:
@@ -114,3 +119,16 @@ class SecurityManager(dict[str, Security]):
 
     def add_ticker(self, ticker: str):
         self.add_security(Security(ticker))
+
+    def add_tickers(self, tickers: List[str]):
+        for ticker in tickers:
+            self.add_ticker(ticker)
+
+    def convert(self, security: Security | str):
+        # method to convert security to this security manager's security
+        if isinstance(security, Security):
+            return self.get(security.ticker)
+        elif isinstance(security, str):
+            return self.get(security)
+        else:
+            raise ValueError(f"Invalid security type {type(security)}")
