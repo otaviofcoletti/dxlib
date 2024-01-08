@@ -15,7 +15,7 @@ pip install dxlib
 
 ## Modules Overview
 
-### API Modules
+### Interfaces
 Encapsulates a series of financial data api, allowing static data requests, data streaming and websocket creation.
 Currently available APIs endpoints are:
 * Alpaca Markets

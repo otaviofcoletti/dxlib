@@ -1,7 +1,6 @@
 import pandas as pd
 
-from dxlib.core.strategy import Strategy
-from ...core import History
+from ...core import History, Strategy
 
 
 class RsiStrategy(Strategy):

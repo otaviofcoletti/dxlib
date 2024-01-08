@@ -4,10 +4,10 @@ from abc import ABC
 
 from ..interfaces import Interface
 from ..servers import Server, HttpServer, get_endpoints
-from .manager import Manager, MessageHandler
+from .manager import Manager
 
 
-class InterfaceMessageHandler(MessageHandler):
+class InterfaceMessageHandler:
     def __init__(self):
         super().__init__()
 

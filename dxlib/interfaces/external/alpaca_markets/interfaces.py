@@ -92,7 +92,7 @@ class AlpacaOrder(OrderInterface):
                 time_in_force="gtc",
             )
 
-            return Order.from_type(order_data)
+            return Order(order_data)
         except Exception as e:
             print(e)
             return None

@@ -6,11 +6,10 @@ from websockets.exceptions import ConnectionClosedError
 
 from .server import Server, ServerStatus
 from ..managers.handler import MessageHandler
-from ..core import no_logger
 
 
 class WebsocketServer(Server):
-    def __init__(self, handler: MessageHandler = None, port=None, logger=None):
+    def __init__(self, handler: MessageHandler, port=None, logger=None):
         super().__init__(handler, logger)
         self._websocket_thread = None
         self._websocket_server = None
@@ -18,8 +17,6 @@ class WebsocketServer(Server):
         self._stop_event = asyncio.Event()
 
         self.port = port if port else 8765
-
-        self.logger = logger if logger else no_logger(__name__)
 
     async def websocket_handler(self, websocket, endpoint):
         self.logger.info("New websocket connection")
@@ -79,14 +76,3 @@ class WebsocketServer(Server):
 
     def alive(self):
         return self._running.is_set()
-
-
-if __name__ == "__main__":
-    websocket_server = WebsocketServer(None)
-    websocket_server.start()
-    try:
-        input("Press any key to exit...")
-    except KeyboardInterrupt:
-        pass
-    finally:
-        websocket_server.stop()

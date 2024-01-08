@@ -5,7 +5,7 @@ import threading
 from typing import Generator, AsyncGenerator
 
 from .manager import Manager, MessageHandler
-from ..core import no_logger, History
+from ..core import History
 
 
 def to_async(subscription: Generator, delay=0.0):
@@ -30,7 +30,6 @@ class FeedManager(Manager):
         self._running = threading.Event()
 
         self.thread = None
-        self.logger = no_logger(__name__) if logger is None else logger
 
         self.message_handler = FeedMessageHandler(self)
 

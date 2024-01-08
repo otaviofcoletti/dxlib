@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from ...core.portfolio import Portfolio
-from ...core.security import SecurityManager
-from ...core.trading.order import Order, OrderData, OrderType
+from ...core import Portfolio, SecurityManager
+from ...core.trading import Order, OrderDetails, OrderType
 from ...core import History
 from ...servers.endpoint import Endpoint
 from ..interfaces import (
@@ -58,9 +57,9 @@ class SandboxOrder(OrderInterface):
         super().__init__()
 
     def send(
-        self, order_data: OrderData, market: MarketInterface = None, *args, **kwargs
+        self, order_data: OrderDetails, market: MarketInterface = None, *args, **kwargs
     ) -> Order:
-        order = Order.from_type(order_data)
+        order = Order(order_data)
 
         if order.data.order_type != OrderType.MARKET:
             raise NotImplementedError(
@@ -73,7 +72,6 @@ class SandboxOrder(OrderInterface):
 
         order.data.price = MarketUtilities.get_close_price(market, order.data.security)
 
-        order.create_transaction()
         return order
 
     def cancel(self, order):

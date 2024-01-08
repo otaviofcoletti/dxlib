@@ -4,7 +4,6 @@ from abc import ABC
 from ..servers import Server, HttpServer
 from ..servers.endpoint import get_endpoints
 from ..core.logger import LoggerMixin
-from .handler import MessageHandler
 
 
 class Manager(ABC, LoggerMixin):
@@ -14,8 +13,8 @@ class Manager(ABC, LoggerMixin):
         logger: logging.Logger = None,
     ):
         super().__init__(logger)
-        if isinstance(self.comms, Server):
-            self.comms = [self.comms]
+        if isinstance(comms, Server):
+            self.comms = [comms]
 
         self.set_comms(comms or [])
 

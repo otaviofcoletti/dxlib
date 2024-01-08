@@ -8,16 +8,13 @@ import numpy as np
 import pandas as pd
 import websockets
 
-from ..core import Portfolio, History
-from ..core.logger import LoggerMixin
-from dxlib.core.components.inventory import Inventory
+from ..core import Portfolio, History, Strategy, LoggerMixin, Inventory
 from ..servers import WebsocketServer
 from ..servers.endpoint import Endpoint
-from ..strategies import Strategy
-from .manager import Manager, MessageHandler
+from .manager import Manager
 
 
-class StrategyManager(Manager):
+class StrategyEndpointHandler(Manager):
     def __init__(self, strategy, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -73,11 +70,11 @@ class StrategyManager(Manager):
         return portfolio.accumulate()
 
     def run(
-            self,
-            obj: History | Generator | AsyncGenerator | pd.DataFrame | np.ndarray | dict,
-            threaded=False,
-            executor: Executor = None,
-            position: Inventory = None,
+        self,
+        obj: History | Generator | AsyncGenerator | pd.DataFrame | np.ndarray | dict,
+        threaded=False,
+        executor: Executor = None,
+        position: Inventory = None,
     ) -> History | Generator | AsyncGenerator | concurrent.futures.Future | None:
         if position is None:
             position = self.position
@@ -89,81 +86,9 @@ class StrategyManager(Manager):
         return executor.run(obj, threaded)
 
 
-class Executor(LoggerMixin):
-    def __init__(self, strategy: Strategy = None, position: Inventory = None, logger=None):
-        super().__init__(logger)
-        self.strategy = strategy
-        self._position = position
-        self._history = History()
-
-    @property
-    def history(self):
-        return self._history
-
-    @history.setter
-    def history(self, value: History):
-        self._history = value
-
-    def run(
-            self,
-            obj: History | Generator | AsyncGenerator,
-            in_place: bool = False,
-    ) -> pd.Series | Generator | AsyncGenerator | None:
-        if obj is None:
-            raise ValueError("Cannot run strategy on None")
-        if self.strategy is None:
-            raise ValueError("No strategy set")
-
-        if not in_place:
-            self._history = History()
-
-        if isinstance(obj, History):
-            return self._consume(obj)
-        elif isinstance(obj, Generator):
-            return self._consume_sync(obj)
-        elif isinstance(obj, AsyncGenerator):
-            return self._consume_async(obj)
-
-    def _consume(self, obj: History) -> pd.Series:
-        signals = pd.Series()
-
-        try:
-            for bar in obj:
-                idx = bar[0]
-                bar_df = bar[1]
-                signals[idx] = self._consume_bar(idx, bar_df)
-        finally:
-            return signals
-
-    def _consume_sync(self, obj: Generator):
-        try:
-            for bar in obj:
-                idx = bar[0]
-                bar_df = bar[1]
-                signals = self._consume_bar(idx, bar_df)
-                yield signals
-        finally:
-            return
-
-    async def _consume_async(self, obj: AsyncGenerator):
-        try:
-            async for bar in obj:
-                idx = bar[0]
-                bar_df = bar[1]
-                signals = self._consume_bar(idx, bar_df)
-                yield signals
-        finally:
-            return
-
-    def _consume_bar(self, idx, bar_df):
-        self._history += bar_df
-        signals = self.strategy.execute(idx, self._position, self._history)
-        return signals
-
-
-class StrategyMessageHandler(MessageHandler):
+class StrategyMessageHandler:
     def __init__(
-            self, manager: StrategyManager, websocket_server: WebsocketServer = None
+        self, manager: StrategyManager, websocket_server: WebsocketServer = None
     ):
         super().__init__()
         self.manager = manager
