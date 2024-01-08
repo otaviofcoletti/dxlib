@@ -47,27 +47,18 @@ class Security:
 
 class SecurityManager(dict[str, Security]):
     def __init__(
-        self, cash: Security | str | None = None, securities: List[Security] = None
+        self, securities: List[Security] = None, cash: Security | str | None = None
     ):
         super().__init__()
-        self._cash = Security("cash", SecurityType.cash) if cash is None else cash
         self._securities: dict[str, Security] = securities if securities else {}
+        self._cash = Security("cash", SecurityType.cash) if cash is None else cash
 
     @classmethod
-    def from_list(
-        cls, securities: List[Security | str], cash: Security | str | None = None
-    ):
-        security_manager = SecurityManager(cash)
-        for security in securities:
-            security_manager.add(security)
-        return security_manager
+    def from_list(cls, tickers: List[str], cash: Security | str | None = None):
+        return SecurityManager([Security(ticker) for ticker in tickers], cash=cash)
 
     def __repr__(self):
         return f"SecurityManager({len(self._securities)})"
-
-    @property
-    def cash(self):
-        return self._cash
 
     def __len__(self):
         return len(self._securities)
@@ -75,11 +66,10 @@ class SecurityManager(dict[str, Security]):
     def __getitem__(self, item: str):
         return self._securities[item]
 
-    def get(self, item: str, default: Security | None = None):
-        return self._securities.get(item, default)
-
-    def __contains__(self, item: str):
-        return item in self._securities
+    def __contains__(self, item: str | Security):
+        return item in self._securities or (
+            isinstance(item, Security) and item.ticker in self._securities
+        )
 
     def __iter__(self):
         return iter(self._securities.keys())
@@ -95,40 +85,31 @@ class SecurityManager(dict[str, Security]):
             raise ValueError(f"Invalid security manager type {type(other)}")
         return SecurityManager.from_list(list(self) + list(other), cash=self.cash)
 
-    def add(self, security: Security | List[Security] | List[str] | str):
+    @property
+    def cash(self):
+        return self._cash
+
+    def get(self, item: Security | str, default: Security | str | None = None):
+        if isinstance(item, Security):
+            return self._securities.get(item.ticker, default)
+        elif isinstance(item, str):
+            return self._securities.get(item, default)
+        else:
+            raise ValueError(f"Invalid type {type(item)} for item")
+
+    def get_list(self, items: List[Security | str]):
+        return [self.get(item) for item in items]
+
+    def add(self, security: Security | str):
         if isinstance(security, Security):
-            self.add_security(security)
-        elif isinstance(security, list):
-            if all(isinstance(item, Security) for item in security):
-                self.add_securities(security)
-            else:
-                self.add_tickers(security)
+            if security.ticker in self._securities:
+                raise ValueError(f"Security {security} already exists in manager")
+            self._securities[security.ticker] = security
         elif isinstance(security, str):
-            self.add_ticker(security)
+            self._securities[security] = Security(security)
         else:
             raise ValueError(f"Invalid security type {type(security)}")
 
-    def add_security(self, security: Security):
-        if security.ticker in self._securities:
-            raise ValueError(f"Security {security} already exists in manager")
-        self._securities[security.ticker] = security
-
-    def add_securities(self, securities: List[Security]):
+    def add_list(self, securities: List[Security | str]):
         for security in securities:
-            self.add_security(security)
-
-    def add_ticker(self, ticker: str):
-        self.add_security(Security(ticker))
-
-    def add_tickers(self, tickers: List[str]):
-        for ticker in tickers:
-            self.add_ticker(ticker)
-
-    def convert(self, security: Security | str):
-        # method to convert security to this security manager's security
-        if isinstance(security, Security):
-            return self.get(security.ticker)
-        elif isinstance(security, str):
-            return self.get(security)
-        else:
-            raise ValueError(f"Invalid security type {type(security)}")
+            self.add(security) if security not in self else None
