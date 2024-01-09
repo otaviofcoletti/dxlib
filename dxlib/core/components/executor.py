@@ -21,6 +21,7 @@ class Executor(LoggerMixin):
         super().__init__(logger)
         self.strategy = strategy
         self._position = position
+        self.schema = schema
         self._history = History(schema=schema)
 
     @property
@@ -42,7 +43,7 @@ class Executor(LoggerMixin):
             raise ValueError("No strategy set")
 
         if not in_place:
-            self._history = History()
+            self._history = History(schema=self.schema)
 
         if isinstance(obj, History):
             return self._consume(obj)
@@ -51,12 +52,12 @@ class Executor(LoggerMixin):
         elif isinstance(obj, AsyncGenerator):
             return self._consume_async(obj)
 
-    def _consume(self, obj: History) -> pd.Series:
-        signals = pd.Series(dtype=object)
+    def _consume(self, obj: History) -> History:
+        signals = History(schema=self.schema)
 
         try:
             for idx, bar in obj:
-                signals[idx] = self._consume_bar(idx, bar)
+                signals.add(self._consume_bar(idx, bar))
         except Exception as e:
             self.logger.exception(e)
             raise e
@@ -83,7 +84,7 @@ class Executor(LoggerMixin):
         finally:
             return
 
-    def _consume_bar(self, idx, bar):
+    def _consume_bar(self, idx, bar) -> pd.Series:
         self._history.add((idx, bar))
         signals = self.strategy.execute((idx, bar), self._position, self._history)
         return signals

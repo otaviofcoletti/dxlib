@@ -15,6 +15,6 @@ class Strategy(ABC):
 
     @abstractmethod
     def execute(
-        self, idx, position: Inventory, history: History
-    ) -> pd.Series:  # expected element type: Signal
+        self, observation: any, position: Inventory, history: History
+    ) -> pd.Series:
         pass

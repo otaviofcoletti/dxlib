@@ -43,7 +43,7 @@ class OrderDetails:
         )
 
     def __str__(self):
-        return f"{self.side}: {self.security} {self.quantity} @ {self.price}"
+        return f"{self.side.name}: {self.security} {self.quantity} @ {self.price}"
 
     def __dict__(self):
         return {

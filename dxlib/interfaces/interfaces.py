@@ -5,12 +5,12 @@ from abc import ABC, abstractmethod
 from dxlib.core.components.history import History
 from ..core.portfolio import Portfolio
 from ..core.trading.order import OrderDetails, Order
-from ..managers.handler import MessageHandler
+from ..servers.handler import Handler
 
 
 class Interface(ABC):
     def __init__(self):
-        self.message_handler: MessageHandler | None = None
+        self.handler: Handler | None = None
 
     pass
 

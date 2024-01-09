@@ -78,7 +78,7 @@ Start the server with `simulation_manager.start_server()`. Check the logs for se
 ```python
 
 import dxlib as dx
-from dxlib.managers import SimulationManager
+from dxlib.servers.handlers import SimulationManager
 
 data = dx.api.YFinanceAPI().get_historical_bars(["AAPL", "MSFT", "GOOGL", "AMZN"], start="2022-01-01", end="2022-12-31")
 my_strategy = dx.strategies.RsiStrategy()
@@ -89,14 +89,14 @@ my_manager = SimulationManager(my_strategy, use_server=True, port=5000, logger=l
 my_manager.start()
 
 try:
-    while my_manager.server.is_alive():
-        with my_manager.server.exceptions as exceptions:
-            if exceptions:
-                logger.exception(exceptions)
+  while my_manager.server.is_alive():
+    with my_manager.server.exceptions as exceptions:
+      if exceptions:
+        logger.exception(exceptions)
 except KeyboardInterrupt:
-    pass
+  pass
 finally:
-    my_manager.stop_server()
+  my_manager.stop_server()
 ```
 
 ```bash
