@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import List
+from typing import List, Dict
 
 
 class SecurityType(Enum):
@@ -21,9 +21,9 @@ class SecurityType(Enum):
 
 class Security:
     def __init__(
-        self,
-        ticker: str,
-        security_type: SecurityType | str = SecurityType.equity,
+            self,
+            ticker: str,
+            security_type: SecurityType | str = SecurityType.equity,
     ):
         self.ticker = ticker
         self.security_type = (
@@ -47,15 +47,28 @@ class Security:
 
 class SecurityManager(dict[str, Security]):
     def __init__(
-        self, securities: List[Security] = None, cash: Security | str | None = None
+            self, securities: Dict[str, Security] = None, cash: Security | str | None = None
     ):
         super().__init__()
-        self._securities: dict[str, Security] = securities if securities else {}
+        self._securities: Dict[str, Security] = securities if securities else {}
         self._cash = Security("cash", SecurityType.cash) if cash is None else cash
 
     @classmethod
-    def from_list(cls, tickers: List[str], cash: Security | str | None = None):
-        return SecurityManager([Security(ticker) for ticker in tickers], cash=cash)
+    def from_list(cls, securities: List[Security] | List[str], cash: Security | str | None = None):
+        securities = [cls.convert(security) for security in securities]
+
+        return SecurityManager({
+            security.ticker: security for security in securities
+        }, cash=cash)
+
+    @classmethod
+    def convert(cls, security: Security | str):
+        if isinstance(security, Security):
+            return security
+        elif isinstance(security, str):
+            return Security(security)
+        else:
+            raise ValueError(f"Invalid security type {type(security)}")
 
     def __repr__(self):
         return f"SecurityManager({len(self._securities)})"
@@ -68,7 +81,7 @@ class SecurityManager(dict[str, Security]):
 
     def __contains__(self, item: str | Security):
         return item in self._securities or (
-            isinstance(item, Security) and item.ticker in self._securities
+                isinstance(item, Security) and item.ticker in self._securities
         )
 
     def __iter__(self):
@@ -97,7 +110,7 @@ class SecurityManager(dict[str, Security]):
         else:
             raise ValueError(f"Invalid type {type(item)} for item")
 
-    def get_list(self, items: List[Security | str]):
+    def map(self, items: List[Security | str]):
         return [self.get(item) for item in items]
 
     def add(self, security: Security | str):
