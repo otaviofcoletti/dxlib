@@ -1,7 +1,7 @@
 import time
 import unittest
 
-from dxlib.managers.interface_manager import InterfaceManager, InterfaceMessageHandler
+from dxlib.servers.handlers.interface_manager import InterfaceManager
 from dxlib.interfaces.sandbox import SandboxMarket
 from dxlib.servers import HttpServer, WebsocketServer
 

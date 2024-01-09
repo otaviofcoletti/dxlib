@@ -58,7 +58,7 @@ class TestSecurityManager(unittest.TestCase):
         tickers = ["AAPL", "MSFT", "GOOG"]
         self.security_manager.add(tickers[0])
 
-        securities = self.security_manager.get_list(tickers)
+        securities = self.security_manager.map(tickers)
         self.assertEqual(securities[0].ticker, "AAPL")
 
     def test_convert_security(self):
@@ -71,7 +71,7 @@ class TestSecurityManager(unittest.TestCase):
             dx.Security("GOOG"),
         ]
 
-        securities = self.security_manager.get_list(different_securities)
+        securities = self.security_manager.map(different_securities)
         self.assertEqual(securities[0].ticker, "AAPL")
 
     def test_add_intersection(self):
