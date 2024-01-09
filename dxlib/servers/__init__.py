@@ -1,4 +1,3 @@
 from .server import Server, ServerStatus, handle_exceptions_decorator
-from .endpoint import Endpoint, get_endpoints
-from .http_server import HttpServer
+from .http_server import HTTPServer
 from .websocket_server import WebsocketServer

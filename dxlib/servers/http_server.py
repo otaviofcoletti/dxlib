@@ -7,6 +7,7 @@ import threading
 from urllib.parse import parse_qs, urlparse
 
 from .server import ServerStatus, handle_exceptions_decorator, Server
+from dxlib.servers.handler import HTTPHandler
 
 
 class ReusableTCPServer(socketserver.TCPServer):
@@ -15,18 +16,15 @@ class ReusableTCPServer(socketserver.TCPServer):
         super().server_bind()
 
 
-class HttpServer(Server):
+class HTTPServer(Server):
     def __init__(
-        self, handler: callable = None, port=None, endpoints: dict = None, logger=None
+        self, handler: HTTPHandler = None, port=None, logger=None
     ):
         super().__init__(handler, logger)
-        self.endpoints = {}
+        self.endpoints = handler.endpoints if handler else {}
         self.port = port if port else self._get_free_port()
 
-        self.add_endpoints(endpoints)
-
         self._error = threading.Event()
-
         self._httpd_server = None
         self._httpd_thread = None
 

@@ -5,9 +5,12 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import websockets
 
+from .server import Server
 
-class Connector:
+
+class ProxyServer(Server):
     def __init__(self, servers=None, http_port=4000):
+        super().__init__()
         if servers is None:
             servers = {}
         self.http_port = http_port

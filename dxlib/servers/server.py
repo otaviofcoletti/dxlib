@@ -3,7 +3,7 @@ import threading
 from abc import ABC, abstractmethod
 from enum import Enum
 
-from ..managers.handler import MessageHandler
+from dxlib.servers.handler import Handler
 from ..core import LoggerMixin
 
 
@@ -35,7 +35,7 @@ class ExceptionContext:
 
 
 class Server(ABC, LoggerMixin):
-    def __init__(self, handler: MessageHandler = None, logger=None):
+    def __init__(self, handler: Handler = None, logger=None):
         super().__init__(logger=logger)
         self.handler = handler
         self._running = threading.Event()

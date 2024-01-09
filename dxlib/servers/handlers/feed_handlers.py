@@ -5,7 +5,7 @@ import threading
 from typing import Generator, AsyncGenerator
 
 from .manager import Manager, MessageHandler
-from ..core import History
+from dxlib.core import History
 
 
 def to_async(subscription: Generator, delay=0.0):

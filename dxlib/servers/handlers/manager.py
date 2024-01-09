@@ -1,9 +1,9 @@
 import logging
 from abc import ABC
 
-from ..servers import Server, HttpServer
-from ..servers.endpoint import get_endpoints
-from ..core.logger import LoggerMixin
+from dxlib.servers import Server, HTTPServer
+from dxlib.servers.endpoint import get_endpoints
+from dxlib.core.logger import LoggerMixin
 
 
 class Manager(ABC, LoggerMixin):
@@ -24,7 +24,7 @@ class Manager(ABC, LoggerMixin):
             comm.logger = self.logger
 
     def add_comm(self, comm: Server):
-        if isinstance(comm, HttpServer):
+        if isinstance(comm, HTTPServer):
             comm.add_endpoints(get_endpoints(self))
 
         self.comms.append(comm)

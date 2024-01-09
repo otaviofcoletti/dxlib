@@ -5,11 +5,11 @@ import websockets
 from websockets.exceptions import ConnectionClosedError
 
 from .server import Server, ServerStatus
-from ..managers.handler import MessageHandler
+from .handler import WebsocketHandler
 
 
 class WebsocketServer(Server):
-    def __init__(self, handler: MessageHandler, port=None, logger=None):
+    def __init__(self, handler: WebsocketHandler, port=None, logger=None):
         super().__init__(handler, logger)
         self._websocket_thread = None
         self._websocket_server = None

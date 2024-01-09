@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from abc import ABC
 
-from ..interfaces import Interface
-from ..servers import Server, HttpServer, get_endpoints
+from dxlib.interfaces import Interface
+from dxlib.servers import Server, HTTPServer
 from .manager import Manager
 
 

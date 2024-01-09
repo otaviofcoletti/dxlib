@@ -8,13 +8,13 @@ import numpy as np
 import pandas as pd
 import websockets
 
-from ..core import Portfolio, History, Strategy, LoggerMixin, Inventory
-from ..servers import WebsocketServer
-from ..servers.endpoint import Endpoint
-from .manager import Manager
+from dxlib.servers.handler import HTTPHandler
+from dxlib.core import Portfolio, History, Strategy, Inventory
+from dxlib.servers import WebsocketServer
+from dxlib.servers.endpoint import Endpoint
 
 
-class StrategyEndpointHandler(Manager):
+class StrategyHTTPHandler(HTTPHandler):
     def __init__(self, strategy, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
