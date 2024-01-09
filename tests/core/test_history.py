@@ -54,6 +54,17 @@ class TestHistory(unittest.TestCase):
 
         print(history.df)
 
+    def test_add_external(self):
+        external_security = dx.Security("TSLA")
+        history = dx.History(schema=self.schema)
+        self.schema.security_manager += external_security
+
+        history.add(((pd.Timestamp("2021-01-01"), "TSLA"), {"close": 100}))
+
+        self.assertEqual(history.df.shape, (1, 1))
+        self.assertEqual(history.df.index.names, ["date", "security"])
+        self.assertEqual(history.df.columns, ["close"])
+
 
 if __name__ == "__main__":
     unittest.main()

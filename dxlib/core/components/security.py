@@ -100,6 +100,15 @@ class SecurityManager(dict[str, Security]):
             raise ValueError(f"Invalid security manager type {type(other)}")
         return SecurityManager.from_list(list(self) + list(other), cash=self.cash)
 
+    def __iadd__(self, other: SecurityManager | Security | str):
+        if isinstance(other, SecurityManager):
+            self._securities.update(other._securities)
+        elif isinstance(other, Security) or isinstance(other, str):
+            self.add(other)
+        else:
+            raise ValueError(f"Invalid security manager type {type(other)}")
+        return self
+
     @property
     def cash(self):
         return self._cash
