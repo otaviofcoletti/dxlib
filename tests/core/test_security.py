@@ -65,7 +65,11 @@ class TestSecurityManager(unittest.TestCase):
         securities = [dx.Security("AAPL"), dx.Security("MSFT"), dx.Security("GOOG")]
         self.security_manager.add(securities[0])
 
-        different_securities = [dx.Security("AAPL"), dx.Security("MSFT"), dx.Security("GOOG")]
+        different_securities = [
+            dx.Security("AAPL"),
+            dx.Security("MSFT"),
+            dx.Security("GOOG"),
+        ]
 
         securities = self.security_manager.get_list(different_securities)
         self.assertEqual(securities[0].ticker, "AAPL")

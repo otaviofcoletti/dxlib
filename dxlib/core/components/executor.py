@@ -12,7 +12,11 @@ from .history import History, HistorySchema
 
 class Executor(LoggerMixin):
     def __init__(
-        self, strategy: Strategy = None, position: Inventory = None, schema: HistorySchema = None, logger=None
+        self,
+        strategy: Strategy = None,
+        position: Inventory = None,
+        schema: HistorySchema = None,
+        logger=None,
     ):
         super().__init__(logger)
         self.strategy = strategy

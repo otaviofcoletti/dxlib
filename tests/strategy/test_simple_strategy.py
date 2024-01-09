@@ -29,9 +29,8 @@ class TestSimpleStrategy(unittest.TestCase):
             universe, prices = self.get_state(history, idx)
 
             signals = {
-                security: dx.Signal(
-                    dx.Side.BUY, 1, prices.loc[idx, security]
-                ) for security in universe
+                security: dx.Signal(dx.Side.BUY, 1, prices.loc[idx, security])
+                for security in universe
             }
 
             return pd.Series(signals)
@@ -44,16 +43,17 @@ class TestSimpleStrategy(unittest.TestCase):
             security_manager=dx.SecurityManager.from_list(["AAPL", "MSFT"]),
         )
 
-        inventory = dx.Inventory({
-          security: 0 for security in schema.security_manager
-        })
+        inventory = dx.Inventory({security: 0 for security in schema.security_manager})
 
-        history = dx.History({
-            (pd.Timestamp("2021-01-01"), "AAPL"): {"close": 100},
-            (pd.Timestamp("2021-01-01"), "MSFT"): {"close": 200},
-            (pd.Timestamp("2021-01-02"), "AAPL"): {"close": 110},
-            (pd.Timestamp("2021-01-02"), "MSFT"): {"close": 210},
-        }, schema)
+        history = dx.History(
+            {
+                (pd.Timestamp("2021-01-01"), "AAPL"): {"close": 100},
+                (pd.Timestamp("2021-01-01"), "MSFT"): {"close": 200},
+                (pd.Timestamp("2021-01-02"), "AAPL"): {"close": 110},
+                (pd.Timestamp("2021-01-02"), "MSFT"): {"close": 210},
+            },
+            schema,
+        )
 
         executor = dx.Executor(strategy, inventory, schema)
         signals = executor.run(history)

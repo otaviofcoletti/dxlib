@@ -55,5 +55,5 @@ class TestHistory(unittest.TestCase):
         print(history.df)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

@@ -29,14 +29,16 @@ class HistorySchema:
     security_manager: SecurityManager
 
     def __init__(
-            self,
-            levels: List[HistoryLevel] = None,
-            fields: List[str] = None,
-            security_manager: SecurityManager = None,
+        self,
+        levels: List[HistoryLevel] = None,
+        fields: List[str] = None,
+        security_manager: SecurityManager = None,
     ):
         self.levels = levels if levels else HistoryLevel.levels()
         self.fields = fields if fields else []
-        self.security_manager = security_manager if security_manager else SecurityManager()
+        self.security_manager = (
+            security_manager if security_manager else SecurityManager()
+        )
 
     def __dict__(self):
         return {
@@ -52,9 +54,9 @@ class HistorySchema:
 
 class History:
     def __init__(
-            self,
-            df: pd.DataFrame | dict | None = None,
-            schema: HistorySchema | None = None,
+        self,
+        df: pd.DataFrame | dict | None = None,
+        schema: HistorySchema | None = None,
     ):
         """
         History is a multi-indexed dataframe encapsulation
@@ -114,12 +116,18 @@ class History:
     @classmethod
     def from_dict(cls, history: dict, schema: HistorySchema | None = None):
         return cls(
-            history.get("df", None), HistorySchema.from_dict(history.get("schema", {}) if schema is None else schema)
+            history.get("df", None),
+            HistorySchema.from_dict(
+                history.get("schema", {}) if schema is None else schema
+            ),
         )
 
     @classmethod
     def from_tuple(cls, history: tuple, schema: HistorySchema | None = None):
-        return cls(pd.DataFrame([history[1]], index=pd.MultiIndex.from_tuples([history[0]])), schema)
+        return cls(
+            pd.DataFrame([history[1]], index=pd.MultiIndex.from_tuples([history[0]])),
+            schema,
+        )
 
     def __add__(self, other: History):
         if not isinstance(other, History):
@@ -131,7 +139,10 @@ class History:
         )
         security_manager = SecurityManager.from_list(list(securities))
 
-        return History(pd.concat([self.df, other.df]), schema=HistorySchema(security_manager=security_manager))
+        return History(
+            pd.concat([self.df, other.df]),
+            schema=HistorySchema(security_manager=security_manager),
+        )
 
     def __iadd__(self, other: History):
         if not isinstance(other, History):
@@ -145,13 +156,19 @@ class History:
     def level_unique(self, level: HistoryLevel = HistoryLevel.SECURITY):
         return self.df.index.get_level_values(level.value).unique().tolist()
 
-    def levels_unique(self, levels: List[HistoryLevel] = None) -> Dict[HistoryLevel, list]:
+    def levels_unique(
+        self, levels: List[HistoryLevel] = None
+    ) -> Dict[HistoryLevel, list]:
         if levels is None:
             levels = self.schema.levels
-        return {level: self.level_unique(level) for level in levels if level in self.schema.levels}
+        return {
+            level: self.level_unique(level)
+            for level in levels
+            if level in self.schema.levels
+        }
 
     def get_df(
-            self, levels: Dict[HistoryLevel, list] = None, fields: List[str] = None
+        self, levels: Dict[HistoryLevel, list] = None, fields: List[str] = None
     ) -> pd.DataFrame:
         if self.df.empty:
             return pd.DataFrame()
@@ -163,7 +180,10 @@ class History:
 
         masks = reduce(
             lambda x, y: x & y,
-            (self.df.index.get_level_values(level.value).isin(values) for level, values in levels.items()),
+            (
+                self.df.index.get_level_values(level.value).isin(values)
+                for level, values in levels.items()
+            ),
         )
 
         df = self.df[masks]
@@ -171,10 +191,10 @@ class History:
         return df[fields] if not df.empty else pd.DataFrame()
 
     def set_df(
-            self,
-            levels: Dict[HistoryLevel, list] = None,
-            fields: List[str] = None,
-            values: pd.DataFrame | dict = None,
+        self,
+        levels: Dict[HistoryLevel, list] = None,
+        fields: List[str] = None,
+        values: pd.DataFrame | dict = None,
     ):
         if self.df.empty:
             return
@@ -197,7 +217,7 @@ class History:
         self.df = df
 
     def get(
-            self, levels: Dict[HistoryLevel, list] = None, fields: List[str] = None
+        self, levels: Dict[HistoryLevel, list] = None, fields: List[str] = None
     ) -> History:
         """
         Get historical data for a given security, field and date

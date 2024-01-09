@@ -21,9 +21,9 @@ class SecurityType(Enum):
 
 class Security:
     def __init__(
-            self,
-            ticker: str,
-            security_type: SecurityType | str = SecurityType.equity,
+        self,
+        ticker: str,
+        security_type: SecurityType | str = SecurityType.equity,
     ):
         self.ticker = ticker
         self.security_type = (
@@ -47,19 +47,21 @@ class Security:
 
 class SecurityManager(dict[str, Security]):
     def __init__(
-            self, securities: Dict[str, Security] = None, cash: Security | str | None = None
+        self, securities: Dict[str, Security] = None, cash: Security | str | None = None
     ):
         super().__init__()
         self._securities: Dict[str, Security] = securities if securities else {}
         self._cash = Security("cash", SecurityType.cash) if cash is None else cash
 
     @classmethod
-    def from_list(cls, securities: List[Security] | List[str], cash: Security | str | None = None):
+    def from_list(
+        cls, securities: List[Security] | List[str], cash: Security | str | None = None
+    ):
         securities = [cls.convert(security) for security in securities]
 
-        return SecurityManager({
-            security.ticker: security for security in securities
-        }, cash=cash)
+        return SecurityManager(
+            {security.ticker: security for security in securities}, cash=cash
+        )
 
     @classmethod
     def convert(cls, security: Security | str):
@@ -81,7 +83,7 @@ class SecurityManager(dict[str, Security]):
 
     def __contains__(self, item: str | Security):
         return item in self._securities or (
-                isinstance(item, Security) and item.ticker in self._securities
+            isinstance(item, Security) and item.ticker in self._securities
         )
 
     def __iter__(self):
