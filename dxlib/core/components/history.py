@@ -116,11 +116,29 @@ class History:
             "schema": self._schema.__dict__(),
         }
 
+    def __len__(self):
+        return len(self.df)
+
     def __iter__(self):
         return self.df.iterrows()
 
     def __getitem__(self, item):
         return self.df.loc[item]
+
+    def __add__(self, other: History):
+        if not isinstance(other, History):
+            raise ValueError(f"Invalid type {type(other)} for other")
+
+        securities = set(
+            self.level_unique(HistoryLevel.SECURITY)
+            + other.level_unique(HistoryLevel.SECURITY)
+        )
+        security_manager = SecurityManager.from_list(list(securities))
+
+        return History(
+            pd.concat([self.df, other.df]),
+            schema=HistorySchema(security_manager=security_manager),
+        )
 
     @classmethod
     def from_dict(cls, history: dict, schema: HistorySchema | None = None):
@@ -138,19 +156,11 @@ class History:
             schema,
         )
 
-    def __add__(self, other: History):
-        if not isinstance(other, History):
-            raise ValueError(f"Invalid type {type(other)} for other")
-
-        securities = set(
-            self.level_unique(HistoryLevel.SECURITY)
-            + other.level_unique(HistoryLevel.SECURITY)
-        )
-        security_manager = SecurityManager.from_list(list(securities))
-
-        return History(
-            pd.concat([self.df, other.df]),
-            schema=HistorySchema(security_manager=security_manager),
+    @classmethod
+    def from_list(cls, history: List[pd.Series], schema: HistorySchema | None = None):
+        return cls(
+            pd.DataFrame(pd.concat(history)),
+            schema,
         )
 
     @property

@@ -1,19 +1,14 @@
-import http.server
+from __future__ import annotations
+
 import inspect
 import json
 import socket
-import socketserver
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 import threading
 from urllib.parse import parse_qs, urlparse
 
 from .server import ServerStatus, handle_exceptions_decorator, Server
-from dxlib.servers.handler import HTTPHandler
-
-
-class ReusableTCPServer(socketserver.TCPServer):
-    def server_bind(self):
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        super().server_bind()
+from .handler import HTTPHandler
 
 
 class HTTPServer(Server):
@@ -24,9 +19,10 @@ class HTTPServer(Server):
         self.endpoints = handler.endpoints if handler else {}
         self.port = port if port else self._get_free_port()
 
+        self._httpd_thread = threading.Thread(target=self._serve)
+        self._httpd_server: ThreadingHTTPServer | None = None
         self._error = threading.Event()
-        self._httpd_server = None
-        self._httpd_thread = None
+        self._running = threading.Event()
 
     def add_endpoints(self, endpoints):
         if endpoints is None:
@@ -75,7 +71,7 @@ class HTTPServer(Server):
         if self._httpd_server is not None:
             raise RuntimeError("Server already started")
 
-        class SimulationManagerHTTPRequestHandler(http.server.SimpleHTTPRequestHandler):
+        class HTTPRequestHandler(SimpleHTTPRequestHandler):
             endpoints = self.endpoints
             list_endpoints = self.list_endpoints
 
@@ -239,14 +235,17 @@ class HTTPServer(Server):
 
                 return self.call_func(func_callable, endpoint, params, post_data)
 
-        SimulationManagerHTTPRequestHandler.server = self
+        HTTPRequestHandler.server = self
 
         try:
-            with ReusableTCPServer(
-                ("", self.port), SimulationManagerHTTPRequestHandler
+            with ThreadingHTTPServer(
+                ("", self.port), HTTPRequestHandler
             ) as self._httpd_server:
                 self.logger.info(f"Server started. Press Ctrl+C to stop...")
-                self._httpd_server.serve_forever()
+                self._httpd_server.timeout = 1
+                while self._running.is_set():
+                    self.logger.info("Handling request")
+                    self._httpd_server.handle_request()
         except Exception as e:
             self.logger.error(f"Server error: {e}")
             self._error.set()
@@ -257,7 +256,6 @@ class HTTPServer(Server):
     def start(self) -> ServerStatus:
         self.logger.info(f"Server starting on port {self.port}")
         self._running.set()
-        self._httpd_thread = threading.Thread(target=self._serve)
         self._httpd_thread.start()
         return ServerStatus.STARTED
 
@@ -268,17 +266,16 @@ class HTTPServer(Server):
             )
             return ServerStatus.ERROR
 
-        if self._httpd_server is None and self._httpd_thread is None:
+        if not self._running.is_set():
             return ServerStatus.STOPPED
 
-        self._running.wait()
+        self.logger.info("Stopping servers")
         self._running.clear()
 
-        self.logger.info("Stopping servers")
-        self._httpd_server.shutdown()
-        self._httpd_server = None
-        self._httpd_thread.join()
-        self._httpd_thread = None
+        if self._httpd_server is not None and self._httpd_server.socket is not None:
+            self._httpd_server = None
+        if self._httpd_thread is not None and self._httpd_thread.is_alive():
+            self._httpd_thread.join()
         self.logger.info("Server stopped")
 
         return ServerStatus.STOPPED

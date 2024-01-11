@@ -4,7 +4,7 @@ from typing import Generator, AsyncGenerator
 
 import pandas as pd
 
-from ..logger import LoggerMixin
+from dxlib.logger import LoggerMixin
 from .strategy import Strategy
 from .inventory import Inventory
 from .history import History, HistorySchema

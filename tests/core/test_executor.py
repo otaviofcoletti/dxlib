@@ -50,7 +50,28 @@ class TestExecutor(unittest.TestCase):
 
         signals = executor.run(self.history)
 
-        print(signals)
+        self.assertEqual(len(signals), 6)
+        for idx, signal in signals:
+            self.assertEqual(signal.iloc[0].side, dx.Side.BUY)
+
+    def test_async_executor(self):
+        position = dx.Inventory()
+        strategy = self.LongOnlyStrategy()
+        executor = dx.Executor(strategy, position, schema=self.schema)
+
+        def async_generator():
+            for idx, bar in self.history:
+                yield idx, bar
+
+        signal_generator = executor.run(async_generator())
+
+        signal_list = []
+
+        for signal in signal_generator:
+            signal_list.append(signal)
+            self.assertEqual(signal.iloc[0].side, dx.Side.BUY)
+
+        self.assertEqual(len(signal_list), 6)
 
 
 if __name__ == '__main__':

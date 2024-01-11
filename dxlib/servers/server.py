@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 
 from dxlib.servers.handler import Handler
-from ..core import LoggerMixin
+from ..logger import LoggerMixin
 
 
 class ServerStatus(Enum):

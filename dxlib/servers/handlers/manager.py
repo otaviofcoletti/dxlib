@@ -3,7 +3,7 @@ from abc import ABC
 
 from dxlib.servers import Server, HTTPServer
 from dxlib.servers.endpoint import get_endpoints
-from dxlib.core.logger import LoggerMixin
+from dxlib.logger import LoggerMixin
 
 
 class Manager(ABC, LoggerMixin):

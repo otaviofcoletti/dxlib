@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Dict
 
-from ..logger import LoggerMixin
+from dxlib.logger import LoggerMixin
 
 from dxlib.core.components.inventory import Inventory
 from ..components import Security
