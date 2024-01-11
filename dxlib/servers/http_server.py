@@ -15,11 +15,12 @@ class HTTPServer(Server):
     def __init__(
         self, handler: HTTPHandler = None, port=None, logger=None
     ):
-        super().__init__(handler, logger)
+        super().__init__(logger)
+        self.handler = handler
         self.endpoints = handler.endpoints if handler else {}
         self.port = port if port else self._get_free_port()
 
-        self._httpd_thread = threading.Thread(target=self._serve)
+        self._httpd_thread = None
         self._httpd_server: ThreadingHTTPServer | None = None
         self._error = threading.Event()
         self._running = threading.Event()
@@ -256,6 +257,7 @@ class HTTPServer(Server):
     def start(self) -> ServerStatus:
         self.logger.info(f"Server starting on port {self.port}")
         self._running.set()
+        self._httpd_thread = threading.Thread(target=self._serve)
         self._httpd_thread.start()
         return ServerStatus.STARTED
 
@@ -269,16 +271,21 @@ class HTTPServer(Server):
         if not self._running.is_set():
             return ServerStatus.STOPPED
 
-        self.logger.info("Stopping servers")
+        self.logger.info("Stopping HTTP server")
         self._running.clear()
 
         if self._httpd_server is not None and self._httpd_server.socket is not None:
             self._httpd_server = None
         if self._httpd_thread is not None and self._httpd_thread.is_alive():
             self._httpd_thread.join()
-        self.logger.info("Server stopped")
+            self._httpd_thread = None
 
+        self.logger.info("Server stopped")
         return ServerStatus.STOPPED
+
+    @property
+    def alive(self):
+        return self._running.is_set() and self._httpd_thread.is_alive()
 
     def __del__(self):
         self.stop()

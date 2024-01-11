@@ -19,7 +19,14 @@ class HTTPHandler(Handler, ABC):
 
 
 class WebsocketHandler(Handler):
-    pass
+    def connect(self, websocket, endpoint):
+        pass
+
+    def disconnect(self, websocket, endpoint):
+        pass
+
+    def handle(self, websocket, endpoint, message):
+        pass
 
 
 class TCPHandler(Handler):

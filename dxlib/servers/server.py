@@ -35,9 +35,8 @@ class ExceptionContext:
 
 
 class Server(ABC, LoggerMixin):
-    def __init__(self, handler: Handler = None, logger=None):
+    def __init__(self, logger=None):
         super().__init__(logger=logger)
-        self.handler = handler
         self._running = threading.Event()
 
         self.exception_queue = queue.Queue()
