@@ -1,10 +1,18 @@
+import enum
 from inspect import signature
 from functools import wraps
 
 
+class Method(enum.Enum):
+    GET = "GET"
+    POST = "POST"
+    PUT = "PUT"
+    DELETE = "DELETE"
+
+
 class Endpoint:
     @staticmethod
-    def get(route_name, description=None):
+    def http(method: Method, route_name: str, description: str = None):
         def decorator(func):  # Do note, func is class bound, not instance bound
             @wraps(func)  # This helps preserve function metadata
             def wrapper(*args, **kwargs):
@@ -13,17 +21,18 @@ class Endpoint:
             params = signature(func).parameters
 
             wrapper.endpoint = {
-                "method": "GET",
+                "method": method,
                 "route_name": route_name,
                 "params": params,
-                "description": description,
             }
+            if description is not None:
+                wrapper.endpoint["description"] = description
             return wrapper
 
         return decorator
 
     @staticmethod
-    def post(route_name, description=None):
+    def websocket(route_name: str, description: str = None):
         def decorator(func):  # Do note, func is class bound, not instance bound
             @wraps(func)  # This helps preserve function metadata
             def wrapper(*args, **kwargs):
@@ -32,12 +41,12 @@ class Endpoint:
             params = signature(func).parameters
 
             wrapper.endpoint = {
-                "method": "POST",
                 "route_name": route_name,
                 "callable": func,
                 "params": params,
-                "description": description,
             }
+            if description is not None:
+                wrapper.endpoint["description"] = description
             return wrapper
 
         return decorator

@@ -20,8 +20,8 @@ class HTTPServer(Server):
         self.endpoints = handler.endpoints if handler else {}
         self.port = port if port else self._get_free_port()
 
-        self._httpd_thread = None
-        self._httpd_server: ThreadingHTTPServer | None = None
+        self._thread = None
+        self._server: ThreadingHTTPServer | None = None
         self._error = threading.Event()
         self._running = threading.Event()
 
@@ -69,7 +69,7 @@ class HTTPServer(Server):
         return json.dumps(endpoint_data, indent=4)
 
     def _serve(self):
-        if self._httpd_server is not None:
+        if self._server is not None:
             raise RuntimeError("Server already started")
 
         class HTTPRequestHandler(SimpleHTTPRequestHandler):
@@ -241,12 +241,12 @@ class HTTPServer(Server):
         try:
             with ThreadingHTTPServer(
                 ("", self.port), HTTPRequestHandler
-            ) as self._httpd_server:
+            ) as self._server:
                 self.logger.info(f"Server started. Press Ctrl+C to stop...")
-                self._httpd_server.timeout = 1
+                self._server.timeout = 1
                 while self._running.is_set():
                     self.logger.info("Handling request")
-                    self._httpd_server.handle_request()
+                    self._server.handle_request()
         except Exception as e:
             self.logger.error(f"Server error: {e}")
             self._error.set()
@@ -257,8 +257,8 @@ class HTTPServer(Server):
     def start(self) -> ServerStatus:
         self.logger.info(f"Server starting on port {self.port}")
         self._running.set()
-        self._httpd_thread = threading.Thread(target=self._serve)
-        self._httpd_thread.start()
+        self._thread = threading.Thread(target=self._serve)
+        self._thread.start()
         return ServerStatus.STARTED
 
     def stop(self) -> ServerStatus:
@@ -274,18 +274,18 @@ class HTTPServer(Server):
         self.logger.info("Stopping HTTP server")
         self._running.clear()
 
-        if self._httpd_server is not None and self._httpd_server.socket is not None:
-            self._httpd_server = None
-        if self._httpd_thread is not None and self._httpd_thread.is_alive():
-            self._httpd_thread.join()
-            self._httpd_thread = None
+        if self._server is not None and self._server.socket is not None:
+            self._server = None
+        if self._thread is not None and self._thread.is_alive():
+            self._thread.join()
+            self._thread = None
 
         self.logger.info("Server stopped")
         return ServerStatus.STOPPED
 
     @property
     def alive(self):
-        return self._running.is_set() and self._httpd_thread.is_alive()
+        return self._running.is_set() and self._thread.is_alive()
 
     def __del__(self):
         self.stop()
