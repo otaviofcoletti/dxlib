@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from dxlib.core.strategy import Strategy
-from ...core import History
+from ... import Signal
+from ...core import History, Strategy
 
 
 class BollingerBreakoutStrategy(Strategy):
@@ -16,7 +16,7 @@ class BollingerBreakoutStrategy(Strategy):
     def execute(
         self, idx: pd.Index, position: pd.Series, history: History
     ) -> pd.Series:
-        signals = pd.Series(TradeSignal("wait"), index=history.securities)
+        signals = pd.Series(Signal(), index=history.securities)
         volatility = history.indicators.volatility()
 
         upper, lower = history.indicators.bollinger_bands(self.window)

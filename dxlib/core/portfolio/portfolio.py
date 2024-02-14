@@ -38,10 +38,10 @@ class Portfolio(LoggerMixin):
     def __len__(self):
         return len(self._inventories)
 
-    def __dict__(self):
+    def to_json(self):
         return {
             "inventories": {
-                identifier: inventory.__dict__()
+                identifier: inventory.to_json()
                 for identifier, inventory in self._inventories.items()
             }
         }

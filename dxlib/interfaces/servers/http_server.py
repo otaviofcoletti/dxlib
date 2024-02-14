@@ -3,12 +3,14 @@ from __future__ import annotations
 import inspect
 import json
 import socket
-from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 import threading
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
+from .endpoint import EndpointWrapper, Method, get_endpoints
 from .server import ServerStatus, handle_exceptions_decorator, Server
-from .handler import HTTPHandler
+from .handlers import HTTPHandler
+from ..internal.internal_interface import InternalInterface
 
 
 class HTTPServer(Server):
@@ -16,8 +18,7 @@ class HTTPServer(Server):
         self, handler: HTTPHandler = None, port=None, logger=None
     ):
         super().__init__(logger)
-        self.handler = handler
-        self.endpoints = handler.endpoints if handler else {}
+        self.handler = handler or HTTPHandler()
         self.port = port if port else self._get_free_port()
 
         self._thread = None
@@ -25,20 +26,8 @@ class HTTPServer(Server):
         self._error = threading.Event()
         self._running = threading.Event()
 
-    def add_endpoints(self, endpoints):
-        if endpoints is None:
-            return
-        for endpoint, func in endpoints:
-            self.add_endpoint(endpoint, func)
-
-    def add_endpoint(self, endpoint, callable_func):
-        route_name = endpoint["route_name"]
-        method = endpoint["method"]
-        self.endpoints[route_name] = self.endpoints.get(route_name, {})
-        self.endpoints[route_name][method] = {
-            "endpoint": endpoint,
-            "callable": callable_func,
-        }
+    def add_interface(self, interface: InternalInterface):
+        self.handler.add_interface(interface)
 
     @staticmethod
     def _get_free_port():
@@ -46,45 +35,41 @@ class HTTPServer(Server):
             s.bind(("", 0))
             return s.getsockname()[1]
 
-    def list_endpoints(self):
-        endpoint_data = {"message": "Available endpoints:", "endpoints": {}}
+    @property
+    def formatted_endpoints(self):
+        formatted_endpoints = {}
 
-        for route_name, endpoint in self.endpoints.items():
-            methods_data = {}
-
-            for method, method_endpoint in endpoint.items():
-                endpoint = method_endpoint["endpoint"]
-
-                methods_data[method] = {
-                    "description": endpoint.get("description"),
+        for route_name, methods in self.handler.endpoints.items():
+            formatted_endpoints[route_name] = {}
+            for method, (endpoint, func) in methods.items():
+                formatted_endpoints[route_name][method.value] = {
+                    "description": endpoint.description,
                     "params": {
                         name: str(typehint)
-                        for name, typehint in dict(endpoint.get("params")).items()
+                        for name, typehint in dict(endpoint.params).items()
                         if name != "self"
                     },
                 }
 
-            endpoint_data["endpoints"][route_name] = methods_data
-
-        return json.dumps(endpoint_data, indent=4)
+        return json.dumps(formatted_endpoints, indent=4)
 
     def _serve(self):
         if self._server is not None:
             raise RuntimeError("Server already started")
 
         class HTTPRequestHandler(SimpleHTTPRequestHandler):
-            endpoints = self.endpoints
-            list_endpoints = self.list_endpoints
+            endpoints = self.handler.endpoints
+            formatted_endpoints = self.formatted_endpoints
 
             exception_queue = self.exception_queue
             running = self._running
 
-            def handle_exception(self, e):
-                self.exception_queue.put(e)
+            def handle_exception(self, message):
+                self.exception_queue.put(message)
                 self.send_response(500)
                 self.send_header("Content-type", "application/json")
                 self.end_headers()
-                self.wfile.write(json.dumps({"error": str(e)}).encode())
+                self.wfile.write(json.dumps({"error": str(message)}).encode())
 
             def parse_route(self):
                 path_parts = urlparse(self.path)
@@ -102,11 +87,8 @@ class HTTPServer(Server):
 
                 return route_name, params
 
-            def parse_endpoint(self, method_endpoint):
-                func_callable = method_endpoint.get() if method_endpoint else None
-                endpoint = method_endpoint.get() if method_endpoint else None
-
-                if endpoint is None:
+            def validate_endpoint(self, endpoint, func):
+                if endpoint is None or func is None:
                     self.send_response(405)
                     self.send_header("Content-type", "application/json")
                     self.end_headers()
@@ -114,17 +96,17 @@ class HTTPServer(Server):
                         json.dumps({"error": "Method Not Allowed"}).encode()
                     )
 
-                return func_callable, endpoint
+                return endpoint, func
 
             def call_func(
-                self, func_callable: callable, endpoint: dict, params=None, data=None
+                self, func_callable: callable, endpoint: EndpointWrapper, params=None, data=None
             ):
                 if params is None:
                     params = {}
                 if data is None:
                     data = {}
 
-                func_signature = endpoint.get("params", {})
+                func_signature = endpoint.params
 
                 required_args = [
                     arg
@@ -187,7 +169,7 @@ class HTTPServer(Server):
             @handle_exceptions_decorator
             def do_GET(self):
                 if self.path == "/":
-                    response = self.list_endpoints()
+                    response = self.formatted_endpoints
                     self.send_response(200)
                     self.send_header("Content-type", "application/json")
                     self.end_headers()
@@ -197,24 +179,18 @@ class HTTPServer(Server):
                 route_name, params = self.parse_route()
                 if route_name is None:
                     return
-
-                method_endpoint = self.endpoints[route_name].get()
-                func_callable, endpoint = self.parse_endpoint(method_endpoint)
-
+                endpoint, func = self.validate_endpoint(*self.endpoints[route_name].get(Method.GET))
                 if endpoint is None:
                     return
 
-                return self.call_func(func_callable, endpoint, params)
+                return self.call_func(func, endpoint, params)
 
             @handle_exceptions_decorator
             def do_POST(self):
                 route_name, params = self.parse_route()
                 if route_name is None:
                     return
-
-                method_endpoint = self.endpoints[route_name].get()
-                func_callable, endpoint = self.parse_endpoint(method_endpoint)
-
+                endpoint, func = self.validate_endpoint(*self.endpoints[route_name].get(Method.POST))
                 if endpoint is None:
                     return
 
@@ -234,7 +210,7 @@ class HTTPServer(Server):
                         )
                         return
 
-                return self.call_func(func_callable, endpoint, params, post_data)
+                return self.call_func(func, endpoint, params, post_data)
 
         HTTPRequestHandler.server = self
 

@@ -78,7 +78,7 @@ Start the server with `simulation_manager.start_server()`. Check the logs for se
 ```python
 
 import dxlib as dx
-from dxlib.servers.handlers import SimulationManager
+from dxlib.interfaces.servers import SimulationManager
 
 data = dx.api.YFinanceAPI().get_historical_bars(["AAPL", "MSFT", "GOOGL", "AMZN"], start="2022-01-01", end="2022-12-31")
 my_strategy = dx.strategies.RsiStrategy()

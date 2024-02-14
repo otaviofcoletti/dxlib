@@ -1,6 +1,8 @@
 import enum
+from dataclasses import dataclass
 from inspect import signature
 from functools import wraps
+from typing import List, Tuple
 
 
 class Method(enum.Enum):
@@ -8,6 +10,27 @@ class Method(enum.Enum):
     POST = "POST"
     PUT = "PUT"
     DELETE = "DELETE"
+
+
+@dataclass
+class EndpointWrapper:
+    def __init__(self,
+                 route_name: str,
+                 method: Method = None,
+                 description: str = None,
+                 params: dict = None,
+                 func: callable = None):
+        self.route_name = route_name
+        self.method = method
+        self.description = description
+        self.params = params or {}
+        self.func = func
+
+    route_name: str
+    method: Method = None
+    description: str = None
+    params: dict = None
+    func: callable = None
 
 
 class Endpoint:
@@ -20,13 +43,14 @@ class Endpoint:
 
             params = signature(func).parameters
 
-            wrapper.endpoint = {
-                "method": method,
-                "route_name": route_name,
-                "params": params,
-            }
+            wrapper.endpoint = EndpointWrapper(
+                route_name,
+                method=method,
+                params=dict(params),
+            )
+
             if description is not None:
-                wrapper.endpoint["description"] = description
+                wrapper.endpoint.description = description
             return wrapper
 
         return decorator
@@ -40,19 +64,18 @@ class Endpoint:
 
             params = signature(func).parameters
 
-            wrapper.endpoint = {
-                "route_name": route_name,
-                "callable": func,
-                "params": params,
-            }
+            wrapper.endpoint = EndpointWrapper(
+                route_name,
+                params=dict(params),
+            )
             if description is not None:
-                wrapper.endpoint["description"] = description
+                wrapper.endpoint.description = description
             return wrapper
 
         return decorator
 
 
-def get_endpoints(instance: object = None):
+def get_endpoints(instance: object = None) -> List[Tuple[EndpointWrapper, callable]]:
     endpoints = []
 
     for func_name in dir(instance):

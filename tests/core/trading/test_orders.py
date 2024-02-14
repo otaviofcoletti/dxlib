@@ -41,19 +41,19 @@ class TestOrders(unittest.TestCase):
 
     def test_order_details_json(self):
         self.assertEqual(
-            self.order_data.__dict__(),
+            self.order_data.to_json(),
             {
-                "security": self.security.__dict__(),
+                "security": self.security.to_json(),
                 "price": 100,
                 "quantity": 100,
-                "side": dx.Side.BUY.__dict__(),
-                "order_type": dx.OrderType.MARKET.__dict__(),
+                "side": dx.Side.BUY.to_json(),
+                "order_type": dx.OrderType.MARKET.to_json(),
             },
         )
 
     def test_order_json(self):
         self.assertEqual(
-            dx.Order(self.order_data).__dict__(),
+            dx.Order(self.order_data).to_json(),
             {
                 "data": {
                     "security": self.security,

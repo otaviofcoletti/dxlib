@@ -3,8 +3,8 @@ from __future__ import annotations
 from ...core import Portfolio, SecurityManager
 from ...core.trading import Order, OrderDetails, OrderType
 from ...core import History
-from ...servers.endpoint import Endpoint
-from ..interfaces import (
+from dxlib.interfaces.servers import Endpoint, Method
+from dxlib.interfaces.external.external_interfaces import (
     MarketInterface,
     PortfolioInterface,
     OrderInterface,
@@ -23,7 +23,7 @@ class SandboxMarket(MarketInterface):
         self._history = History()
 
     @property
-    @Endpoint.get("/market/{security}", "Get the entire market history.")
+    @Endpoint.http(Method.GET, "/market/{security}", "Get the entire market history.")
     def history(self) -> History:
         return self._history
 

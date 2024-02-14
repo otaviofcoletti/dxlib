@@ -1,8 +1,8 @@
 import logging
 from abc import ABC
 
-from dxlib.servers import Server, HTTPServer
-from dxlib.servers.endpoint import get_endpoints
+from dxlib.interfaces.servers import Server, HTTPServer
+from dxlib.interfaces.servers.endpoint import get_endpoints
 from dxlib.logger import LoggerMixin
 
 

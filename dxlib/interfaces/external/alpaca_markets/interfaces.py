@@ -9,7 +9,7 @@ from dxlib.core.portfolio import Portfolio
 from dxlib.core.trading.order import OrderData, Order, Side
 
 from .api import AlpacaAPI
-from ...interfaces import MarketInterface, PortfolioInterface, OrderInterface
+from dxlib.interfaces.external.external_interfaces import MarketInterface, PortfolioInterface, OrderInterface
 
 
 class AlpacaMarket(MarketInterface):

@@ -7,14 +7,14 @@ from .security import Security
 
 
 class Inventory(dict[Security, Union[float, int]]):
-    def __init__(self, securities: Dict[Security, float | int] | None = None):
+    def __init__(self, securities: Dict[Security, Union[float, int]] | None = None):
         super().__init__()
-        self._securities: Dict[Security, float | int] = securities if securities else {}
+        self._securities: Dict[Security, Union[float, int]] = securities if securities else {}
 
-    def __dict__(self):
+    def to_json(self):
         return {
             "securities": {
-                security.__dict__(): quantity
+                security.to_json(): quantity
                 for security, quantity in self._securities.items()
             }
         }
@@ -76,3 +76,7 @@ class Inventory(dict[Security, Union[float, int]]):
             security: (self._value(security, prices) / value)
             for security in self._securities
         }
+
+    @classmethod
+    def from_dict(cls, securities: dict[Security, float | int]):
+        return cls(securities)

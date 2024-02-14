@@ -12,6 +12,8 @@ class TestWebsocket(unittest.TestCase):
 
     def test_start(self):
         self.server.start()
+        while not self.server.alive:
+            time.sleep(0.1)
         self.assertTrue(self.server.alive)
 
     def test_stop(self):

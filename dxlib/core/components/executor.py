@@ -20,7 +20,7 @@ class Executor(LoggerMixin):
     ):
         super().__init__(logger)
         self.strategy = strategy
-        self._position = position
+        self.position = position
         self.schema = schema
         self._history = History(schema=schema)
 
@@ -86,5 +86,5 @@ class Executor(LoggerMixin):
 
     def _consume_bar(self, idx, bar) -> pd.Series:
         self._history.add((idx, bar))
-        signals = self.strategy.execute((idx, bar), self._position, self._history)
+        signals = self.strategy.execute((idx, bar), self.position, self._history)
         return signals

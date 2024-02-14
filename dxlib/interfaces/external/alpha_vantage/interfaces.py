@@ -1,6 +1,6 @@
 from dxlib import History
 
-from ...interfaces import MarketInterface, PortfolioInterface, OrderInterface
+from dxlib.interfaces.external.external_interfaces import MarketInterface
 
 
 class AlphaVantageMarket(MarketInterface):

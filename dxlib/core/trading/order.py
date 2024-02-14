@@ -17,7 +17,7 @@ class OrderType(Enum):
     def __repr__(self):
         return self.name
 
-    def __dict__(self):
+    def to_json(self):
         return self.value
 
 
@@ -45,13 +45,13 @@ class OrderDetails:
     def __str__(self):
         return f"{self.side.name}: {self.security} {self.quantity} @ {self.price}"
 
-    def __dict__(self):
+    def to_json(self):
         return {
             "security": self.security,
             "price": self.price,
             "quantity": self.quantity,
-            "side": self.side.__dict__(),
-            "order_type": self.order_type.__dict__(),
+            "side": self.side.to_json(),
+            "order_type": self.order_type.to_json(),
         }
 
 
@@ -74,10 +74,10 @@ class Order:
     def __str__(self):
         return f"{self.data} -> [{len(self._transactions)} transactions]"
 
-    def __dict__(self):
+    def to_json(self):
         return {
-            "data": self._data.__dict__(),
-            "transactions": [t.__dict__() for t in self._transactions],
+            "data": self._data.to_json(),
+            "transactions": [t.to_json() for t in self._transactions],
         }
 
     def __getitem__(self, item):

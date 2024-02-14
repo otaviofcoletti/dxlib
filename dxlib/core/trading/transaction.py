@@ -30,7 +30,7 @@ class Transaction:
             f"{self.security} {self.quantity} @ {self.price}, T={self.execution_time}"
         )
 
-    def __dict__(self):
+    def to_json(self):
         return {
             "security": self.security,
             "quantity": self.quantity,

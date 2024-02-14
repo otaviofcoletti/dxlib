@@ -5,7 +5,7 @@ import websockets
 from websockets.exceptions import ConnectionClosedError
 
 from .server import Server, ServerStatus
-from .handler import WebsocketHandler
+from dxlib.interfaces.servers.handlers import WebsocketHandler
 
 
 class WebsocketServer(Server):

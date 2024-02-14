@@ -15,7 +15,7 @@ class SecurityType(Enum):
     def __str__(self):
         return self.name
 
-    def __dict__(self):
+    def to_json(self):
         return self.value
 
 
@@ -38,10 +38,13 @@ class Security:
     def __str__(self):
         return f"{self.ticker} ({self.security_type})"
 
-    def __dict__(self):
+    def __lt__(self, other):
+        return self.ticker < other.ticker
+
+    def to_json(self):
         return {
             "ticker": self.ticker,
-            "security_type": self.security_type.__dict__(),
+            "security_type": self.security_type.to_json(),
         }
 
 
@@ -89,10 +92,19 @@ class SecurityManager(dict[str, Security]):
     def __iter__(self):
         return iter(self._securities.keys())
 
-    def __dict__(self):
+    def items(self):
+        return self._securities.items()
+
+    def values(self):
+        return self._securities.values()
+
+    def keys(self):
+        return self._securities.keys()
+
+    def to_json(self):
         return {
-            "securities": [s.__dict__() for s in self._securities.values()],
-            "cash": self._cash.__dict__(),
+            "securities": [s.to_json for s in self._securities.values()],
+            "cash": self._cash.to_json(),
         }
 
     def __add__(self, other: SecurityManager):

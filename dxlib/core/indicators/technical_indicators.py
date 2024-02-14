@@ -6,26 +6,31 @@ from .indicators import Indicators
 
 
 class TechnicalIndicators(Indicators):
+    series_indicators = SeriesIndicators()
+
     def __init__(self):
         super().__init__()
-        self.series_indicators = SeriesIndicators()
 
-    def volatility(self, series, window=252, period=252):
+    @classmethod
+    def volatility(cls, series, window=252, period=252):
         # if window == 252 and period == 252 it is calculating annualized volatility over the past trading year
         volatility = series.rolling(window).std() * np.sqrt(1 / period)
         return volatility
 
-    def drawdown(self, series):
+    @classmethod
+    def drawdown(cls, series):
         return (series / series.cummax()) - 1
 
-    def sharpe_ratio(self, series, window=252, risk_free_rate=0.05):
-        returns = self.series_indicators.log_change(series, window)
+    @classmethod
+    def sharpe_ratio(cls, series, window=252, risk_free_rate=0.05):
+        returns = cls.series_indicators.log_change(series, window)
         excess_returns = returns - risk_free_rate
 
         return excess_returns.mean() / excess_returns.std()
 
-    def rsi(self, series, window=252):
-        returns = self.series_indicators.log_change(series, window)
+    @classmethod
+    def rsi(cls, series, window=252):
+        returns = cls.series_indicators.log_change(series, window)
 
         up_returns = returns[returns > 0].fillna(0)
         down_returns = returns[returns < 0].fillna(0).abs()
@@ -37,8 +42,9 @@ class TechnicalIndicators(Indicators):
 
         return 100 - (100 / (1 + rs))
 
-    def beta(self, series, window=252) -> pd.Series:
-        returns = self.series_indicators.log_change(series, window).dropna()
+    @classmethod
+    def beta(cls, series, window=252) -> pd.Series:
+        returns = cls.series_indicators.log_change(series, window).dropna()
 
         betas = {}
 
@@ -55,18 +61,20 @@ class TechnicalIndicators(Indicators):
 
         return pd.Series(betas)
 
-    def bollinger_bands(self, series, window, num_std=2):
-        rolling_mean = self.series_indicators.sma(series, window)
+    @classmethod
+    def bollinger_bands(cls, series, window, num_std=2):
+        rolling_mean = cls.series_indicators.sma(series, window)
         rolling_std = series.rolling(window=window).std()
         upper_band = rolling_mean + (rolling_std * num_std)
         lower_band = rolling_mean - (rolling_std * num_std)
         return upper_band, lower_band
 
-    def macd(self, series, fast=12, slow=26, signal=9):
-        ema_fast = self.series_indicators.ema(series, fast)
-        ema_slow = self.series_indicators.ema(series, slow)
+    @classmethod
+    def macd(cls, series, fast=12, slow=26, signal=9):
+        ema_fast = cls.series_indicators.ema(series, fast)
+        ema_slow = cls.series_indicators.ema(series, slow)
 
         macd = ema_fast - ema_slow
-        signal = self.series_indicators.ema(macd, signal)
+        signal = cls.series_indicators.ema(macd, signal)
 
         return macd, signal

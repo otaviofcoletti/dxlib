@@ -18,7 +18,7 @@ class HistoryLevel(enum.Enum):
     def levels(cls):
         return list(cls.__members__.values())
 
-    def __dict__(self):
+    def to_json(self):
         return self.value
 
 
@@ -40,11 +40,11 @@ class HistorySchema:
             security_manager if security_manager else SecurityManager()
         )
 
-    def __dict__(self):
+    def to_json(self):
         return {
-            "levels": [level.__dict__() for level in self.levels],
+            "levels": [level.to_json() for level in self.levels],
             "fields": self.fields,
-            "security_manager": self.security_manager.__dict__(),
+            "security_manager": self.security_manager.to_json(),
         }
 
     @classmethod
@@ -110,10 +110,10 @@ class History:
     def __repr__(self):
         return self.df.__repr__()
 
-    def __dict__(self):
+    def to_json(self):
         return {
             "df": self.df.to_dict(),
-            "schema": self._schema.__dict__(),
+            "schema": self._schema.to_json(),
         }
 
     def __len__(self):

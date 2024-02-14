@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC
 
 from dxlib.interfaces import Interface
-from dxlib.servers import Server, HTTPServer
+from dxlib.interfaces.servers import Server
 from .manager import Manager
 
 
