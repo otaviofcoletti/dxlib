@@ -112,7 +112,7 @@ class History:
 
     def to_json(self):
         return {
-            "df": self.df.to_dict(),
+            "df": self.df.to_json(),
             "schema": self._schema.to_json(),
         }
 
