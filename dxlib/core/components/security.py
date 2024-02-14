@@ -15,8 +15,14 @@ class SecurityType(Enum):
     def __str__(self):
         return self.name
 
-    def to_json(self):
-        return self.value
+    def to_dict(self) -> dict:
+        return {
+            "name": self.name
+        }
+
+    @classmethod
+    def from_dict(cls, **kwargs) -> SecurityType:
+        return cls(kwargs["name"].upper())
 
 
 class Security:
@@ -41,11 +47,20 @@ class Security:
     def __lt__(self, other):
         return self.ticker < other.ticker
 
-    def to_json(self):
+    def to_dict(self) -> dict:
         return {
             "ticker": self.ticker,
-            "security_type": self.security_type.to_json(),
+            "security_type": self.security_type.to_dict()
         }
+
+    @classmethod
+    def from_dict(cls, **kwargs) -> Security:
+        return cls(
+            ticker=kwargs["ticker"],
+            security_type=SecurityType.from_dict(
+                **kwargs.get("security_type")
+            )
+        )
 
 
 class SecurityManager(dict[str, Security]):
@@ -55,16 +70,6 @@ class SecurityManager(dict[str, Security]):
         super().__init__()
         self._securities: Dict[str, Security] = securities if securities else {}
         self._cash = Security("cash", SecurityType.cash) if cash is None else cash
-
-    @classmethod
-    def from_list(
-        cls, securities: List[Security] | List[str], cash: Security | str | None = None
-    ):
-        securities = [cls.convert(security) for security in securities]
-
-        return SecurityManager(
-            {security.ticker: security for security in securities}, cash=cash
-        )
 
     @classmethod
     def convert(cls, security: Security | str):
@@ -100,12 +105,6 @@ class SecurityManager(dict[str, Security]):
 
     def keys(self):
         return self._securities.keys()
-
-    def to_json(self):
-        return {
-            "securities": [s.to_json for s in self._securities.values()],
-            "cash": self._cash.to_json(),
-        }
 
     def __add__(self, other: SecurityManager):
         if not isinstance(other, SecurityManager):
@@ -149,3 +148,29 @@ class SecurityManager(dict[str, Security]):
     def add_list(self, securities: List[Security | str]):
         for security in securities:
             self.add(security) if security not in self else None
+
+    def to_dict(self) -> dict:
+        return {
+            "securities": {key: security.to_dict() for key, security in self._securities.items()},
+            "cash": self._cash.to_dict(),
+        }
+
+    @classmethod
+    def from_dict(cls, **kwargs) -> SecurityManager:
+        return cls(
+            securities={
+                key: Security.from_dict(**value)
+                for key, value in kwargs.get("securities").items()
+            },
+            cash=Security.from_dict(**kwargs.get("cash"))
+        )
+
+    @classmethod
+    def from_list(
+        cls, securities: List[Security] | List[str], cash: Security | str | None = None
+    ):
+        securities = [cls.convert(security) for security in securities]
+
+        return SecurityManager(
+            {security.ticker: security for security in securities}, cash=cash
+        )

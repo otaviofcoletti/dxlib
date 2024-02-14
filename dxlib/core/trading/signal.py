@@ -17,8 +17,14 @@ class Side(Enum):
             return self.value == other.value
         return False
 
-    def to_json(self):
-        return self.value
+    def to_dict(self) -> dict:
+        return {
+            "name": self.name
+        }
+
+    @classmethod
+    def from_dict(cls, **kwargs) -> Side:
+        return cls(kwargs["name"].upper())
 
 
 @dataclass
@@ -31,14 +37,24 @@ class Signal:
     def __repr__(self):
         return f"{self.side.name}: {self.quantity} @ {self.price}"
 
-    def to_json(self):
-        return {
-            "side": self.side.value,
-            "quantity": self.quantity,
-            "price": self.price,
-        }
-
     def __eq__(self, other):
         if isinstance(other, Signal):
             return self.side == other.side and self.quantity == other.quantity and self.price == other.price
         return False
+
+    def to_dict(self) -> dict:
+        return {
+            "side": self.side.to_dict(),
+            "quantity": self.quantity,
+            "price": self.price
+        }
+
+    @classmethod
+    def from_dict(cls, **kwargs) -> Signal:
+        return cls(
+            side=Side.from_dict(
+                **kwargs.get("side")
+            ),
+            quantity=kwargs.get("quantity"),
+            price=kwargs.get("price")
+        )

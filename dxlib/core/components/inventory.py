@@ -11,14 +11,6 @@ class Inventory(dict[Security, Union[float, int]]):
         super().__init__()
         self._securities: Dict[Security, Union[float, int]] = securities if securities else {}
 
-    def to_json(self):
-        return {
-            "securities": {
-                security.to_json(): quantity
-                for security, quantity in self._securities.items()
-            }
-        }
-
     def __len__(self):
         return len(self._securities)
 
@@ -77,6 +69,17 @@ class Inventory(dict[Security, Union[float, int]]):
             for security in self._securities
         }
 
+    def to_dict(self):
+        return {
+            security.to_dict(): quantity
+            for security, quantity in self._securities.items()
+        }
+
     @classmethod
-    def from_dict(cls, securities: dict[Security, float | int]):
-        return cls(securities)
+    def from_dict(cls, **kwargs) -> Inventory:
+        return cls(
+            securities={
+                Security.from_dict(**key): value
+                for key, value in kwargs.get("securities").items()
+            }
+        )

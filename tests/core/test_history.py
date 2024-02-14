@@ -65,6 +65,23 @@ class TestHistory(unittest.TestCase):
         self.assertEqual(history.df.index.names, ["date", "security"])
         self.assertEqual(history.df.columns, ["close"])
 
+    def test_to_dict(self):
+        history = dx.History(self.sample_data, self.schema)
+        history_dict = history.to_dict()
+        # {'df': {('2021-01-01T00:00:00', (('ticker', 'AAPL'), ('security_type', (('name', 'equity'),)))): {'close': 100}, ('2021-01-01T00:00:00', (('ticker', 'MSFT'), ('security_type', (('name', 'equity'),)))): {'close': 200}, ('2021-01-02T00:00:00', (('ticker', 'AAPL'), ('security_type', (('name', 'equity'),)))): {'close': 110}, ('2021-01-02T00:00:00', (('ticker', 'MSFT'), ('security_type', (('name', 'equity'),)))): {'close': 210}}, 'schema': {'levels': [{'name': 'DATE'}, {'name': 'SECURITY'}], 'fields': ['close'], 'security_manager': {'securities': {'AAPL': {'ticker': 'AAPL', 'security_type': {'name': 'equity'}}, 'MSFT': {'ticker': 'MSFT', 'security_type': {'name': 'equity'}}}, 'cash': {'ticker': 'cash', 'security_type': {'name': 'cash'}}}}}
+
+        self.assertEqual(history_dict["schema"]["levels"], [{'name': 'DATE'}, {'name': 'SECURITY'}])
+        self.assertEqual(history_dict["schema"]["fields"], ["close"])
+
+        self.assertEqual(
+            history_dict["schema"]["security_manager"]["securities"]["AAPL"]["ticker"],
+            "AAPL",
+        )
+        self.assertEqual(
+            history_dict["schema"]["security_manager"]["securities"]["MSFT"]["ticker"],
+            "MSFT",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

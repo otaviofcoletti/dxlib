@@ -7,7 +7,8 @@ from typing import List, Dict
 
 import pandas as pd
 
-from .security import SecurityManager
+from ..trading.signal import Signal
+from .security import SecurityManager, Security
 
 
 class HistoryLevel(enum.Enum):
@@ -18,8 +19,14 @@ class HistoryLevel(enum.Enum):
     def levels(cls):
         return list(cls.__members__.values())
 
-    def to_json(self):
-        return self.value
+    def to_dict(self):
+        return {
+            "name": self.name
+        }
+
+    @classmethod
+    def from_dict(cls, **kwargs):
+        return cls(kwargs["name"].upper())
 
 
 @dataclass
@@ -40,16 +47,22 @@ class HistorySchema:
             security_manager if security_manager else SecurityManager()
         )
 
-    def to_json(self):
+    def to_dict(self) -> dict:
         return {
-            "levels": [level.to_json() for level in self.levels],
+            "levels": [level.to_dict() for level in self.levels],
             "fields": self.fields,
-            "security_manager": self.security_manager.to_json(),
+            "security_manager": self.security_manager.to_dict(),
         }
 
     @classmethod
-    def from_dict(cls, data: dict):
-        return HistorySchema(**data)
+    def from_dict(cls, **kwargs) -> HistorySchema:
+        return cls(
+            levels=[HistoryLevel.from_dict(**level) for level in kwargs["levels"]],
+            fields=kwargs["fields"],
+            security_manager=SecurityManager.from_dict(
+                **kwargs.get("security_manager")
+            ),
+        )
 
 
 class History:
@@ -74,7 +87,7 @@ class History:
             raise ValueError(f"Invalid type {type(df)} for df")
 
         if schema is None:
-            schema = HistorySchema.from_dict({})
+            schema = HistorySchema()
         elif not isinstance(schema, HistorySchema):
             raise ValueError(f"Invalid type {type(schema)} for schema")
 
@@ -110,12 +123,6 @@ class History:
     def __repr__(self):
         return self.df.__repr__()
 
-    def to_json(self):
-        return {
-            "df": self.df.to_json(),
-            "schema": self._schema.to_json(),
-        }
-
     def __len__(self):
         return len(self.df)
 
@@ -141,12 +148,43 @@ class History:
         )
 
     @classmethod
-    def from_dict(cls, history: dict, schema: HistorySchema | None = None):
+    def _serialize(cls, obj: any):
+        if isinstance(obj, (int, float, str)):
+            return obj
+        elif isinstance(obj, dict):
+            return tuple((cls._serialize(k), cls._serialize(v)) for k, v in obj.items())
+        elif isinstance(obj, (Security, Signal)):
+            return cls._serialize(obj.to_dict())
+        elif isinstance(obj, pd.Timestamp):
+            return cls._serialize(obj.isoformat())
+        elif isinstance(obj, (list, pd.Series)):
+            return list(map(cls._serialize, obj))
+        elif isinstance(obj, tuple):
+            return tuple(map(cls._serialize, obj))
+        return obj
+
+    def _df_to_dict(self, serialize: callable = None):
+        if serialize is None:
+            serialize = self._serialize
+        # Convert multi-index dataframe to dictionary
+        # call to_dict on each multi-index level
+        # call to_dict on each column
+        df_dict = {}
+        for idx, bar in self.df.iterrows():
+            df_dict[serialize(idx)] = {serialize(k): serialize(v) for k, v in bar.items()}
+        return df_dict
+
+    def to_dict(self) -> dict:
+        return {
+            "df": self._df_to_dict(),
+            "schema": self._schema.to_dict(),
+        }
+
+    @classmethod
+    def from_dict(cls, **kwargs) -> History:
         return cls(
-            history.get("df", None),
-            HistorySchema.from_dict(
-                history.get("schema", {}) if schema is None else schema
-            ),
+            pd.DataFrame.from_dict(kwargs["df"], orient="index"),
+            schema=HistorySchema.from_dict(**kwargs["schema"]),
         )
 
     @classmethod
