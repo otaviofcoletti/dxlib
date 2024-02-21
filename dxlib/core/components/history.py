@@ -7,8 +7,8 @@ from typing import List, Dict
 
 import pandas as pd
 
-from ..trading.signal import Signal
 from .security import SecurityManager, Security
+from ..trading.signal import Signal
 
 
 class HistoryLevel(enum.Enum):
@@ -26,7 +26,7 @@ class HistoryLevel(enum.Enum):
 
     @classmethod
     def from_dict(cls, **kwargs):
-        return cls(kwargs["name"].upper())
+        return cls(kwargs["name"].lower())
 
 
 @dataclass
@@ -174,18 +174,37 @@ class History:
             df_dict[serialize(idx)] = {serialize(k): serialize(v) for k, v in bar.items()}
         return df_dict
 
-    def to_dict(self) -> dict:
+    def _df_to_json(self):
+        # Cant call json.dumps on tuple keys
+        df_dict = self._df_to_dict()
+
+        # Convert tuple keys to string keys
+        return {str(k): v for k, v in df_dict.items()}
+
+    def to_dict(self, serialize=False) -> dict:
         return {
-            "df": self._df_to_dict(),
+            "df": self._df_to_json() if serialize else self._df_to_dict(),
             "schema": self._schema.to_dict(),
         }
 
     @classmethod
-    def from_dict(cls, **kwargs) -> History:
-        return cls(
-            pd.DataFrame.from_dict(kwargs["df"], orient="index"),
-            schema=HistorySchema.from_dict(**kwargs["schema"]),
-        )
+    def from_dict(cls, serialize=False, **kwargs):
+        schema = HistorySchema.from_dict(**kwargs["schema"])
+        df_dict = kwargs["df"]
+        if serialize:
+            df_dict = {eval(k): v for k, v in df_dict.items()}
+        df = pd.DataFrame.from_dict(df_dict, orient="index")
+        df.index = pd.MultiIndex.from_tuples(df.index, names=[level.value for level in schema.levels])
+
+        # Use schema to convert to Security dicts to objects, if necessary
+        if HistoryLevel.SECURITY in schema.levels:
+            security_level = df.index.names.index(HistoryLevel.SECURITY.value)
+            df.index = df.index.set_levels(
+                df.index.levels[security_level].map(schema.security_manager.get_tuple),
+                level=HistoryLevel.SECURITY.value
+            )
+        return cls(df, schema)
+
 
     @classmethod
     def from_tuple(cls, history: tuple, schema: HistorySchema | None = None):

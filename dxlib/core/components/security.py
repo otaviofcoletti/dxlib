@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 
 class SecurityType(Enum):
@@ -22,7 +22,7 @@ class SecurityType(Enum):
 
     @classmethod
     def from_dict(cls, **kwargs) -> SecurityType:
-        return cls(kwargs["name"].upper())
+        return cls(kwargs["name"].lower())
 
 
 class Security:
@@ -123,6 +123,13 @@ class SecurityManager(dict[str, Security]):
     @property
     def cash(self):
         return self._cash
+
+    def get_tuple(self, item: Tuple[Tuple[str, str]]):
+        # Convert tuple to dict and call get_dict
+        return self.get_dict(**{key: value for key, value in item})
+
+    def get_dict(self, **item):
+        return self.get(Security.from_dict(**item))
 
     def get(self, item: Security | str, default: Security | str | None = None):
         if isinstance(item, Security):

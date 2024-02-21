@@ -1,7 +1,9 @@
+import json
+
+from .internal_interface import InternalInterface
+from ..servers.endpoint import Endpoint, Method
 from ... import History, Inventory
 from ...core import Executor
-from ..servers.endpoint import Endpoint, Method
-from .internal_interface import InternalInterface
 
 
 class ExecutorHTTPInterface(InternalInterface):
@@ -11,12 +13,13 @@ class ExecutorHTTPInterface(InternalInterface):
 
     @Endpoint.http(Method.POST, "/run", "Executes a single observation and returns the result")
     def run(self, obj: any, in_place: bool = False):
-        # Transform the object into an observation
-        history = History.from_dict(**obj)
+        if isinstance(obj, str):
+            obj = json.loads(obj)
+        history = History.from_dict(serialize=True, **obj)
         result: History = self.executor.run(history, in_place=in_place)
         response = {
             "status": "success",
-            "result": result.to_json(),
+            "result": result.to_dict(serialize=True),
         }
         return response
 

@@ -1,9 +1,9 @@
+import json
 import time
 import unittest
 
 import pandas as pd
 import requests
-
 
 import dxlib as dx
 from dxlib.interfaces.internal.executor_interface import ExecutorHTTPInterface
@@ -43,7 +43,7 @@ class TestExecutorInterface(unittest.TestCase):
         )
 
         run_params = {
-            "obj": history.to_json(),
+            "obj": history.to_dict(serialize=True),
             "in_place": False
         }
 
@@ -51,9 +51,8 @@ class TestExecutorInterface(unittest.TestCase):
         while not self.server.alive:
             time.sleep(0.1)
 
-        response = requests.post("http://localhost:8000/run", json=run_params)
-        result = response.json()
-        print(result)
+        response = requests.post("http://localhost:8000/run", json.dumps(run_params))
+        print(response)
 
         self.server.stop()
 
