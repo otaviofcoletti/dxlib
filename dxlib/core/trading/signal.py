@@ -19,12 +19,12 @@ class Side(Enum):
 
     def to_dict(self) -> dict:
         return {
-            "name": self.name
+            "value": self.value
         }
 
     @classmethod
     def from_dict(cls, **kwargs) -> Side:
-        return cls(kwargs["name"].upper())
+        return cls(kwargs["value"])
 
 
 @dataclass

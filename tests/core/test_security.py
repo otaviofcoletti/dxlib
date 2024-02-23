@@ -1,6 +1,5 @@
 import unittest
 
-
 import dxlib as dx
 
 
@@ -37,7 +36,7 @@ class TestSecurityManager(unittest.TestCase):
 
     def test_add_tickers(self):
         tickers = ["AAPL", "MSFT", "GOOG"]
-        self.security_manager.add_list(tickers)
+        self.security_manager.extend(tickers)
         self.assertEqual(self.security_manager.get("AAPL").ticker, "AAPL")
 
     def test_add_existing(self):
@@ -48,7 +47,7 @@ class TestSecurityManager(unittest.TestCase):
 
     def test_get_non_existing(self):
         with self.assertRaises(KeyError):
-            security = self.security_manager["AAPL"]
+            _ = self.security_manager["AAPL"]
 
     def test_get_secure_non_existing(self):
         security = self.security_manager.get("AAPL")
@@ -78,8 +77,8 @@ class TestSecurityManager(unittest.TestCase):
         securities_1 = [dx.Security("AAPL"), dx.Security("MSFT"), dx.Security("GOOG")]
         securities_2 = [dx.Security("AAPL"), dx.Security("TSLA"), dx.Security("GOOG")]
 
-        self.security_manager.add_list(securities_1)
-        self.security_manager.add_list(securities_2)
+        self.security_manager.extend(securities_1)
+        self.security_manager.extend(securities_2)
 
         self.assertEqual(len(self.security_manager), 4)
 

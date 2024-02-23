@@ -7,9 +7,9 @@ import threading
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
-from .endpoint import EndpointWrapper, Method, get_endpoints
-from .server import ServerStatus, handle_exceptions_decorator, Server
+from .endpoint import EndpointWrapper, Method
 from .handlers import HTTPHandler
+from .server import ServerStatus, handle_exceptions_decorator, Server
 from ..internal.internal_interface import InternalInterface
 
 
@@ -63,6 +63,7 @@ class HTTPServer(Server):
 
             exception_queue = self.exception_queue
             running = self._running
+            logger = self.logger
 
             def handle_exception(self, message):
                 self.exception_queue.put(message)
@@ -155,15 +156,11 @@ class HTTPServer(Server):
                     self.end_headers()
                     self.wfile.write(
                         json.dumps(
-                            "ok" if response is None else response, cls=MethodEncoder
+                            {"status": "success"} if response is None else response, cls=MethodEncoder
                         ).encode()
                     )
 
                 except Exception as unknown_error:
-                    self.send_response(500)
-                    self.send_header("Content-type", "application/json")
-                    self.end_headers()
-                    self.wfile.write(json.dumps({"error": str(unknown_error)}).encode())
                     raise unknown_error
 
             @handle_exceptions_decorator
@@ -179,7 +176,7 @@ class HTTPServer(Server):
                 route_name, params = self.parse_route()
                 if route_name is None:
                     return
-                endpoint, func = self.validate_endpoint(*self.endpoints[route_name].get(Method.GET))
+                endpoint, func = self.validate_endpoint(*self.endpoints[route_name].get(Method.GET, (None, None)))
                 if endpoint is None:
                     return
 
@@ -190,7 +187,8 @@ class HTTPServer(Server):
                 route_name, params = self.parse_route()
                 if route_name is None:
                     return
-                endpoint, func = self.validate_endpoint(*self.endpoints[route_name].get(Method.POST))
+
+                endpoint, func = self.validate_endpoint(*self.endpoints[route_name].get(Method.POST, (None, None)))
                 if endpoint is None:
                     return
 
@@ -221,7 +219,7 @@ class HTTPServer(Server):
                 self.logger.info(f"Server started. Press Ctrl+C to stop...")
                 self._server.timeout = 1
                 while self._running.is_set():
-                    self.logger.info("Handling request")
+                    self.logger.debug(f"Handling request on port {self.port}")
                     self._server.handle_request()
         except Exception as e:
             self.logger.error(f"Server error: {e}")

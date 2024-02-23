@@ -1,9 +1,6 @@
-import json
-
 from .internal_interface import InternalInterface
 from ..servers.endpoint import Endpoint, Method
-from ... import History, Inventory
-from ...core import Executor
+from ...core import Executor, History, Inventory
 
 
 class ExecutorHTTPInterface(InternalInterface):
@@ -13,20 +10,29 @@ class ExecutorHTTPInterface(InternalInterface):
 
     @Endpoint.http(Method.POST, "/run", "Executes a single observation and returns the result")
     def run(self, obj: any, in_place: bool = False):
-        if isinstance(obj, str):
-            obj = json.loads(obj)
-        history = History.from_dict(serialize=True, **obj)
-        result: History = self.executor.run(history, in_place=in_place)
+        try:
+            history = History.from_dict(serialized=True, **obj)
+        except Exception as e:
+            raise ValueError(f"Could not parse history: {e}")
+
+        try:
+            result: History = self.executor.run(history, in_place=in_place)
+        except Exception as e:
+            raise ValueError(f"Could not run executor on history: {e}")
+
         response = {
             "status": "success",
-            "result": result.to_dict(serialize=True),
+            "data": result.to_dict(serializable=True),
         }
         return response
 
-    @Endpoint.http(Method.POST, "/position", "Adds to the current position")
+    @Endpoint.http(Method.POST, "/position", "Aggregates given inventory to the current position")
     def set_position(self, obj: any):
-        position = Inventory.from_dict(**obj)
-        self.executor.position += position
+        try:
+            position = Inventory.from_dict(**obj, serialized=True)
+            self.executor.position += position
+        except Exception as e:
+            raise ValueError(f"Could not set position: {e}")
 
         response = {
             "status": "success",
@@ -34,6 +40,9 @@ class ExecutorHTTPInterface(InternalInterface):
 
         return response
 
-    @Endpoint.http(Method.GET, "/position", "Gets the current position")
+    @Endpoint.http(Method.GET, "/position", "Gets the total aggregated position")
     def get_position(self):
-        return self.executor.position.to_json()
+        return {
+            "status": "success",
+            "data": self.executor.position.to_dict(serializable=True),
+        }

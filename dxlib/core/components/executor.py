@@ -4,25 +4,34 @@ from typing import Generator, AsyncGenerator
 
 import pandas as pd
 
-from dxlib.logger import LoggerMixin
-from .strategy import Strategy
+from .history import History, HistorySchema, SignalSchema
 from .inventory import Inventory
-from .history import History, HistorySchema
+from .strategy import Strategy
+from ...logger import LoggerMixin
 
 
 class Executor(LoggerMixin):
     def __init__(
-        self,
-        strategy: Strategy = None,
-        position: Inventory = None,
-        schema: HistorySchema = None,
-        logger=None,
+            self,
+            strategy: Strategy = None,
+            position: Inventory = None,
+            input_scheme: HistorySchema = None,
+            output_scheme: HistorySchema = None,
+            logger=None,
     ):
         super().__init__(logger)
         self.strategy = strategy
         self.position = position
-        self.schema = schema
-        self._history = History(schema=schema)
+
+        if input_scheme is None:
+            input_scheme = HistorySchema()
+        self.input_scheme = input_scheme
+
+        if output_scheme is None:
+            output_scheme = SignalSchema(input_scheme.levels, fields=["signal"], security_manager=input_scheme.security_manager)
+        self.output_scheme = output_scheme
+
+        self._history = History(scheme=input_scheme)
 
     @property
     def history(self):
@@ -33,9 +42,9 @@ class Executor(LoggerMixin):
         self._history = value
 
     def run(
-        self,
-        obj: History | Generator | AsyncGenerator,
-        in_place: bool = False,
+            self,
+            obj: History | Generator | AsyncGenerator,
+            in_place: bool = False,
     ) -> pd.Series | Generator | AsyncGenerator | None:
         if obj is None:
             raise ValueError("Cannot run strategy on None")
@@ -43,7 +52,7 @@ class Executor(LoggerMixin):
             raise ValueError("No strategy set")
 
         if not in_place:
-            self._history = History(schema=self.schema)
+            self._history = History(scheme=self.input_scheme)
 
         if isinstance(obj, History):
             return self._consume(obj)
@@ -53,11 +62,12 @@ class Executor(LoggerMixin):
             return self._consume_async(obj)
 
     def _consume(self, obj: History) -> History:
-        signals = History(schema=self.schema)
+        signals = History(scheme=self.output_scheme)
 
         try:
             for idx, bar in obj:
-                signals.add(self._consume_bar(idx, bar))
+                signal = self._consume_bar(idx, bar)
+                signals.add(signal)
         except Exception as e:
             self.logger.exception(e)
             raise e

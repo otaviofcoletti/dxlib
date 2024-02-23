@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import List, Dict, Tuple
+from typing import List, Dict, Union
 
 
 class SecurityType(Enum):
@@ -13,16 +13,16 @@ class SecurityType(Enum):
     cash = "cash"
 
     def __str__(self):
-        return self.name
+        return self.value
 
     def to_dict(self) -> dict:
         return {
-            "name": self.name
+            "value": self.value
         }
 
     @classmethod
     def from_dict(cls, **kwargs) -> SecurityType:
-        return cls(kwargs["name"].lower())
+        return cls(kwargs["value"].lower())
 
 
 class Security:
@@ -124,13 +124,6 @@ class SecurityManager(dict[str, Security]):
     def cash(self):
         return self._cash
 
-    def get_tuple(self, item: Tuple[Tuple[str, str]]):
-        # Convert tuple to dict and call get_dict
-        return self.get_dict(**{key: value for key, value in item})
-
-    def get_dict(self, **item):
-        return self.get(Security.from_dict(**item))
-
     def get(self, item: Security | str, default: Security | str | None = None):
         if isinstance(item, Security):
             return self._securities.get(item.ticker, default)
@@ -145,14 +138,20 @@ class SecurityManager(dict[str, Security]):
     def add(self, security: Security | str):
         if isinstance(security, Security):
             if security.ticker in self._securities:
-                raise ValueError(f"Security {security} already exists in manager")
+                return self._securities[security.ticker]
             self._securities[security.ticker] = security
+            return security
         elif isinstance(security, str):
+            if security in self._securities:
+                return self._securities[security]
             self._securities[security] = Security(security)
+            return self._securities[security]
         else:
             raise ValueError(f"Invalid security type {type(security)}")
 
-    def add_list(self, securities: List[Security | str]):
+    def extend(self, securities: Union[List[Security | str], SecurityManager]):
+        if isinstance(securities, SecurityManager):
+            securities = securities.values()
         for security in securities:
             self.add(security) if security not in self else None
 

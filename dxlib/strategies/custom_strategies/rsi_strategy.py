@@ -45,7 +45,7 @@ class RsiStrategy(Strategy):
 
     def execute(
             self, observation: any, position: Inventory, history: History
-    ) -> pd.Series:   # pd.Series[TradeSignal]
+    ) -> pd.Series:  # pd.Series[TradeSignal]
         """
         Generate trading signals based on Relative Strength Index(RSI).
 

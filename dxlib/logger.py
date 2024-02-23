@@ -25,6 +25,12 @@ class CustomFormatter(logging.Formatter):
         return formatter.format(record)
 
 
+class NoLogger(logging.Logger):
+    def __init__(self, name: str = __name__):
+        super().__init__(name)
+        self.setLevel(logging.NOTSET)
+
+
 class CriticalLogger(logging.Logger):
     def __init__(self, name: str = __name__):
         super().__init__(name)
@@ -55,4 +61,4 @@ class DebugLogger(logging.Logger):
 
 class LoggerMixin:
     def __init__(self, logger: logging.Logger | None = None):
-        self.logger = logger if logger else CriticalLogger(__name__)
+        self.logger = logger if logger else NoLogger(__name__)
