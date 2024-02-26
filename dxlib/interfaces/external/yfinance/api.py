@@ -3,19 +3,38 @@ from __future__ import annotations
 import datetime
 import os
 
-import pandas as pd
 import requests
 
-from dxlib.interfaces.data_api import SnapshotApi
 
-
-class YFinanceAPI(SnapshotApi):
+class YFinanceAPI:
     def __init__(self, base_url="https://query1.finance.yahoo.com/v8/finance/chart/"):
-        super().__init__(base_url)
+        self.base_url = base_url
+        self.session = requests.Session()
+
         self.user_agent = (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/58.0.3029.110 Safari/537.3"
         )
+
+    @property
+    def header(self):
+        return {'User-Agent': self.user_agent,}
+
+    @property
+    def keepalive_header(self):
+        return {'Connection': 'keep-alive',
+                'Expires': '-1',
+                'Upgrade-Insecure-Requests': '1',
+                'User-Agent': self.user_agent,
+                }
+
+    @staticmethod
+    def _crumbs():
+        return None, None
+        # website = requests.get(url, headers=header)
+        # crumb = re.findall('"CrumbStore":{"crumb":"(.+?)"}', str(bs(website.text, 'lxml')))[0]
+
+        # return crumb, website.cookies
 
     @classmethod
     def format_response_data(cls, data):
@@ -37,17 +56,17 @@ class YFinanceAPI(SnapshotApi):
         response = requests.get(url)
         data = response.json()
         if "chart" in data:
-            return pd.DataFrame(self.format_response_data(data))
+            return self.format_response_data(data)
         else:
             return None
 
-    def get_historical_bars(
-        self,
-        tickers,
-        start: str | datetime.date = None,
-        end: str | datetime.date = None,
-        timeframe="1d",
-        cache=True,
+    def quote_tickers(
+            self,
+            tickers,
+            start: str | datetime.date = None,
+            end: str | datetime.date = None,
+            timeframe="1d",
+            cache=True,
     ):
         tickers = self.format_tickers(tickers)
         start, end = self.str_to_date(self.default_date_interval(start, end))
@@ -77,8 +96,8 @@ class YFinanceAPI(SnapshotApi):
 
         return historical_bars
 
-    def _query_historical_bars(
-        self, tickers, timeframe, start: datetime.datetime, end: datetime.datetime
+    def _quote_tickers(
+            self, tickers, timeframe, start: datetime.datetime, end: datetime.datetime
     ):
         formatted_data = {}
 

@@ -1,1 +1,2 @@
+from .executor_interface import ExecutorHTTPInterface
 from .strategy_interface import StrategyHTTPInterface, StrategyWebsocketInterface

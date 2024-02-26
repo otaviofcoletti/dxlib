@@ -9,7 +9,7 @@ from enum import Enum
 import pandas as pd
 import websocket
 
-from dxlib.interfaces.data_api import SnapshotApi
+from dxlib.interfaces.utils import SnapshotApi
 
 
 class AlpacaMarketAPI(SnapshotApi):

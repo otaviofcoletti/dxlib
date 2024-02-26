@@ -4,7 +4,8 @@ import asyncio
 import threading
 from typing import Generator, AsyncGenerator
 
-from .manager import Manager, MessageHandler
+from dxlib.interfaces.servers.manager import Manager, MessageHandler
+
 from dxlib.core import History
 
 

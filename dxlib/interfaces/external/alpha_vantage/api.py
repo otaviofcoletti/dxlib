@@ -1,7 +1,7 @@
-import requests
 import pandas
+import requests
 
-from dxlib.interfaces.data_api import SnapshotApi
+from dxlib.interfaces.utils import SnapshotApi
 
 
 class AlphaVantageAPI(SnapshotApi):

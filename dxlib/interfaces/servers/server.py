@@ -58,3 +58,33 @@ class Server(ABC, LoggerMixin):
             return self.exception_queue.get_nowait()
         except queue.Empty:
             return None
+
+
+class ServerManager(ABC, LoggerMixin):
+    def __init__(
+            self,
+            servers: list[Server] = None,
+            logger=None,
+    ):
+        super().__init__(logger)
+        if isinstance(servers, Server):
+            self.servers = [servers]
+
+        self.set_servers(servers or [])
+
+    def set_servers(self, servers: list[Server]):
+        self.servers = servers
+        for server in self.servers:
+            server.logger = self.logger
+
+    def start(self):
+        for server in self.servers:
+            server.start()
+
+    def stop(self):
+        for server in self.servers:
+            server.stop()
+
+    def alive(self):
+        alive = all([server.alive for server in self.servers])
+        return alive if self.servers else False

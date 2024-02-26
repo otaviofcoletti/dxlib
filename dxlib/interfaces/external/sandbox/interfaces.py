@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-from ...core import Portfolio, SecurityManager
-from ...core.trading import Order, OrderDetails, OrderType
-from ...core import History
-from dxlib.interfaces.servers import Endpoint, Method
 from dxlib.interfaces.external.external_interfaces import (
     MarketInterface,
     PortfolioInterface,
     OrderInterface,
     MarketUtilities,
 )
+
+from dxlib.core import History
+from dxlib.core import Portfolio, SecurityManager
+from dxlib.core.trading import Order, OrderDetails, OrderType
+from dxlib.interfaces.servers import Endpoint, Method
 
 
 class SandboxMarket(MarketInterface):
