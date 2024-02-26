@@ -89,6 +89,43 @@ class TestHistory(unittest.TestCase):
             {"close": 200},
         )
 
+    def test_apply(self):
+        history = dx.History(self.sample_data, self.scheme)
+        history = history.apply({dx.HistoryLevel.SECURITY: lambda x: x + 1})
+
+        self.assertEqual(history.df.loc[history.df.index[0], "close"], 101)
+
+    def test_apply_other(self):
+        history = dx.History(self.sample_data, self.scheme)
+        other = dx.History(self.sample_data, self.scheme)
+
+        history = history.apply_on(other, lambda x, y: x + y)
+
+        self.assertEqual(history.df.loc[history.df.index[0], "close"], 200)
+
+    def test_integration(self):
+        history = dx.History(self.sample_data, self.scheme)
+
+        prices = history.apply({dx.HistoryLevel.SECURITY: lambda x: x + 1})
+        shares = history.apply({dx.HistoryLevel.SECURITY: lambda x: x / 100})
+
+        daily_returns = prices.apply({dx.HistoryLevel.SECURITY: lambda x: x.pct_change().shift(-1).fillna(0)})
+        portfolio_returns = shares.apply_on(
+            daily_returns,
+            lambda x, y: pd.DataFrame(x.values * y.values, index=x.index, columns=["returns"])
+        )
+
+        df = portfolio_returns.df
+
+        self.assertEqual(df.shape, (4, 1))
+        self.assertEqual(df.index.names, ["date", "security"])
+        self.assertEqual(df.columns, ["returns"])
+
+        # (111 - 101) / 101 * 1 = 0.09901
+        # (211 - 201) / 201 * 2 = 0.09950
+        self.assertAlmostEqual(df.loc[df.index[0], "returns"], 0.09901, 5)
+        self.assertAlmostEqual(df.loc[df.index[1], "returns"], 0.09950, 5)
+
 
 if __name__ == "__main__":
     unittest.main()

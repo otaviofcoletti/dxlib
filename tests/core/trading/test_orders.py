@@ -6,7 +6,7 @@ import dxlib as dx
 class TestOrders(unittest.TestCase):
     def setUp(self):
         self.security = dx.Security("AAPL")
-        self.order_data = dx.OrderDetails(
+        self.order_data = dx.OrderData(
             security=self.security,
             price=100,
             quantity=100,
@@ -41,19 +41,19 @@ class TestOrders(unittest.TestCase):
 
     def test_order_details_json(self):
         self.assertEqual(
-            self.order_data.to_json(),
+            self.order_data.to_dict(),
             {
-                "security": self.security.to_json(),
+                "security": self.security.to_dict(),
                 "price": 100,
                 "quantity": 100,
-                "side": dx.Side.BUY.to_json(),
+                "side": dx.Side.BUY.to_dict(),
                 "order_type": dx.OrderType.MARKET.to_json(),
             },
         )
 
     def test_order_json(self):
         self.assertEqual(
-            dx.Order(self.order_data).to_json(),
+            dx.Order(self.order_data).to_dict(),
             {
                 "data": {
                     "security": self.security,

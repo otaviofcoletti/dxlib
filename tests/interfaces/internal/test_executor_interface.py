@@ -7,8 +7,7 @@ import requests
 
 import dxlib as dx
 from dxlib.core.components.history import SignalSchema
-from dxlib.interfaces.internal.executor_interface import ExecutorHTTPInterface
-from dxlib.strategies.custom_strategies import RsiStrategy
+from dxlib.strategies import RsiStrategy
 
 
 class TestExecutorInterface(unittest.TestCase):
@@ -25,7 +24,7 @@ class TestExecutorInterface(unittest.TestCase):
         self.inventory = dx.Inventory({security: 0 for security in self.security_manager.values()})
         self.executor = dx.Executor(self.strategy, self.inventory, self.scheme)
 
-        self.interface = ExecutorHTTPInterface(self.executor)
+        self.interface = dx.ExecutorHTTPInterface(self.executor)
 
     def test_run(self):
         server = dx.HTTPServer(port=8000)
