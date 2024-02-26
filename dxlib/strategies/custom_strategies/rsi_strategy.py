@@ -12,8 +12,8 @@ class RsiStrategy(Strategy):
 
     Parameters:
     - period (int): Number of days to roll the RSI window.
-    - upper_bound (int): the upper threshold to start selling
-    - lower_bound (int): the lower threshold to start buying
+    - upper (int): the upper threshold to start selling
+    - lower (int): the lower threshold to start buying
 
     Methods:
     - fit(history): Calculate moving averages and identify trends.
@@ -23,25 +23,19 @@ class RsiStrategy(Strategy):
     def __init__(self,
                  field="close",
                  window=14,
-                 upper_bound=70,
-                 lower_bound=30):
+                 upper=70,
+                 lower=30,
+                 reverse=False):
         super().__init__()
         self.field = field
         self.window = window
-        self.upper_bound = upper_bound
-        self.lower_bound = lower_bound
+        self.upper = upper
+        self.lower = lower
+        self.reverse = reverse
+        self.quantity = 1
 
-    def fit(self, history):
-        """
-        Calculate moving averages and identify trends.
-
-        Args:
-        - history (History): Historical price data of multiple equities.
-
-        Returns:
-        None
-        """
-        pass
+    def set(self, quantity: int):
+        self.quantity = quantity
 
     def execute(
             self, observation: any, position: Inventory, history: History
@@ -69,9 +63,9 @@ class RsiStrategy(Strategy):
         if len(df) > self.window:
             rsi = ti.rsi(df, self.window).iloc[-1][self.field]
 
-            if rsi > self.upper_bound:
-                signals.loc[idx] = Signal(Side.SELL, 1)
-            elif rsi < self.lower_bound:
-                signals.loc[idx] = Signal(Side.BUY, 1)
+            if rsi > self.upper:
+                signals.loc[idx] = Signal(Side.BUY if self.reverse else Side.SELL, self.quantity)
+            elif rsi < self.lower:
+                signals.loc[idx] = Signal(Side.SELL if self.reverse else Side.BUY, self.quantity)
 
         return signals
