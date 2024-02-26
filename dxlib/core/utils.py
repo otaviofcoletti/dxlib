@@ -1,3 +1,6 @@
+from datetime import datetime
+
+
 def serialize(obj: any):
     if isinstance(obj, (str, int, float)):
         return obj
@@ -22,3 +25,7 @@ def deserialize(obj: any):
     elif isinstance(obj, tuple):
         return tuple([deserialize(item) for item in obj])
     return obj
+
+
+def get_today():
+    return datetime.today().strftime("%Y-%m-%d")

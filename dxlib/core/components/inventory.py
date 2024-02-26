@@ -4,6 +4,7 @@ from functools import lru_cache
 from typing import Dict, Union
 
 from .security import Security, SecurityManager
+from ...trading import Order, OrderData
 
 
 class Inventory(dict[Security, Union[float, int]]):
@@ -12,7 +13,8 @@ class Inventory(dict[Security, Union[float, int]]):
         self._securities: Dict[Security, Union[float, int]] = securities if securities else {}
 
     def __repr__(self):
-        return f"Inventory({self._securities})"
+        securities = {str(security): quantity for security, quantity in self._securities.items()}
+        return f"Inventory({securities})"
 
     def __len__(self):
         return len(self._securities)
@@ -40,6 +42,15 @@ class Inventory(dict[Security, Union[float, int]]):
             self.get(security) == other.get(security) for security in set(self) | set(other)
         ])
 
+    def items(self):
+        return self._securities.items()
+
+    def values(self):
+        return self._securities.values()
+
+    def keys(self):
+        return self._securities.keys()
+
     def get(self, item: Security, default: float | int = None):
         return self._securities.get(item, default)
 
@@ -53,12 +64,12 @@ class Inventory(dict[Security, Union[float, int]]):
     def quantities(self):
         return self._securities
 
-    def _value(self, security: Security, prices: dict[Security, float]):
-        return self._securities.get(security, 0) * prices.get(security, 0)
+    def _value(self, security: Security, values: dict[Security, float]):
+        return self._securities.get(security, 0) * values.get(security, 0)
 
     @lru_cache(maxsize=128)
-    def value(self, prices: Dict[Security, float]):
-        return sum([self._value(security, prices) for security in self._securities])
+    def value(self, values: Dict[Security, float]):
+        return sum([self._value(security, values) for security in self._securities])
 
     @property
     @lru_cache(maxsize=4)
@@ -113,6 +124,24 @@ class Inventory(dict[Security, Union[float, int]]):
             securities={
                 Security.from_dict(**cls.deserialize(to_key(key))): value
                 for key, value in kwargs.get("securities").items()
+            }
+        )
+
+    @classmethod
+    def from_orders(cls, orders: list[Order]):
+        return cls(
+            {
+                order.data.security: order.executed_quantity
+                for order in orders
+            }
+        )
+
+    @classmethod
+    def from_order_data(cls, orders: list[OrderData]):
+        return cls(
+            {
+                order.security: order.quantity
+                for order in orders
             }
         )
 

@@ -3,9 +3,7 @@ from __future__ import annotations
 from typing import Dict
 
 from dxlib.logger import LoggerMixin
-
-from dxlib.core.components.inventory import Inventory
-from ..components import Security
+from ..components import Security, Inventory
 
 
 class Portfolio(LoggerMixin):
@@ -38,10 +36,10 @@ class Portfolio(LoggerMixin):
     def __len__(self):
         return len(self._inventories)
 
-    def to_json(self):
+    def to_dict(self):
         return {
             "inventories": {
-                identifier: inventory.to_json()
+                identifier: inventory.to_dict()
                 for identifier, inventory in self._inventories.items()
             }
         }

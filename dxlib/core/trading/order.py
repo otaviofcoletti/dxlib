@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import Union
 
-from ..components import Security
+from .signal import Side, Signal
 from .transaction import Transaction
-from .signal import Side
+from ..components.security import Security
 
 
 class OrderType(Enum):
@@ -22,7 +23,7 @@ class OrderType(Enum):
 
 
 @dataclass
-class OrderDetails:
+class OrderData:
     def __init__(
         self,
         security: Security,
@@ -45,20 +46,43 @@ class OrderDetails:
     def __str__(self):
         return f"{self.side.name}: {self.security} {self.quantity} @ {self.price}"
 
-    def to_json(self):
+    def to_dict(self):
         return {
             "security": self.security,
             "price": self.price,
             "quantity": self.quantity,
-            "side": self.side.to_json(),
+            "side": self.side.to_dict(),
             "order_type": self.order_type.to_json(),
         }
+
+    @classmethod
+    def from_dict(cls, **kwargs):
+        return cls(
+            security=Security.from_dict(
+                **kwargs.get("security")
+            ),
+            price=kwargs.get("price"),
+            quantity=kwargs.get("quantity"),
+            side=Side.from_dict(
+                **kwargs.get("side")
+            ),
+            order_type=OrderType(kwargs.get("order_type"))
+        )
+
+    @classmethod
+    def from_signal(cls, signal: Signal, security: Security):
+        return cls(
+            security=security,
+            price=signal.price,
+            quantity=signal.quantity,
+            side=signal.side
+        )
 
 
 class Order:
     def __init__(
         self,
-        data: OrderDetails,
+        data: Union[OrderData, dict],
         transactions: list[Transaction] = None,
     ):
         self._data = data
@@ -74,12 +98,6 @@ class Order:
     def __str__(self):
         return f"{self.data} -> [{len(self._transactions)} transactions]"
 
-    def to_json(self):
-        return {
-            "data": self._data.to_json(),
-            "transactions": [t.to_json() for t in self._transactions],
-        }
-
     def __getitem__(self, item):
         return self._transactions[item]
 
@@ -88,6 +106,12 @@ class Order:
 
     def __iter__(self):
         return iter(self._transactions)
+
+    def to_dict(self):
+        return {
+            "data": self._data.to_dict(),
+            "transactions": [t.to_dict() for t in self._transactions],
+        }
 
     def add_transaction(self, transaction: Transaction | list[Transaction]):
         if transaction.security != self._data.security:

@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from ..components import Security
+from ..components.security import Security
 
 
 @dataclass
@@ -30,7 +30,7 @@ class Transaction:
             f"{self.security} {self.quantity} @ {self.price}, T={self.execution_time}"
         )
 
-    def to_json(self):
+    def to_dict(self):
         return {
             "security": self.security,
             "quantity": self.quantity,

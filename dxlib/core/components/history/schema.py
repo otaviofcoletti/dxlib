@@ -10,10 +10,7 @@ from ..security import SecurityManager, Security
 from ...trading import Signal
 
 
-class HistoryLevel(enum.Enum):
-    DATE = "date"
-    SECURITY = "security"
-
+class LevelEnum(enum.Enum):
     @classmethod
     def levels(cls):
         return list(cls.__members__.values())
@@ -28,29 +25,43 @@ class HistoryLevel(enum.Enum):
         return cls(kwargs["value"].lower())
 
 
+class HistoryLevel(LevelEnum):
+    DATE = "date"
+    SECURITY = "security"
+
+
 @dataclass
 class HistorySchema:
-    levels: List[HistoryLevel]
+    levels: List[LevelEnum]
     fields: List[str]
     security_manager: SecurityManager
 
     def __init__(
             self,
-            levels: List[HistoryLevel] = None,
+            levels: List[LevelEnum] = None,
             fields: List[str] = None,
             security_manager: SecurityManager = None,
     ):
-        # If parent is not None, then also use the parent's levels and fields
-        self.levels = levels if levels else HistoryLevel.levels()
+        self.levels = levels if levels else []
         self.fields = fields if fields else []
         self.security_manager = (
             security_manager if security_manager else SecurityManager()
         )
 
-    def extend(self, other: HistorySchema):
-        self.levels.extend(other.levels)
-        self.fields.extend(other.fields)
-        self.security_manager.extend(other.security_manager)
+    def __add__(self, other: HistorySchema):
+        return HistorySchema(
+            levels=self.levels + other.levels,
+            fields=list(set(self.fields + other.fields)),
+            security_manager=self.security_manager + other.security_manager,
+        )
+
+    def extend(self, other: HistorySchema, inplace: bool = True):
+        if inplace:
+            self.levels.extend(other.levels)
+            self.fields.extend(other.fields)
+            self.security_manager.extend(other.security_manager)
+        else:
+            return self + other
 
     def to_dict(self) -> dict:
         return {
@@ -62,7 +73,7 @@ class HistorySchema:
     @classmethod
     def from_dict(cls, **kwargs) -> HistorySchema:
         return cls(
-            levels=[HistoryLevel.from_dict(**level) for level in kwargs["levels"]],
+            levels=[LevelEnum.from_dict(**level) for level in kwargs["levels"]],
             fields=kwargs["fields"],
             security_manager=SecurityManager.from_dict(
                 **kwargs.get("security_manager")
@@ -116,7 +127,7 @@ class HistorySchema:
 class SignalSchema(HistorySchema):
     def __init__(
             self,
-            levels: List[HistoryLevel] = None,
+            levels: List[LevelEnum] = None,
             fields: List[str] = None,
             security_manager: SecurityManager = None
     ):
