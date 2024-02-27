@@ -54,6 +54,10 @@ class Inventory(dict[Security, Union[float, int]]):
     def get(self, item: Security, default: float | int = None):
         return self._securities.get(item, default)
 
+    def add_signals(self, signals: dict[Security, float | int]):
+        for security, quantity in signals.items():
+            self.add(security, quantity)
+
     def add(self, security: Security, quantity: float | int):
         if security in self._securities:
             self._securities[security] += quantity
@@ -62,12 +66,11 @@ class Inventory(dict[Security, Union[float, int]]):
 
     @property
     def quantities(self):
-        return self._securities
+        return sum(self._securities.values())
 
     def _value(self, security: Security, values: dict[Security, float]):
         return self._securities.get(security, 0) * values.get(security, 0)
 
-    @lru_cache(maxsize=128)
     def value(self, values: Dict[Security, float]):
         return sum([self._value(security, values) for security in self._securities])
 
@@ -140,7 +143,7 @@ class Inventory(dict[Security, Union[float, int]]):
     def from_order_data(cls, orders: list[OrderData]):
         return cls(
             {
-                order.security: order.quantity
+                order.security: (order.quantity or 0) * order.side.value
                 for order in orders
             }
         )

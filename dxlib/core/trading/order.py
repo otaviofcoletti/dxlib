@@ -35,7 +35,7 @@ class OrderData:
         self.security = security
         self.price = price
         self.quantity = quantity
-        self.side = side
+        self.side: Side = Side(side)
         self.order_type = order_type
 
     def __repr__(self):

@@ -42,6 +42,22 @@ class Signal:
             return self.side == other.side and self.quantity == other.quantity and self.price == other.price
         return False
 
+    def __add__(self, other: Signal | float) -> Signal:
+        if isinstance(other, Signal):
+            return Signal(
+                side=self.side,
+                quantity=(self.quantity or 0) + other.quantity,
+                price=self.price
+            )
+        elif isinstance(other, float):
+            return Signal(
+                side=self.side,
+                quantity=(self.quantity or 0) + other,
+                price=self.price
+            )
+        else:
+            raise TypeError(f"Cannot add Signal with {type(other)}")
+
     def to_dict(self) -> dict:
         return {
             "side": self.side.to_dict(),
