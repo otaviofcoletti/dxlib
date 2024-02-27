@@ -16,7 +16,7 @@ class TestExecutor(unittest.TestCase):
             security = idx[1]
 
             signals = {
-                (date, security): dx.OrderDetails(
+                (date, security): dx.OrderData(
                     security=security,
                     quantity=1,
                     price=bar["close"],
@@ -28,8 +28,8 @@ class TestExecutor(unittest.TestCase):
             return pd.Series(signals)
 
     def setUp(self):
-        self.schema = dx.HistorySchema(
-            levels=[dx.HistoryLevel.DATE, dx.HistoryLevel.SECURITY],
+        self.schema = dx.StandardSchema(
+            levels=[dx.StandardLevel.DATE, dx.StandardLevel.SECURITY],
             fields=["close"],
             security_manager=dx.SecurityManager.from_list(["AAPL", "MSFT"]),
         )
@@ -46,7 +46,7 @@ class TestExecutor(unittest.TestCase):
     def test_executor(self):
         position = dx.Inventory()
         strategy = self.LongOnlyStrategy()
-        executor = dx.Executor(strategy, position, schema=self.schema)
+        executor = dx.Executor(strategy, position)
 
         signals = executor.run(self.history)
 
@@ -57,13 +57,13 @@ class TestExecutor(unittest.TestCase):
     def test_async_executor(self):
         position = dx.Inventory()
         strategy = self.LongOnlyStrategy()
-        executor = dx.Executor(strategy, position, schema=self.schema)
+        executor = dx.Executor(strategy, position)
 
         def async_generator():
             for idx, bar in self.history:
                 yield idx, bar
 
-        signal_generator = executor.run(async_generator())
+        signal_generator = executor.run(async_generator(), input_schema=self.schema)
 
         signal_list = []
 

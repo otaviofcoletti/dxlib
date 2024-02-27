@@ -7,13 +7,13 @@ import dxlib as dx
 class TestInventoryHistory(unittest.TestCase):
     def setUp(self):
         self.security_manager = dx.SecurityManager.from_list(["AAPL", "MSFT"])
-        self.scheme = dx.HistorySchema(
-            levels=dx.HistoryLevel.levels(),
+        self.schema = dx.StandardSchema(
+            levels=dx.StandardLevel.levels(),
             security_manager=self.security_manager
         )
 
-        self.quantity_scheme = self.scheme + dx.HistorySchema(fields=["quantity"])
-        self.value_scheme = self.scheme + dx.HistorySchema(fields=["value"])
+        self.quantity_scheme = self.schema + dx.StandardSchema(fields=["quantity"])
+        self.value_scheme = self.schema + dx.StandardSchema(fields=["value"])
 
         aapl = self.security_manager.get("AAPL")
         msft = self.security_manager.get("MSFT")
@@ -35,8 +35,8 @@ class TestInventoryHistory(unittest.TestCase):
         }
 
     def test_init(self):
-        history = dx.InventoryHistory(self.scheme)
-        self.assertEqual(history.scheme, self.scheme)
+        history = dx.InventoryHistory(self.schema)
+        self.assertEqual(history.schema, self.schema)
         self.assertEqual(history.df.empty, True)
 
     def test_from_inventories(self):

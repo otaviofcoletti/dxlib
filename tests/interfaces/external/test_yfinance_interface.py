@@ -7,13 +7,16 @@ class TestYFinanceApi(unittest.TestCase):
     def setUp(self) -> None:
         self.api = dx.interfaces.YFinanceAPI()
 
-    def test(self):
-        print(self.api.api_version)
+    def test_version(self):
+        self.assertEqual(self.api.version, "1.0")
 
-    def test2(self):
-        today = dx.utils.get_today()
-        bars = self.api.get_historical_bars(["BTC-USD"], end=today)
-        print(bars)
+    def test_quotes(self):
+        today = dx.Date.today()
+        last_week = dx.Date.prevdays(6)
+        quotes = self.api.quote_tickers(["AAPL", "MSFT"], last_week, today)
+
+        self.assertEqual(len(quotes), 10)
+        self.assertEqual(set(quotes.df.index.names), {"date", "security"})
 
 
 if __name__ == '__main__':

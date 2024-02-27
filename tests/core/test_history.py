@@ -7,8 +7,8 @@ import dxlib as dx
 
 class TestHistory(unittest.TestCase):
     def setUp(self):
-        self.scheme = dx.HistorySchema(
-            levels=[dx.HistoryLevel.DATE, dx.HistoryLevel.SECURITY],
+        self.schema = dx.StandardSchema(
+            levels=[dx.StandardLevel.DATE, dx.StandardLevel.SECURITY],
             fields=["close"],
             security_manager=dx.SecurityManager.from_list(["AAPL", "MSFT"]),
         )
@@ -21,21 +21,21 @@ class TestHistory(unittest.TestCase):
 
     def test_create_from_df(self):
         df = pd.DataFrame.from_dict(self.sample_data, orient="index")
-        history = dx.History(df, self.scheme)
+        history = dx.History(df, self.schema)
 
         self.assertEqual(history.df.shape, (4, 1))
         self.assertEqual(history.df.index.names, ["date", "security"])
         self.assertEqual(history.df.columns, ["close"])
 
     def test_create_from_dict(self):
-        history = dx.History(self.sample_data, self.scheme)
+        history = dx.History(self.sample_data, self.schema)
 
         self.assertEqual(history.df.shape, (4, 1))
         self.assertEqual(history.df.index.names, ["date", "security"])
         self.assertEqual(history.df.columns, ["close"])
 
     def test_get_df(self):
-        history = dx.History(self.sample_data, self.scheme)
+        history = dx.History(self.sample_data, self.schema)
         df = history.get_df()
 
         self.assertEqual(df.shape, (4, 1))
@@ -43,7 +43,7 @@ class TestHistory(unittest.TestCase):
         self.assertEqual(df.columns, ["close"])
 
     def test_add_tuple(self):
-        history = dx.History(scheme=self.scheme)
+        history = dx.History(schema=self.schema)
         history.add(((pd.Timestamp("2021-01-01"), "AAPL"), {"close": 100}))
 
         self.assertEqual(history.df.shape, (1, 1))
@@ -55,8 +55,8 @@ class TestHistory(unittest.TestCase):
 
     def test_add_external(self):
         external_security = dx.Security("TSLA")
-        history = dx.History(scheme=self.scheme)
-        self.scheme.security_manager += external_security
+        history = dx.History(schema=self.schema)
+        self.schema.security_manager += external_security
 
         history.add(((pd.Timestamp("2021-01-01"), "TSLA"), {"close": 100}))
 
@@ -65,7 +65,7 @@ class TestHistory(unittest.TestCase):
         self.assertEqual(history.df.columns, ["close"])
 
     def test_to_dict(self):
-        history = dx.History(self.sample_data, self.scheme)
+        history = dx.History(self.sample_data, self.schema)
         history_dict = history.to_dict()
         """
         history_dict = {
@@ -90,26 +90,26 @@ class TestHistory(unittest.TestCase):
         )
 
     def test_apply(self):
-        history = dx.History(self.sample_data, self.scheme)
-        history = history.apply({dx.HistoryLevel.SECURITY: lambda x: x + 1})
+        history = dx.History(self.sample_data, self.schema)
+        history = history.apply({dx.StandardLevel.SECURITY: lambda x: x + 1})
 
         self.assertEqual(history.df.loc[history.df.index[0], "close"], 101)
 
     def test_apply_other(self):
-        history = dx.History(self.sample_data, self.scheme)
-        other = dx.History(self.sample_data, self.scheme)
+        history = dx.History(self.sample_data, self.schema)
+        other = dx.History(self.sample_data, self.schema)
 
         history = history.apply_on(other, lambda x, y: x + y)
 
         self.assertEqual(history.df.loc[history.df.index[0], "close"], 200)
 
     def test_integration(self):
-        history = dx.History(self.sample_data, self.scheme)
+        history = dx.History(self.sample_data, self.schema)
 
-        prices = history.apply({dx.HistoryLevel.SECURITY: lambda x: x + 1})
-        shares = history.apply({dx.HistoryLevel.SECURITY: lambda x: x / 100})
+        prices = history.apply({dx.StandardLevel.SECURITY: lambda x: x + 1})
+        shares = history.apply({dx.StandardLevel.SECURITY: lambda x: x / 100})
 
-        daily_returns = prices.apply({dx.HistoryLevel.SECURITY: lambda x: x.pct_change().shift(-1).fillna(0)})
+        daily_returns = prices.apply({dx.StandardLevel.SECURITY: lambda x: x.pct_change().shift(-1).fillna(0)})
         portfolio_returns = shares.apply_on(
             daily_returns,
             lambda x, y: pd.DataFrame(x.values * y.values, index=x.index, columns=["returns"])
