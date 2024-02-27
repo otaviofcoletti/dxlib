@@ -1,8 +1,7 @@
 import pandas as pd
 from pandas import MultiIndex
 
-from ... import Inventory, Signal, Side, HistoryLevel
-from ...core import History, Strategy
+from ...core import History, Strategy, Inventory, Signal, Side, StandardLevel
 from ...core.indicators.technical_indicators import TechnicalIndicators as ti
 
 
@@ -56,10 +55,12 @@ class RsiStrategy(Strategy):
         signals = pd.Series(
             Signal(Side.WAIT), index=MultiIndex.from_tuples([idx], names=levels.keys())
         )
-        date, security = idx
+
+        security_level = history.schema.levels.index(StandardLevel.SECURITY)
+        security = idx[security_level]
 
         # For all securities that have more than self.window days of history, calculate the RSI
-        df = history.get_df({HistoryLevel.SECURITY: [security]}, [self.field])
+        df = history.get_df({StandardLevel.SECURITY: [security]}, [self.field])
         if len(df) > self.window:
             rsi = ti.rsi(df, self.window).iloc[-1][self.field]
 

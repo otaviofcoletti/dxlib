@@ -1,11 +1,10 @@
-from .api import *
-from ..external_interface import ExternalHTTPInterface
+from .yfinance_api import YFinanceAPI
+from ..external_interface import ExternalWSInterface, ExternalHTTPInterface
 
 
-class HTTPInterface(ExternalHTTPInterface):
+class YFinanceHTTPInterface(ExternalHTTPInterface, YFinanceAPI):
     pass
 
 
-class YFinance:
-    def __init__(self):
-        self.http_interface = HTTPInterface()
+class YFinanceWSInterface(ExternalWSInterface, YFinanceAPI):
+    pass

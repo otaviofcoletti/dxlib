@@ -1,6 +1,6 @@
-import datetime
 import os
 from enum import Enum
+from hashlib import md5
 
 
 class RequestType(Enum):
@@ -18,63 +18,40 @@ def request(func):
     return wrapper
 
 
-class Date:
-    @classmethod
-    def str_to_date(cls, date):
-        if isinstance(date, list) or isinstance(date, tuple):
-            return [
-                datetime.datetime.strptime(single_date, "%Y-%m-%d")
-                if isinstance(single_date, str)
-                else single_date
-                for single_date in date
-            ]
-        elif isinstance(date, str):
-            return datetime.datetime.strptime(date, "%Y-%m-%d")
-        else:
-            raise TypeError("Date must be a list or str")
-
-    @classmethod
-    def date_to_str(cls, date):
-        if isinstance(date, list) or isinstance(date, tuple):
-            return [
-                single_date.strftime("%Y-%m-%d")
-                if isinstance(single_date, datetime.date)
-                else single_date
-                for single_date in date
-            ]
-        elif isinstance(date, datetime.date) or isinstance(date, datetime.datetime):
-            return date.strftime("%Y-%m-%d")
-        else:
-            raise TypeError("Date must be list or datetime.datetime")
+def md5hash(value: str):
+    return md5(value.encode()).hexdigest()
 
 
 class Cache:
-    def __init__(self, hash_func: callable = hash):
+    def __init__(self, hash_func: callable = None):
         self.directory = os.path.join(os.path.expanduser("~"), ".dxlib")
-        self.hash_func = hash_func
+        self.hash_func = hash_func or md5hash
 
     def _key(self, *args, **kwargs):
         # hash key
-        return self.hash_func(args + tuple(kwargs.items()))
+        return self.hash_func(str(args + tuple(kwargs.items())))
 
-    def _path(self, path: str | tuple = None, key=None, *args, **kwargs):
-        # path is subdirectory
+    def filename(self, *args, **kwargs):
+        return str(self._key(*args, **kwargs)) + ".cache.json"
+
+    def get_path(self, filename, path: str | tuple = None):
         if path is not None:
+            if isinstance(path, str):
+                path = (path,)
             path = os.path.join(self.directory, *path)
         else:
             path = self.directory
+        return os.path.join(path, filename)
 
-        if key is None:
-            key = self._key(*args, **kwargs)
-        return os.path.join(path, str(key))
-
-    def get(self, path: str | tuple = None, *args, **kwargs) -> str:
-        with open(self._path(path, *args, **kwargs), "r") as f:
+    def get(self, filename, path: str | tuple = None) -> str:
+        with open(self.get_path(filename, path), "r") as f:
             return f.read()
 
-    def set(self, data: str, path: str | tuple = None, *args, **kwargs) -> None:
-        with open(self._path(path, *args, **kwargs), "w") as f:
+    def set(self, data: str, filename, path: str | tuple = None):
+        if not os.path.exists(self.directory):
+            os.makedirs(self.directory)
+        with open(self.get_path(filename, path), "w") as f:
             f.write(data)
 
-    def exists(self, path: str | tuple = None, *args, **kwargs) -> bool:
-        return os.path.exists(self._path(path, *args, **kwargs))
+    def exists(self, filename, path: str | tuple = None) -> bool:
+        return os.path.exists(self.get_path(filename, path))
