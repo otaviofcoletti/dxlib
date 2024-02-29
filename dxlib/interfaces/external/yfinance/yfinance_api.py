@@ -61,16 +61,56 @@ class YFinanceAPI(ExternalInterface):
 
         return trade_data
 
-    def get_trades(self, ticker):
-        url = f"{self.base_url}{ticker}?range=1d&interval=1m"
-        response = requests.get(url)
+    @classmethod
+    def format_quote(cls, data):
+        result_data = data["chart"]["result"]
+
+        quotes = {}
+
+        if result_data:
+            quote_data = result_data[0]["indicators"]["quote"][0]
+            timestamp_data = result_data[0]["timestamp"]
+
+            quotes = {
+                "date": datetime.datetime.fromtimestamp(timestamp_data[-1]),
+                "open": quote_data.get("open", [])[0],
+                "high": quote_data.get("high", [])[0],
+                "low": quote_data.get("low", [])[0],
+                "close": quote_data.get("close", [])[0],
+                "volume": quote_data.get("volume", [])[0],
+            }
+
+        return quotes
+
+    def quote_ticker(self, ticker, range_in="1d", interval="1m"):
+        url = f"{self.base_url}{ticker}?range={range_in}&interval={interval}"
+        response = self.session.get(url, headers=self.header)
         data = response.json()
         if "chart" in data:
-            return self.format_response_data(data)
+            quotes = self.format_quote(data)
+            df = pd.DataFrame.from_dict(quotes, orient="index")
+            return History.from_df(df)
         else:
             return None
 
-    def _quote_tickers(
+    def quote(self, tickers: list) -> dict:
+        interval = "1m"
+        range_in = "3m"
+
+        quotes = {}
+
+        for ticker in tickers:
+            data = self.quote_ticker(ticker, range_in, interval)
+
+            date = data.get("date")
+            key = (date, ticker)
+            # remove date from data
+            data.pop("date")
+            quotes[key] = data
+
+        return quotes
+
+    def _historical(
             self, tickers, timeframe, start: datetime.datetime, end: datetime.datetime
     ) -> dict:
         formatted_data = {}
@@ -101,7 +141,7 @@ class YFinanceAPI(ExternalInterface):
         history.schema.levels.reverse()
         return history
 
-    def quote_tickers(
+    def historical(
             self,
             tickers: List[str] | str,
             start: datetime.datetime | str,
@@ -124,7 +164,7 @@ class YFinanceAPI(ExternalInterface):
             df = pd.read_json(obj)
             return self.to_history(df)
 
-        obj = self._quote_tickers(tickers, timeframe, start, end)
+        obj = self._historical(tickers, timeframe, start, end)
         df = pd.DataFrame.from_dict(obj, orient="index")
 
         if cache:
