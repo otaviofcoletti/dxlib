@@ -6,12 +6,12 @@ from typing import List
 import pandas as pd
 import requests
 
-from ..external_interface import ExternalInterface
+from ..external_interface import MarketInterface
 from .... import SecurityManager
 from ....core import History
 
 
-class YFinanceAPI(ExternalInterface):
+class YFinanceAPI(MarketInterface):
     def __init__(self, base_url="https://query1.finance.yahoo.com/v8/finance/chart/"):
         super().__init__()
         self.base_url = base_url

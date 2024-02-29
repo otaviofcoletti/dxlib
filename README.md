@@ -26,12 +26,12 @@ Unified data-fetching methods, ensuring consistent data structures.
 To use the individual API endpoints, simply load the respective API module:
 
 ```python
-from dxlib.interfaces.api import AlpacaMarketsAPI
+from dxlib.interfaces.api import YFinanceAPI
 
-api = AlpacaMarketsAPI("<api_key>", "<api_secret>")  # If a local cache/ directory is used, no API key is needed
+api = YFinanceAPI()
 
 top_symbols = api.get_symbols(n=100)
-historical_bars = api.get_historical_bars(top_symbols["symbol"].values)
+historical_bars = api.historical_prices(top_symbols["symbol"].values)
 
 print(top_symbols)
 print(historical_bars)
