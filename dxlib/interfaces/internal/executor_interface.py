@@ -3,7 +3,7 @@ from ..servers.endpoint import Endpoint, Method
 from ...core import Executor, History, Inventory
 
 
-class ExecutorHTTPInterface(InternalInterface):
+class ExecutorInterface(InternalInterface):
     def __init__(self, executor: Executor = None, url = None):
         super().__init__(url)
         if executor is None and url is None:
@@ -12,7 +12,7 @@ class ExecutorHTTPInterface(InternalInterface):
 
     @Endpoint.http(Method.POST,
                    "/run",
-                   "Executes a single observation and returns the result")
+                   "Executes a single history and returns the result")
     def run(self, obj: any):
         try:
             history = History.from_dict(serialized=True, **obj)

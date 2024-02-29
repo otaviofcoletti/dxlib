@@ -1,8 +1,8 @@
 from abc import ABC
 from typing import Dict, List, Tuple
 
-from dxlib.interfaces.internal.internal_interface import InternalInterface
-from dxlib.interfaces.servers.endpoint import EndpointWrapper, Method, get_endpoints
+from dxlib.interfaces.internal.internal_interface import Interface
+from dxlib.interfaces.servers.endpoint import EndpointWrapper, Method, EndpointType
 
 
 class Handler(ABC):
@@ -30,8 +30,8 @@ class HTTPHandler(Handler, ABC):
         self.endpoints[route_name] = self.endpoints.get(route_name, {})
         self.endpoints[route_name][method] = (endpoint, func)
 
-    def add_interface(self, interface: InternalInterface):
-        self.set_endpoints(get_endpoints(interface))
+    def add_interface(self, interface: Interface, endpoint_type: EndpointType = EndpointType.HTTP):
+        self.set_endpoints(interface.get_endpoints(endpoint_type))
 
 
 class WebsocketHandler(Handler):

@@ -7,7 +7,7 @@ import threading
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
-from .endpoint import EndpointWrapper, Method
+from .endpoint import EndpointWrapper, Method, EndpointType
 from .handlers import HTTPHandler
 from .server import ServerStatus, handle_exceptions_decorator, Server
 from ..internal.internal_interface import InternalInterface
@@ -27,7 +27,7 @@ class HTTPServer(Server):
         self._running = threading.Event()
 
     def add_interface(self, interface: InternalInterface):
-        self.handler.add_interface(interface)
+        self.handler.add_interface(interface, endpoint_type=EndpointType.HTTP)
 
     @staticmethod
     def _get_free_port():

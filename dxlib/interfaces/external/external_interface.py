@@ -4,7 +4,7 @@ import pandas as pd
 
 from ..interface import Interface
 from ..utils import Cache
-from ...core import StandardSchema, StandardLevel, History
+from ...core import Schema, SchemaLevel, History
 
 
 class ExternalInterface(Interface, ABC):
@@ -21,8 +21,8 @@ class MarketInterface(ExternalInterface, ABC):
 
     @classmethod
     def to_history(cls, df: pd.DataFrame, levels: list = None, fields: list = None, security_manager=None) -> History:
-        schema = StandardSchema(
-            levels=[StandardLevel.SECURITY, StandardLevel.DATE] if levels is None else levels,
+        schema = Schema(
+            levels=[SchemaLevel.SECURITY, SchemaLevel.DATE] if levels is None else levels,
             fields=list(df.columns) if fields is None else fields,
             security_manager=security_manager
         )
