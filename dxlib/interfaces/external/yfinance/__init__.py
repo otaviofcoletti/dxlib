@@ -2,9 +2,9 @@ from .yfinance_api import YFinanceAPI
 from ..external_interface import ExternalWSInterface, ExternalHTTPInterface
 
 
-class YFinanceHTTPInterface(ExternalHTTPInterface, YFinanceAPI):
+class MarketHTTPInterface(ExternalHTTPInterface, YFinanceAPI):
     pass
 
 
-class YFinanceWSInterface(ExternalWSInterface, YFinanceAPI):
+class MarketWSInterface(ExternalWSInterface, YFinanceAPI):
     pass

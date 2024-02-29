@@ -11,6 +11,12 @@ class ExternalInterface(ABC):
     def __init__(self):
         self.cache = Cache()
 
+
+class MarketInterface(ExternalInterface, ABC):
+
+    def __init__(self):
+        super().__init__()
+
     @classmethod
     def to_history(cls, df: pd.DataFrame, levels: list = None, fields: list = None, security_manager=None) -> History:
         schema = StandardSchema(
@@ -21,10 +27,38 @@ class ExternalInterface(ABC):
 
         return History.from_df(df, schema)
 
+    def get_trades(self, ticker):
+        raise NotImplementedError
 
-class ExternalHTTPInterface(ExternalInterface):
-    pass
+    def quote_tickers(
+            self,
+            tickers: list | str,
+            start: pd.Timestamp | str,
+            end: pd.Timestamp | str,
+            timeframe="1d",
+            cache=False,
+    ) -> History:
+        raise NotImplementedError
 
 
-class ExternalWSInterface(ExternalInterface):
-    pass
+class OrderInterface(ExternalInterface, ABC):
+
+    def __init__(self):
+        super().__init__()
+
+    def execute(self, order):
+        raise NotImplementedError
+
+
+class PortfolioInterface(ExternalInterface, ABC):
+    def __init__(self):
+        super().__init__()
+
+    def get(self, identifier=None):
+        raise NotImplementedError
+
+    def add(self, order, market):
+        raise NotImplementedError
+
+    def set(self, portfolio):
+        raise NotImplementedError

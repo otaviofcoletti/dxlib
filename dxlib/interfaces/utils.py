@@ -10,14 +10,6 @@ class RequestType(Enum):
     DELETE = "DELETE"
 
 
-def request(func):
-    def wrapper(self, *args, **kwargs):
-        self.num_calls += 1
-        return func(self, *args, **kwargs)
-
-    return wrapper
-
-
 def md5hash(value: str):
     return md5(value.encode()).hexdigest()
 

@@ -1,27 +1,19 @@
 from __future__ import annotations
 
-from dxlib.interfaces.external.external_interfaces import (
+from ..external_interface import (
     MarketInterface,
     PortfolioInterface,
     OrderInterface,
-    MarketUtilities,
 )
-
-from dxlib.core import History
-from dxlib.core import Portfolio, SecurityManager
-from dxlib.core.trading import Order, OrderDetails, OrderType
-from dxlib.interfaces.servers import Endpoint, Method
+from ....core import History, Portfolio, SecurityManager, Order, OrderType
 
 
 class SandboxMarket(MarketInterface):
     def __init__(
-        self, security_manager=SecurityManager(), allow_backtest: bool = False
+        self, security_manager: SecurityManager
     ):
         super().__init__()
-        self.identifier = "Sandbox"
         self.security_manager = security_manager
-        self.allow_backtest = allow_backtest
-        self._history = History()
 
     @property
     @Endpoint.http(Method.GET, "/market/{security}", "Get the entire market history.")

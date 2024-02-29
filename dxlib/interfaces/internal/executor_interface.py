@@ -4,19 +4,23 @@ from ...core import Executor, History, Inventory
 
 
 class ExecutorHTTPInterface(InternalInterface):
-    def __init__(self, executor: Executor):
-        super().__init__()
+    def __init__(self, executor: Executor = None, url = None):
+        super().__init__(url)
+        if executor is None and url is None:
+            raise ValueError("Executor or URL must be provided")
         self.executor = executor
 
-    @Endpoint.http(Method.POST, "/run", "Executes a single observation and returns the result")
-    def run(self, obj: any, in_place: bool = False):
+    @Endpoint.http(Method.POST,
+                   "/run",
+                   "Executes a single observation and returns the result")
+    def run(self, obj: any):
         try:
             history = History.from_dict(serialized=True, **obj)
         except Exception as e:
             raise ValueError(f"Could not parse history: {e}")
 
         try:
-            result: History = self.executor.run(history, in_place=in_place)
+            result: History = self.executor.run(history)
         except Exception as e:
             raise ValueError(f"Could not run executor on history: {e}")
 
@@ -40,7 +44,7 @@ class ExecutorHTTPInterface(InternalInterface):
 
         return response
 
-    @Endpoint.http(Method.GET, "/position", "Gets the total aggregated position")
+    @Endpoint.http(Method.GET, "/position", "Gets the total aggregated position", output=Inventory)
     def get_position(self):
         return {
             "status": "success",

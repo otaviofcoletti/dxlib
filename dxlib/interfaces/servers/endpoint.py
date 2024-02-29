@@ -1,7 +1,7 @@
 import enum
 from dataclasses import dataclass
-from inspect import signature
 from functools import wraps
+from inspect import signature
 from typing import List, Tuple
 
 
@@ -19,12 +19,14 @@ class EndpointWrapper:
                  method: Method = None,
                  description: str = None,
                  params: dict = None,
-                 func: callable = None):
+                 func: callable = None,
+                 output: any = None):
         self.route_name = route_name
         self.method = method
         self.description = description
         self.params = params or {}
         self.func = func
+        self.output = output
 
     route_name: str
     method: Method = None
@@ -35,7 +37,7 @@ class EndpointWrapper:
 
 class Endpoint:
     @staticmethod
-    def http(method: Method, route_name: str, description: str = None):
+    def http(method: Method, route_name: str, description: str = None, output: any = None):
         def decorator(func):  # Do note, func is class bound, not instance bound
             @wraps(func)  # This helps preserve function metadata
             def wrapper(*args, **kwargs):
@@ -47,6 +49,7 @@ class Endpoint:
                 route_name,
                 method=method,
                 params=dict(params),
+                output=output,
             )
 
             if description is not None:
@@ -67,6 +70,7 @@ class Endpoint:
             wrapper.endpoint = EndpointWrapper(
                 route_name,
                 params=dict(params),
+                output=None,
             )
             if description is not None:
                 wrapper.endpoint.description = description
