@@ -1,3 +1,4 @@
+import asyncio
 import unittest
 
 import pandas as pd
@@ -34,7 +35,7 @@ class TestExecutor(unittest.TestCase):
             security_manager=dx.SecurityManager.from_list(["AAPL", "MSFT"]),
         )
         self.sample_data = {
-            (pd.Timestamp("2021-01-01"), "AAPL"): {"close": 100},
+            (pd.Timestamp("2021-01-01"), "PETR4"): {"close": 100},
             (pd.Timestamp("2021-01-01"), "MSFT"): {"close": 200},
             (pd.Timestamp("2021-01-02"), "AAPL"): {"close": 110},
             (pd.Timestamp("2021-01-02"), "MSFT"): {"close": 210},
@@ -54,12 +55,31 @@ class TestExecutor(unittest.TestCase):
         for idx, signal in signals:
             self.assertEqual(signal.iloc[0].side, dx.Side.BUY)
 
-    def test_async_executor(self):
+    def test_generator_executor(self):
         position = dx.Inventory()
         strategy = self.LongOnlyStrategy()
         executor = dx.Executor(strategy, position)
 
-        def async_generator():
+        def generator():
+            for idx, bar in self.history:
+                yield idx, bar
+
+        signal_generator = executor.run(generator(), input_schema=self.schema)
+
+        signal_list = []
+
+        for signal in signal_generator:
+            signal_list.append(signal)
+            self.assertEqual(signal.iloc[0].side, dx.Side.BUY)
+
+        self.assertEqual(len(signal_list), 6)
+
+    def test_async_generator_executor(self):
+        position = dx.Inventory()
+        strategy = self.LongOnlyStrategy()
+        executor = dx.Executor(strategy, position)
+
+        async def async_generator():
             for idx, bar in self.history:
                 yield idx, bar
 
@@ -67,9 +87,12 @@ class TestExecutor(unittest.TestCase):
 
         signal_list = []
 
-        for signal in signal_generator:
-            signal_list.append(signal)
-            self.assertEqual(signal.iloc[0].side, dx.Side.BUY)
+        async def consume_signal():
+            async for signal in signal_generator:
+                signal_list.append(signal)
+                self.assertEqual(signal.iloc[0].side, dx.Side.BUY)
+
+        asyncio.run(consume_signal())
 
         self.assertEqual(len(signal_list), 6)
 
