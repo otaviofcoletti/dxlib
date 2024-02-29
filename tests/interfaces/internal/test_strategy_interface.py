@@ -1,12 +1,12 @@
 import time
 import unittest
-import requests
 
 import pandas as pd
+import requests
 
 import dxlib as dx
 from dxlib import Inventory, History
-from dxlib.interfaces.internal import StrategyHTTPInterface
+from dxlib.interfaces.internal import StrategyInterface
 
 
 class TestStrategyAPI(unittest.TestCase):
@@ -17,23 +17,21 @@ class TestStrategyAPI(unittest.TestCase):
 
     def setUp(self):
         self.strategy = self.SampleStrategy()
-        self.interface = StrategyHTTPInterface(self.strategy)
+        self.interface = StrategyInterface(self.strategy)
 
         self.server = dx.HTTPServer(port=8080)
         self.server.add_interface(self.interface)
-
-    def testServer(self):
-
         self.server.start()
         while not self.server.alive:
             time.sleep(0.1)
-        self.assertEqual(self.server.alive, True)
+
+    def tearDown(self):
         self.server.stop()
 
+    def testServer(self):
+        self.assertEqual(self.server.alive, True)
+
     def testGetEndpoint(self):
-        self.server.start()
-        while not self.server.alive:
-            time.sleep(0.1)
         self.assertEqual(self.server.alive, True)
 
         response = requests.get("http://localhost:8080/")
@@ -56,10 +54,7 @@ class TestStrategyAPI(unittest.TestCase):
                 self.assertEqual(method.name, list(endpoints[route_name].keys())[0])
                 self.assertEqual(route_name, list(endpoints.keys())[0])
         except Exception as e:
-            self.server.stop()
             raise e
-
-        self.server.stop()
 
 
 if __name__ == '__main__':

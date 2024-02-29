@@ -1,19 +1,17 @@
 from __future__ import annotations
 
 import enum
-from dataclasses import dataclass
 from typing import List
 
 import pandas as pd
 
 from ..security import SecurityManager, Security
-from ...trading import Signal, OrderData
+from ...trading import Signal
 
 
-class LevelEnum(enum.Enum):
-    @classmethod
-    def levels(cls):
-        return list(cls.__members__.values())
+class SchemaLevel(enum.Enum):
+    DATE = "date"
+    SECURITY = "security"
 
     def to_dict(self):
         return {
@@ -26,13 +24,13 @@ class LevelEnum(enum.Enum):
 
 
 class Schema:
-    levels: List[LevelEnum]
+    levels: List[SchemaLevel]
     fields: List[str]
     security_manager: SecurityManager
 
     def __init__(
             self,
-            levels: List[LevelEnum] = None,
+            levels: List[SchemaLevel] = None,
             fields: List[str] = None,
             security_manager: SecurityManager = None,
     ):
@@ -69,7 +67,7 @@ class Schema:
     @classmethod
     def from_dict(cls, **kwargs) -> Schema:
         return cls(
-            levels=[LevelEnum.from_dict(**level) for level in kwargs["levels"]],
+            levels=[SchemaLevel.from_dict(**level) for level in kwargs["levels"]],
             fields=kwargs["fields"],
             security_manager=SecurityManager.from_dict(
                 **kwargs.get("security_manager")
@@ -107,93 +105,18 @@ class Schema:
         # Make the new index a multiindex with date and security objects
         df.index = pd.MultiIndex.from_tuples(df.index, names=[level.value for level in self.levels])
 
-        return df
-
-
-class StandardLevel(LevelEnum):
-    DATE = "date"
-    SECURITY = "security"
-
-
-@dataclass
-class StandardSchema(Schema):
-    levels: List[StandardLevel]
-    fields: List[str]
-    security_manager: SecurityManager
-
-    def __init__(
-            self,
-            levels: List[StandardLevel] = None,
-            fields: List[str] = None,
-            security_manager: SecurityManager = None,
-    ):
-        super().__init__(levels, fields, security_manager)
-
-    @classmethod
-    def from_dict(cls, **kwargs) -> StandardSchema:
-        return cls(
-            levels=[StandardLevel.from_dict(**level) for level in kwargs["levels"]],
-            fields=kwargs["fields"],
-            security_manager=SecurityManager.from_dict(
-                **kwargs.get("security_manager")
-            ),
-        )
-
-    @classmethod
-    def serialize(cls, obj: any):
-        obj = super().serialize(obj)
-        if isinstance(obj, Security):
-            return cls.serialize(obj.to_dict())
-        return obj
-
-    def apply_deserialize(self, df: pd.DataFrame):
-        # Converts a pd.DataFrame into this schema's format
-        # For example, if pd.DataFrame's index is a string of a tuple of date and security
-        # Make the new index a multiindex with date and security objects
-        df = super().apply_deserialize(df)
-        if StandardLevel.SECURITY in self.levels:
-            security_level = df.index.names.index(StandardLevel.SECURITY.value)
+        if SchemaLevel.SECURITY in self.levels:
+            security_level = df.index.names.index(SchemaLevel.SECURITY.value)
 
             df.index = df.index.set_levels(
                 df.index.levels[security_level].map(
                     lambda x: self.security_manager.add(Security.from_dict(**self.deserialize(x)))
                 ),
-                level=StandardLevel.SECURITY.value
+                level=SchemaLevel.SECURITY.value
+            )
+        if "signal" in self.fields:
+            df["signal"] = df["signal"].map(
+                lambda kwargs: Signal.from_dict(**self.deserialize(kwargs))
             )
 
         return df
-
-
-class SignalSchema(Schema):
-    def __init__(
-            self,
-            levels: List[LevelEnum] = None,
-            fields: List[str] = None,
-            security_manager: SecurityManager = None
-    ):
-        if fields is None:
-            fields = ["signal"]
-        super().__init__(levels, fields, security_manager)
-
-    @classmethod
-    def serialize(cls, obj: any):
-        obj = super().serialize(obj)
-        if isinstance(obj, Signal):
-            return cls.serialize(obj.to_dict())
-        elif isinstance(obj, (Security, Signal)):
-            return cls.serialize(obj.to_dict())
-        return obj
-
-    def apply_deserialize(self, df: pd.DataFrame):
-        df = super().apply_deserialize(df)
-
-        if "signal" in self.fields:
-            df["signal"] = df["signal"].map(lambda kwargs: Signal.from_dict(**self.deserialize(kwargs)))
-
-        return df
-
-    @staticmethod
-    def to_order_data(df: pd.DataFrame):
-        signal_column = "signal"
-        security_index = df.index.names.index(StandardLevel.SECURITY.value)
-        return df.apply(lambda row: OrderData.from_signal(row[signal_column], row.name[security_index]), axis=1)

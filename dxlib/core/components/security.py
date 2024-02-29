@@ -157,7 +157,7 @@ class SecurityManager(dict[str, Security]):
         for security in securities:
             self.add(security) if security not in self else None
 
-    def to_dict(self) -> dict:
+    def to_dict(self, serializable: bool = False) -> dict:
         return {
             "securities": {key: security.to_dict() for key, security in self._securities.items()},
             "cash": self._cash.to_dict(),

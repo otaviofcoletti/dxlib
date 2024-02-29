@@ -29,13 +29,13 @@ class TestExecutor(unittest.TestCase):
             return pd.Series(signals)
 
     def setUp(self):
-        self.schema = dx.StandardSchema(
-            levels=[dx.StandardLevel.DATE, dx.StandardLevel.SECURITY],
+        self.schema = dx.Schema(
+            levels=[dx.SchemaLevel.DATE, dx.SchemaLevel.SECURITY],
             fields=["close"],
             security_manager=dx.SecurityManager.from_list(["AAPL", "MSFT"]),
         )
         self.sample_data = {
-            (pd.Timestamp("2021-01-01"), "PETR4"): {"close": 100},
+            (pd.Timestamp("2021-01-01"), "AAPL"): {"close": 100},
             (pd.Timestamp("2021-01-01"), "MSFT"): {"close": 200},
             (pd.Timestamp("2021-01-02"), "AAPL"): {"close": 110},
             (pd.Timestamp("2021-01-02"), "MSFT"): {"close": 210},
