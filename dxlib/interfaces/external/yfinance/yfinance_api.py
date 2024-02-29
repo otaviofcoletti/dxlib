@@ -7,8 +7,7 @@ import pandas as pd
 import requests
 
 from ..external_interface import MarketInterface
-from .... import SecurityManager
-from ....core import History
+from ....core import History, SecurityManager, Schema, SchemaLevel
 
 
 class YFinanceAPI(MarketInterface):
@@ -28,7 +27,7 @@ class YFinanceAPI(MarketInterface):
 
     @property
     def header(self):
-        return {'User-Agent': self.user_agent,}
+        return {'User-Agent': self.user_agent}
 
     @property
     def keepalive_header(self):
@@ -87,28 +86,36 @@ class YFinanceAPI(MarketInterface):
         response = self.session.get(url, headers=self.header)
         data = response.json()
         if "chart" in data:
-            quotes = self.format_quote(data)
-            df = pd.DataFrame.from_dict(quotes, orient="index")
-            return History.from_df(df)
+            return self.format_quote(data)
         else:
             return None
 
-    def quote(self, tickers: list) -> dict:
+    def quote(
+            self,
+            tickers: List[str] | str,
+            start: datetime | str = None,
+            end: datetime | str = None,
+            interval="1m",
+            security_manager=None,
+            cache=False,
+    ) -> History:
         interval = "1m"
         range_in = "3m"
 
         quotes = {}
 
+        tickers = [tickers] if isinstance(tickers, str) else tickers
+
         for ticker in tickers:
             data = self.quote_ticker(ticker, range_in, interval)
+            quotes[(data.pop("date"), ticker)] = data
 
-            date = data.get("date")
-            key = (date, ticker)
-            # remove date from data
-            data.pop("date")
-            quotes[key] = data
-
-        return quotes
+        df = pd.DataFrame.from_dict(quotes, orient="index")
+        return History(df, schema=Schema(
+            levels=[SchemaLevel.DATE, SchemaLevel.SECURITY],
+            fields=["open", "high", "low", "close", "volume"],
+            security_manager=security_manager if security_manager else SecurityManager.from_list(tickers)
+        ))
 
     def _historical(
             self, tickers, timeframe, start: datetime.datetime, end: datetime.datetime

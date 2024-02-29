@@ -15,16 +15,21 @@ from ..internal.internal_interface import InternalInterface
 
 class HTTPServer(Server):
     def __init__(
-        self, handler: HTTPHandler = None, port=None, logger=None
+        self, handler: HTTPHandler = None, host=None, port=None, logger=None
     ):
         super().__init__(logger)
         self.handler = handler or HTTPHandler()
         self.port = port if port else self._get_free_port()
+        self.host = host if host else "localhost"
 
         self._thread = None
         self._server: ThreadingHTTPServer | None = None
         self._error = threading.Event()
         self._running = threading.Event()
+
+    @property
+    def url(self):
+        return f"http://{self.host}:{self.port}"
 
     def add_interface(self, interface: InternalInterface):
         self.handler.add_interface(interface, endpoint_type=EndpointType.HTTP)
@@ -214,7 +219,7 @@ class HTTPServer(Server):
 
         try:
             with ThreadingHTTPServer(
-                ("", self.port), HTTPRequestHandler
+                (self.host, self.port), HTTPRequestHandler
             ) as self._server:
                 self.logger.info(f"Server started. Press Ctrl+C to stop...")
                 self._server.timeout = 1

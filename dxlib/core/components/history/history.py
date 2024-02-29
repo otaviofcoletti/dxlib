@@ -129,7 +129,7 @@ class History:
 
     @classmethod
     def from_dict(cls, serialized=False, **kwargs):
-        schema = Schema.from_dict(**kwargs["schema"])
+        schema = Schema.from_dict(**kwargs.get("schema", {}))
 
         to_key = eval if serialized else lambda x: x
 
@@ -221,7 +221,7 @@ class History:
         return History(self.get_df(levels, fields), self._schema)
 
     def get_df(
-            self, levels: Dict[LevelEnum, list] = None, fields: List[str] = None
+            self, levels: Dict[SchemaLevel, list] = None, fields: List[str] = None
     ) -> pd.DataFrame:
         if self.df.empty:
             return pd.DataFrame()
@@ -278,7 +278,7 @@ class History:
 
     def set_df(
             self,
-            levels: Dict[LevelEnum, list] = None,
+            levels: Dict[SchemaLevel, list] = None,
             fields: List[str] = None,
             values: pd.DataFrame | dict = None,
     ):
@@ -302,7 +302,7 @@ class History:
         df.index = self.convert_index(df.index)
         self.df = df
 
-    def apply_df(self, func: Dict[LevelEnum, callable] | callable, *args, **kwargs):
+    def apply_df(self, func: Dict[SchemaLevel, callable] | callable, *args, **kwargs):
         if isinstance(func, dict):
             df = self.df
 
@@ -315,7 +315,7 @@ class History:
         else:
             raise ValueError(f"Invalid type {type(func)} for by")
 
-    def apply(self, func: Dict[LevelEnum, callable] | callable, schema: Schema = None, *args, **kwargs):
+    def apply(self, func: Dict[SchemaLevel, callable] | callable, schema: Schema = None, *args, **kwargs):
         return History(self.apply_df(func, *args, **kwargs), schema or self._schema)
 
     def apply_on_df(self, other: pd.DataFrame, func: callable):

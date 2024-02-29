@@ -66,6 +66,8 @@ class Schema:
 
     @classmethod
     def from_dict(cls, **kwargs) -> Schema:
+        if not kwargs:
+            return cls()
         return cls(
             levels=[SchemaLevel.from_dict(**level) for level in kwargs["levels"]],
             fields=kwargs["fields"],

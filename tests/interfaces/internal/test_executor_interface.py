@@ -60,7 +60,7 @@ class TestExecutorInterface(unittest.TestCase):
             "obj": history.to_dict(serializable=True),
         }
 
-        response = self.interface.request(route_name="/run", data=json.dumps(run_params))
+        response = self.interface.request(route="/run", json=run_params)
 
         data = response["data"]
 

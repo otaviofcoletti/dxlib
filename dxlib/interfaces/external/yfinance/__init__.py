@@ -3,10 +3,7 @@ import threading
 from typing import Any, Coroutine
 
 from .yfinance_api import YFinanceAPI
-
-
-class YFinanceMarketHTTP(YFinanceAPI):
-    pass
+from .yfinance_interface import YFinanceInterface
 
 
 class YFinanceMarketWS(YFinanceAPI):

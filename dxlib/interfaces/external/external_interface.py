@@ -1,24 +1,20 @@
 from abc import ABC
+from datetime import datetime
+from typing import List
 
 import pandas as pd
 
-from ..interface import Interface
 from ..utils import Cache
 from ...core import Schema, SchemaLevel, History
 
 
-class ExternalInterface(Interface, ABC):
+class ExternalInterface(ABC):
 
-    def __init__(self, url: str):
-        super().__init__(url)
+    def __init__(self):
         self.cache = Cache()
 
 
-class MarketInterface(ExternalInterface, ABC):
-
-    def __init__(self):
-        super().__init__()
-
+class MarketInterface(ExternalInterface):
     @classmethod
     def to_history(cls, df: pd.DataFrame, levels: list = None, fields: list = None, security_manager=None) -> History:
         schema = Schema(
@@ -29,33 +25,33 @@ class MarketInterface(ExternalInterface, ABC):
 
         return History.from_df(df, schema)
 
-    def get_trades(self, ticker):
+    def historical(
+            self,
+            tickers: List[str] | str,
+            start: datetime | str,
+            end: datetime | str,
+            timeframe="1d",
+            cache=False,
+    ) -> History:
         raise NotImplementedError
 
-    def quote_tickers(
+    def quote(
             self,
-            tickers: list | str,
-            start: pd.Timestamp | str,
-            end: pd.Timestamp | str,
-            timeframe="1d",
+            tickers: List[str] | str,
+            start: datetime | str = None,
+            end: datetime | str = None,
+            interval="1m",
             cache=False,
     ) -> History:
         raise NotImplementedError
 
 
 class OrderInterface(ExternalInterface, ABC):
-
-    def __init__(self):
-        super().__init__()
-
     def execute(self, order):
         raise NotImplementedError
 
 
 class PortfolioInterface(ExternalInterface, ABC):
-    def __init__(self):
-        super().__init__()
-
     def get(self, identifier=None):
         raise NotImplementedError
 
