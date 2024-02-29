@@ -1,15 +1,15 @@
 import asyncio
 import threading
+from typing import Any, Coroutine
 
 from .yfinance_api import YFinanceAPI
-from ..external_interface import ExternalWSInterface, ExternalHTTPInterface
 
 
-class MarketHTTPInterface(ExternalHTTPInterface, YFinanceAPI):
+class YFinanceMarketHTTP(YFinanceAPI):
     pass
 
 
-class MarketWSInterface(ExternalWSInterface, YFinanceAPI):
+class YFinanceMarketWS(YFinanceAPI):
     def __init__(self):
         super().__init__()
 
@@ -19,7 +19,7 @@ class MarketWSInterface(ExternalWSInterface, YFinanceAPI):
             await asyncio.sleep(60)
 
     # since no actual websocket exists for api, simulate a websocket by querying every 1 minute
-    def listen(self, tickers, callback, threaded=False) -> threading.Thread | asyncio.Task:
+    def listen(self, tickers, callback, threaded=False) -> Coroutine[Any, Any, None] | threading.Thread:
         # use self.get_data, call callback with data
         async def run():
             async for data in self.get_data(tickers):
@@ -33,5 +33,3 @@ class MarketWSInterface(ExternalWSInterface, YFinanceAPI):
             return t
         else:
             return run()
-class MarketWSInterface(ExternalWSInterface, YFinanceAPI):
-    pass

@@ -2,13 +2,15 @@ from abc import ABC
 
 import pandas as pd
 
+from ..interface import Interface
 from ..utils import Cache
 from ...core import StandardSchema, StandardLevel, History
 
 
-class ExternalInterface(ABC):
+class ExternalInterface(Interface, ABC):
 
-    def __init__(self):
+    def __init__(self, url: str):
+        super().__init__(url)
         self.cache = Cache()
 
 

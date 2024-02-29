@@ -1,4 +1,4 @@
-from .. import Interface
+from ..interface import Interface
 
 
 class InternalInterface(Interface):
