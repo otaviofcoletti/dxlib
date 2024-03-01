@@ -1,4 +1,5 @@
 import queue
+import socket
 import threading
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -40,6 +41,12 @@ class Server(ABC, LoggerMixin):
 
         self.exception_queue = queue.Queue()
         self.exceptions = ExceptionContext(self)
+
+    @staticmethod
+    def _get_free_port():
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind(("", 0))
+            return s.getsockname()[1]
 
     @property
     def alive(self):

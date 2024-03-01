@@ -4,15 +4,15 @@ import threading
 import websockets
 from websockets.exceptions import ConnectionClosedError
 
-from .server import Server, ServerStatus
 from dxlib.interfaces.servers.handlers import WebsocketHandler
+from .server import Server, ServerStatus
 
 
 class WebsocketServer(Server):
-    def __init__(self, handler: WebsocketHandler, port=None, logger=None):
+    def __init__(self, handler: WebsocketHandler = None, port=None, logger=None):
         super().__init__(logger)
-        self.handler = handler
-        self.port = port if port else 8765
+        self.handler = handler or WebsocketHandler()
+        self.port = port if port else self._get_free_port()
 
         self._thread = None
         self._server = None
@@ -20,17 +20,20 @@ class WebsocketServer(Server):
         self._stop_event = asyncio.Event()
 
     async def websocket_handler(self, websocket, endpoint):
-        self.logger.info("New websocket connection")
-        self.handler.connect(websocket, endpoint)
+        try:
+            self.handler.on_connect(websocket, endpoint)
+        except Exception as e:
+            self.logger.error(f"Error while handling websocket connection: {e}")
+            return
 
         try:
             async for message in websocket:
                 if self.handler:
-                    await self.handler.handle(websocket, endpoint, message)
+                    await self.handler.on_message(websocket, endpoint, message)
         except ConnectionClosedError:
             self.logger.warning("Websocket connection closed")
 
-        self.handler.disconnect(websocket, endpoint)
+        self.handler.on_disconnect(websocket, endpoint)
 
     @classmethod
     async def send_message_async(cls, websocket, message):

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import inspect
 import json
-import socket
 import threading
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
@@ -32,12 +31,6 @@ class HTTPServer(Server):
 
     def add_interface(self, interface):
         self.handler.add_interface(interface, endpoint_type=EndpointType.HTTP)
-
-    @staticmethod
-    def _get_free_port():
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(("", 0))
-            return s.getsockname()[1]
 
     @property
     def formatted_endpoints(self):
