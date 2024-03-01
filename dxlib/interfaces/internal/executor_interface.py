@@ -4,9 +4,9 @@ from ...core import Executor, History, Inventory
 
 
 class ExecutorInterface(InternalInterface):
-    def __init__(self, executor: Executor = None, url = None):
-        super().__init__(url)
-        if executor is None and url is None:
+    def __init__(self, executor: Executor = None, interface_url: str = None, headers: dict = None):
+        super().__init__(interface_url, headers)
+        if executor is None and interface_url is None:
             raise ValueError("Executor or URL must be provided")
         self.executor = executor
 

@@ -10,7 +10,6 @@ from urllib.parse import parse_qs, urlparse
 from .endpoint import EndpointWrapper, Method, EndpointType
 from .handlers import HTTPHandler
 from .server import ServerStatus, handle_exceptions_decorator, Server
-from ..internal.internal_interface import InternalInterface
 
 
 class HTTPServer(Server):
@@ -31,7 +30,7 @@ class HTTPServer(Server):
     def url(self):
         return f"http://{self.host}:{self.port}"
 
-    def add_interface(self, interface: InternalInterface):
+    def add_interface(self, interface):
         self.handler.add_interface(interface, endpoint_type=EndpointType.HTTP)
 
     @staticmethod
@@ -189,6 +188,14 @@ class HTTPServer(Server):
 
             @handle_exceptions_decorator
             def do_POST(self):
+                if self.path == "/":
+                    response = self.formatted_endpoints
+                    self.send_response(200)
+                    self.send_header("Content-type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(response.encode())
+                    return
+
                 route_name, params = self.parse_route()
                 if route_name is None:
                     return
@@ -234,7 +241,7 @@ class HTTPServer(Server):
             self.logger.info("Server stopped by user")
 
     def start(self) -> ServerStatus:
-        self.logger.info(f"Server starting on port {self.port}")
+        self.logger.info(f"Server starting on http://{self.host}:{self.port}")
         self._running.set()
         self._thread = threading.Thread(target=self._serve)
         self._thread.start()

@@ -2,7 +2,6 @@ from abc import ABC
 from typing import Dict, List, Tuple
 
 from .endpoint import EndpointWrapper, Method, EndpointType
-from ..internal.internal_interface import InternalInterface
 
 
 class Handler(ABC):
@@ -30,7 +29,7 @@ class HTTPHandler(Handler, ABC):
         self.endpoints[route_name] = self.endpoints.get(route_name, {})
         self.endpoints[route_name][method] = (endpoint, func)
 
-    def add_interface(self, interface: InternalInterface, endpoint_type: EndpointType = EndpointType.HTTP):
+    def add_interface(self, interface, endpoint_type: EndpointType = EndpointType.HTTP):
         self.set_endpoints(interface.get_endpoints(endpoint_type))
 
 

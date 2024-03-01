@@ -34,7 +34,7 @@ class TestYFinanceInterface(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.server = dx.servers.HTTPServer()
-        cls.interface = dx.interfaces.YFinanceInterface(interface_url=cls.server.url)
+        cls.interface = dx.interfaces.MarketInterface(dx.YFinanceAPI(), interface_url=cls.server.url)
         cls.server.add_interface(cls.interface)
 
         cls.server.start()

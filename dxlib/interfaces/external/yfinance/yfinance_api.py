@@ -6,11 +6,11 @@ from typing import List
 import pandas as pd
 import requests
 
-from ..external_interface import MarketInterface
+from ..external_interface import MarketApi
 from ....core import History, SecurityManager, Schema, SchemaLevel
 
 
-class YFinanceAPI(MarketInterface):
+class YFinanceAPI(MarketApi):
     def __init__(self, base_url="https://query1.finance.yahoo.com/v8/finance/chart/"):
         super().__init__()
         self.base_url = base_url
@@ -47,16 +47,21 @@ class YFinanceAPI(MarketInterface):
 
     @classmethod
     def format_response_data(cls, data):
-        trades = data["chart"]["result"][0]["timestamp"]
-        prices = data["chart"]["result"][0]["indicators"]["quote"][0]
-        trade_data = {
-            "date": [datetime.datetime.fromtimestamp(ts) for ts in trades],
-            "open": prices["open"],
-            "high": prices["high"],
-            "low": prices["low"],
-            "close": prices["close"],
-            "volume": prices["volume"],
-        }
+        result = data["chart"]["result"][0]
+
+        trade_data = {}
+
+        if result:
+            trades = result["timestamp"]
+            prices = result["indicators"]["quote"][0]
+            trade_data = {
+                "date": [datetime.datetime.fromtimestamp(ts) for ts in trades],
+                "open": prices["open"],
+                "high": prices["high"],
+                "low": prices["low"],
+                "close": prices["close"],
+                "volume": prices["volume"],
+            }
 
         return trade_data
 
@@ -67,16 +72,12 @@ class YFinanceAPI(MarketInterface):
         quotes = {}
 
         if result_data:
-            quote_data = result_data[0]["indicators"]["quote"][0]
-            timestamp_data = result_data[0]["timestamp"]
+            timestamp = result_data[0]["meta"]["regularMarketTime"]
+            price = result_data[0]["meta"]["regularMarketPrice"]
 
             quotes = {
-                "date": datetime.datetime.fromtimestamp(timestamp_data[-1]),
-                "open": quote_data.get("open", [])[0],
-                "high": quote_data.get("high", [])[0],
-                "low": quote_data.get("low", [])[0],
-                "close": quote_data.get("close", [])[0],
-                "volume": quote_data.get("volume", [])[0],
+                "date": datetime.datetime.fromtimestamp(timestamp),
+                "price": price
             }
 
         return quotes
@@ -113,7 +114,7 @@ class YFinanceAPI(MarketInterface):
         df = pd.DataFrame.from_dict(quotes, orient="index")
         return History(df, schema=Schema(
             levels=[SchemaLevel.DATE, SchemaLevel.SECURITY],
-            fields=["open", "high", "low", "close", "volume"],
+            fields=["price"],
             security_manager=security_manager if security_manager else SecurityManager.from_list(tickers)
         ))
 

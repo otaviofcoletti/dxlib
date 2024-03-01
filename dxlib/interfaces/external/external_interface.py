@@ -14,7 +14,7 @@ class ExternalInterface(ABC):
         self.cache = Cache()
 
 
-class MarketInterface(ExternalInterface):
+class MarketApi(ExternalInterface):
     @classmethod
     def to_history(cls, df: pd.DataFrame, levels: list = None, fields: list = None, security_manager=None) -> History:
         schema = Schema(

@@ -13,8 +13,8 @@ class InternalInterface(ABC):
         self.headers = headers or {}
 
         self.endpoints = {
-            wrapper.route_name: wrapper
-            for wrapper, _ in self.get_endpoints()
+            (endpoint_wrapper.route_name, endpoint_wrapper.method): endpoint_wrapper
+            for endpoint_wrapper, _ in self.get_endpoints()
         }
 
     def get_endpoints(self, endpoint_type: EndpointType = None) -> List[Tuple[EndpointWrapper, callable]]:
@@ -49,29 +49,34 @@ class InternalInterface(ABC):
 
         return endpoints
 
-    def request(self, endpoint_wrapper: EndpointWrapper = None, route: str = None, **kwargs):
+    def request(self, wrapper: EndpointWrapper = None, route: str = None, method: str = None, **kwargs):
         if self.interface_url is None:
             raise ValueError("URL for interfacing must be provided on interface creation")
-        if route is None and endpoint_wrapper is None:
+        if route is None and wrapper is None:
             raise ValueError("URL or endpoint_wrapper must be provided")
 
-        if route is not None:
-            endpoint_wrapper = self.endpoints[route]
+        if wrapper is not None:
+            route = wrapper.route_name
+            method = wrapper.method
 
-        url = self.interface_url + endpoint_wrapper.route_name
+        url = self.interface_url + route
 
-        if endpoint_wrapper.method == Method.GET:
+        if method == Method.GET:
             request = requests.get
-        elif endpoint_wrapper.method == Method.POST:
+        elif method == Method.POST:
             request = requests.post
-        elif endpoint_wrapper.method == Method.PUT:
+        elif method == Method.PUT:
             request = requests.put
         else:
-            raise ValueError(f"Method {endpoint_wrapper.method} not supported")
+            raise ValueError(f"Method {method} not supported")
+
 
         response = request(url, headers=self.headers, **kwargs)
 
-        if endpoint_wrapper.output is not None:
-            return endpoint_wrapper.output(response.json())
+        if response.status_code != 200:
+            raise ValueError(f"Request failed with status code {response.text}")
+
+        if wrapper and wrapper.output is not None:
+            return wrapper.output(response.json())
         else:
             return response.json()
