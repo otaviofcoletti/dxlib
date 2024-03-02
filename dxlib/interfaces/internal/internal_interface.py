@@ -49,15 +49,14 @@ class InternalInterface(ABC):
 
         return endpoints
 
-    def request(self, wrapper: EndpointWrapper = None, route: str = None, method: str = None, **kwargs):
+    def request(self, function: any, **kwargs):
         if self.interface_url is None:
             raise ValueError("URL for interfacing must be provided on interface creation")
-        if route is None and wrapper is None:
-            raise ValueError("URL or endpoint_wrapper must be provided")
 
-        if wrapper is not None:
-            route = wrapper.route_name
-            method = wrapper.method
+        wrapper = function.endpoint
+
+        route = wrapper.route_name
+        method = wrapper.method
 
         url = self.interface_url + route
 
@@ -69,7 +68,6 @@ class InternalInterface(ABC):
             request = requests.put
         else:
             raise ValueError(f"Method {method} not supported")
-
 
         response = request(url, headers=self.headers, **kwargs)
 

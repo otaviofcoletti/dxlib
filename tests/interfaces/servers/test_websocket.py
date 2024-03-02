@@ -44,6 +44,7 @@ class TestWebsocket(unittest.TestCase):
         ws = websocket.WebSocket()
         ws.connect(f"ws://localhost:{self.server.port}/")
         self.assertTrue(ws.connected)
+        ws.send("test")
         ws.close()
 
     def tearDown(self):

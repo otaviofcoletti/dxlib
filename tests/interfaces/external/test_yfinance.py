@@ -29,13 +29,16 @@ class TestYFinanceApi(unittest.TestCase):
 
 class TestYFinanceInterface(unittest.TestCase):
     server = None
+    websocket = None
     interface = None
 
     @classmethod
     def setUpClass(cls) -> None:
         cls.server = dx.servers.HTTPServer()
+        cls.websocket = dx.servers.WebsocketServer()
         cls.interface = dx.interfaces.MarketInterface(dx.YFinanceAPI(), interface_url=cls.server.url)
         cls.server.add_interface(cls.interface)
+        cls.websocket.add_interface(cls.interface)
 
         cls.server.start()
         while not cls.server.alive:
@@ -55,7 +58,7 @@ class TestYFinanceInterface(unittest.TestCase):
             "start": last_week.strftime("%Y-%m-%d"),
             "end": today.strftime("%Y-%m-%d"),
         }
-        quotes = self.interface.request(route="/quote", json=args)
+        quotes = self.interface.request(self.interface.quote, json=args)
         data = quotes["data"]
         quotes = dx.History.from_dict(serialized=True, **data)
 

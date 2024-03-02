@@ -5,6 +5,7 @@ import websockets
 from websockets.exceptions import ConnectionClosedError
 
 from dxlib.interfaces.servers.handlers import WebsocketHandler
+from .endpoint import EndpointType
 from .server import Server, ServerStatus
 
 
@@ -19,9 +20,15 @@ class WebsocketServer(Server):
         self._running = threading.Event()
         self._stop_event = asyncio.Event()
 
+    def add_interface(self, interface):
+        self.handler.add_interface(interface, endpoint_type=EndpointType.WEBSOCKET)
+
     async def websocket_handler(self, websocket, endpoint):
         try:
-            self.handler.on_connect(websocket, endpoint)
+            if endpoint == "/":
+                self.logger.info("Websocket connection established")
+            else:
+                self.handler.on_connect(websocket, endpoint)
         except Exception as e:
             self.logger.error(f"Error while handling websocket connection: {e}")
             return

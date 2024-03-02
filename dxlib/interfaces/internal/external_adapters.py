@@ -1,5 +1,6 @@
+import asyncio
 from datetime import datetime
-from typing import List
+from typing import List, AsyncGenerator
 
 from .internal_interface import InternalInterface
 from ..servers.endpoint import Endpoint, Method
@@ -28,6 +29,20 @@ class MarketInterface(InternalInterface):
         }
 
         return response
+
+    @Endpoint.websocket("/quote",
+                        "Stream quotes for a list of securities",
+                        )
+    def quote_stream(self,
+                     websocket: any,
+                     ) -> AsyncGenerator:
+        async def quote_stream():
+            async for quote in self.market_api.quote_stream():
+                yield quote.to_dict(serializable=True)
+                # async sleep 1 minute
+                await asyncio.sleep(60)
+
+        return quote_stream()
 
     @Endpoint.http(Method.POST,
                    "/historical",

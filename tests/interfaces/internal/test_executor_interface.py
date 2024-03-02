@@ -31,7 +31,7 @@ class TestExecutorInterface(unittest.TestCase):
         cls.inventory = dx.Inventory({security: 0 for security in cls.security_manager.values()})
         cls.executor = dx.Executor(cls.strategy, cls.inventory)
 
-        cls.interface = dx.ExecutorInterface(cls.executor, url="http://localhost:8000")
+        cls.interface = dx.ExecutorInterface(cls.executor, "http://localhost:8000")
         cls.server = dx.HTTPServer(port=8000)
         cls.server.add_interface(cls.interface)
         cls.server.start()
@@ -60,7 +60,7 @@ class TestExecutorInterface(unittest.TestCase):
             "obj": history.to_dict(serializable=True),
         }
 
-        response = self.interface.request(route="/run", json=run_params)
+        response = self.interface.request(self.interface.run, json=run_params)
 
         data = response["data"]
 
