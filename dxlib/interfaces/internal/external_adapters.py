@@ -18,7 +18,7 @@ class MarketInterface(InternalInterface):
                    "/quote",
                    "Get quote data for a list of securities",
                    output=lambda response: History.from_dict(serialized=True, **response["data"]))
-    def quote(self, tickers: List[str], start: datetime | str = None, end: datetime | str = None):
+    def quote(self, tickers: List[str], start: datetime | str = None, end: datetime | str = None) -> dict:
         if self.market_api is None:
             raise ValueError("No market API provided")
         quotes = self.market_api.quote(tickers, start, end)
@@ -48,7 +48,7 @@ class MarketInterface(InternalInterface):
                    "/historical",
                    "Get historical data for a list of securities",
                    output=lambda response: History.from_dict(serialized=True, **response["data"]))
-    def historical(self, tickers: List[str], start: datetime | str, end: datetime | str):
+    def historical(self, tickers: List[str], start: datetime | str, end: datetime | str) -> dict:
         if self.market_api is None:
             raise ValueError("No market API provided")
         history = self.market_api.historical(tickers, start, end)

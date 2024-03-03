@@ -4,7 +4,7 @@ import threading
 from abc import ABC, abstractmethod
 from enum import Enum
 
-from dxlib.logger import LoggerMixin
+from ...core.logger import LoggerMixin
 
 
 class ServerStatus(Enum):
