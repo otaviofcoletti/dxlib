@@ -7,7 +7,7 @@ import pandas as pd
 from .history import History, Schema
 from .inventory import Inventory
 from .strategy import Strategy
-from ...logger import LoggerMixin
+from ..logger import LoggerMixin
 
 
 class Executor(LoggerMixin):

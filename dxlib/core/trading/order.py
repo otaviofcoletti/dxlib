@@ -96,7 +96,7 @@ class Order:
         return f"Order({self.data.__repr__()}, [{len(self._transactions)}])"
 
     def __str__(self):
-        return f"{self.data} -> [{len(self._transactions)} transactions]"
+        return f"{self.data.__str__()} (#{len(self._transactions)} transactions)"
 
     def __getitem__(self, item):
         return self._transactions[item]

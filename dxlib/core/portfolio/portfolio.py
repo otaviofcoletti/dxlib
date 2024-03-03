@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import Dict
 
-from dxlib.logger import LoggerMixin
 from ..components import Security, Inventory
+from ..logger import LoggerMixin
 
 
 class Portfolio(LoggerMixin):

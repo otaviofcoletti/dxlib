@@ -40,6 +40,21 @@ class History:
         self._schema = schema
 
         if not df.empty:
+            # if len of df.index names is < len of schema levels, raise error
+            if len(df.index.names) < len(schema.levels):
+                raise ValueError(
+                    f"Invalid number of levels in index {len(df.index.names)} for schema {len(schema.levels)}"
+                )
+            elif len(df.index.names) > len(schema.levels):
+                # drop extra levels that are not schema levels .value
+                df.index = df.index.droplevel(
+                    list(
+                        set(df.index.names).difference(
+                            [level.value for level in schema.levels]
+                        )
+                    )
+                )
+
             df.index = pd.MultiIndex.from_tuples(
                 df.index if isinstance(df.index, pd.MultiIndex) else [(i,) for i in df.index],
                 names=[level.value for level in schema.levels],

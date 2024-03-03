@@ -4,7 +4,6 @@ from functools import lru_cache
 from typing import Dict, Union
 
 from .security import Security, SecurityManager
-from ...trading import Order, OrderData
 
 
 class Inventory(dict[Security, Union[float, int]]):
@@ -127,24 +126,6 @@ class Inventory(dict[Security, Union[float, int]]):
             securities={
                 Security.from_dict(**cls.deserialize(to_key(key))): value
                 for key, value in kwargs.get("securities").items()
-            }
-        )
-
-    @classmethod
-    def from_orders(cls, orders: list[Order]):
-        return cls(
-            {
-                order.data.security: order.executed_quantity
-                for order in orders
-            }
-        )
-
-    @classmethod
-    def from_order_data(cls, orders: list[OrderData]):
-        return cls(
-            {
-                order.security: (order.quantity or 0) * order.side.value
-                for order in orders
             }
         )
 
