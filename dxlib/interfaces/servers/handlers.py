@@ -48,7 +48,7 @@ class WebsocketHandler(Handler):
     def __init__(self, endpoints: Dict[str, Tuple[EndpointWrapper, callable]] = None):
         super().__init__(endpoints)
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.websockets: Dict[str, any] = {}
+        self.websockets: Dict[str, List] = {}
 
     @property
     def endpoints(self) -> Dict[str, Tuple[EndpointWrapper, callable]]:
@@ -61,13 +61,15 @@ class WebsocketHandler(Handler):
     def add_interface(self, interface, endpoint_type: EndpointType = EndpointType.WEBSOCKET):
         self.set_endpoints(interface.get_endpoints(endpoint_type))
 
-    def listen(self, func, *args, **kwargs):
+    def listen(self, func, *args, **kwargs) -> callable:
         route_name = func.endpoint.route_name
         generator = func(*args, **kwargs)
 
+        self.set_endpoint(func.endpoint, func)
+
         async def _listen():
             async for message in generator:
-                for websocket in self.websockets[route_name]:
+                for websocket in self.websockets.get(route_name, []):
                     await websocket.send(json.dumps(message))
 
         return _listen
@@ -77,15 +79,13 @@ class WebsocketHandler(Handler):
             raise ValueError("Invalid websocket connection")
         if endpoint not in self.endpoints:
             raise ValueError("Invalid endpoint")
-
-        self.websockets[websocket] = endpoint
-        endpoint, func = self.endpoints[endpoint]
-
-        # run the function and send message to the client
-        func(websocket, endpoint)
+        self.websockets[endpoint] = self.websockets.get(endpoint, [])
+        self.websockets[endpoint].append(websocket)
 
     def on_disconnect(self, websocket, endpoint):
-        pass
+        if endpoint not in self.endpoints:
+            raise ValueError("Invalid endpoint")
+        self.websockets[endpoint].remove(websocket)
 
     def on_message(self, websocket, endpoint, message):
         if endpoint not in self.endpoints:

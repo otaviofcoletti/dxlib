@@ -1,3 +1,4 @@
+import asyncio
 import time
 import unittest
 
@@ -45,6 +46,21 @@ class TestWebsocket(unittest.TestCase):
         ws.connect(f"ws://localhost:{self.server.port}/")
         self.assertTrue(ws.connected)
         ws.send("test")
+        ws.close()
+
+    def test_listen(self):
+        @dx.Endpoint.websocket("/test")
+        async def test():
+            for i in range(10):
+                yield {"test": i}
+                await asyncio.sleep(0.1)
+        self.server.listen(test)
+        ws = websocket.WebSocket()
+        ws.connect(f"ws://localhost:{self.server.port}/test")
+        self.assertTrue(ws.connected)
+        # Might not receive all messages, so ws.recv() == {"test": i} is not guaranteed for i ~>= 5
+        for i in range(5):
+            self.assertIn("test", ws.recv())
         ws.close()
 
     def tearDown(self):

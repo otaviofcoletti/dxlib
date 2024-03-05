@@ -19,14 +19,15 @@ class WebsocketServer(Server):
         self._server = None
         self._running = threading.Event()
         self._stop_event = asyncio.Event()
+        self.loop = asyncio.get_event_loop()
 
     def add_interface(self, interface):
         self.handler.add_interface(interface, endpoint_type=EndpointType.WEBSOCKET)
 
     def listen(self, func, *args, **kwargs):
-        coroutine = self.handler.listen(func, *args, **kwargs)
+        func = self.handler.listen(func, *args, **kwargs)
 
-        asyncio.create_task(coroutine)
+        asyncio.run_coroutine_threadsafe(func(), self.loop)
 
     async def websocket_handler(self, websocket, endpoint):
         try:
@@ -74,8 +75,9 @@ class WebsocketServer(Server):
         self.logger.info(f"Starting websocket on port {self.port}")
         self._running.set()
         self._thread = threading.Thread(
-            target=asyncio.run, args=(self._serve(),)
+            target=self.loop.run_until_complete, args=(self._serve(),)
         )
+
         self._thread.start()
         self.logger.info("Websocket started. Press Ctrl+C to stop...")
         return ServerStatus.STARTED
@@ -94,6 +96,8 @@ class WebsocketServer(Server):
         if self._thread is not None and self._thread.is_alive():
             self._thread.join()
             self._thread = None
+
+        self.loop.stop()
 
         self.logger.info("Websocket stopped")
         return ServerStatus.STOPPED
