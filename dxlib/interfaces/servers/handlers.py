@@ -85,11 +85,12 @@ class WebsocketHandler(Handler):
         func(websocket, endpoint)
 
     def on_disconnect(self, websocket, endpoint):
-        self.logger.info("Websocket connection closed")
+        pass
 
     def on_message(self, websocket, endpoint, message):
         if endpoint not in self.endpoints:
             raise ValueError("Invalid endpoint")
+        self.logger.info(f"Received message from {endpoint}: {message}")
 
 
 # class TCPHandler(Handler):

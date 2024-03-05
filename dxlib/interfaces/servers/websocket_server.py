@@ -2,7 +2,7 @@ import asyncio
 import threading
 
 import websockets
-from websockets.exceptions import ConnectionClosedError
+from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
 from dxlib.interfaces.servers.handlers import WebsocketHandler
 from .endpoint import EndpointType
@@ -45,8 +45,10 @@ class WebsocketServer(Server):
                 except ValueError as e:
                     self.logger.error(f"Error while handling message: {e}")
                     await websocket.send(str(e))
-        except ConnectionClosedError:
-            self.logger.warning("Websocket connection closed")
+        except ConnectionClosedOK:
+            self.logger.info("Websocket connection closed")
+        except ConnectionClosedError as e:
+            self.logger.warning(f"Websocket connection closed with error: {e}")
 
         self.handler.on_disconnect(websocket, endpoint)
 

@@ -40,7 +40,7 @@ class TestWebsocket(unittest.TestCase):
         while not self.server.alive:
             time.sleep(0.1)
 
-    def test_connect(self):
+    def test_message(self):
         ws = websocket.WebSocket()
         ws.connect(f"ws://localhost:{self.server.port}/")
         self.assertTrue(ws.connected)
