@@ -131,3 +131,11 @@ class YFinanceAPI(MarketInterface):
             self.cache.set(df.to_json(date_format="iso"), filename)
 
         return self.to_history(df)
+
+    def _listen_tickers(self, tickers: List[str], callback: callable, start: datetime.datetime, end: datetime.datetime, timeframe="1s"):
+        while True:
+            data = self._quote_tickers(tickers, timeframe, start, end)
+            callback(data)
+
+    def listen_tickers(self, tickers: List[str], callback: callable, start: datetime.datetime, end: datetime.datetime, timeframe="1s"):
+        pass
