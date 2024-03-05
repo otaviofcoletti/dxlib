@@ -7,8 +7,8 @@ import dxlib as dx
 
 class TestHistory(unittest.TestCase):
     def setUp(self):
-        self.schema = dx.StandardSchema(
-            levels=[dx.StandardLevel.DATE, dx.StandardLevel.SECURITY],
+        self.schema = dx.Schema(
+            levels=[dx.SchemaLevel.DATE, dx.SchemaLevel.SECURITY],
             fields=["close"],
             security_manager=dx.SecurityManager.from_list(["AAPL", "MSFT"]),
         )
@@ -91,7 +91,7 @@ class TestHistory(unittest.TestCase):
 
     def test_apply(self):
         history = dx.History(self.sample_data, self.schema)
-        history = history.apply({dx.StandardLevel.SECURITY: lambda x: x + 1})
+        history = history.apply({dx.SchemaLevel.SECURITY: lambda x: x + 1})
 
         self.assertEqual(history.df.loc[history.df.index[0], "close"], 101)
 
@@ -106,10 +106,10 @@ class TestHistory(unittest.TestCase):
     def test_integration(self):
         history = dx.History(self.sample_data, self.schema)
 
-        prices = history.apply({dx.StandardLevel.SECURITY: lambda x: x + 1})
-        shares = history.apply({dx.StandardLevel.SECURITY: lambda x: x / 100})
+        prices = history.apply({dx.SchemaLevel.SECURITY: lambda x: x + 1})
+        shares = history.apply({dx.SchemaLevel.SECURITY: lambda x: x / 100})
 
-        daily_returns = prices.apply({dx.StandardLevel.SECURITY: lambda x: x.pct_change().shift(-1).fillna(0)})
+        daily_returns = prices.apply({dx.SchemaLevel.SECURITY: lambda x: x.pct_change().shift(-1).fillna(0)})
         portfolio_returns = shares.apply_on(
             daily_returns,
             lambda x, y: pd.DataFrame(x.values * y.values, index=x.index, columns=["returns"])

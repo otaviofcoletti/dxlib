@@ -6,31 +6,44 @@ import pandas as pd
 import requests
 
 import dxlib as dx
-from dxlib.core.components.history import SignalSchema
 from dxlib.strategies import RsiStrategy
 
 
 class TestExecutorInterface(unittest.TestCase):
-    def setUp(self):
-        self.strategy = RsiStrategy(window=1)
+    server = None
+    strategy = None
+    executor = None
+    interface = None
+    inventory = None
+    security_manager = None
 
-        self.security_manager = dx.SecurityManager.from_list(["AAPL", "MSFT"])
-        self.scheme = dx.HistorySchema(
-            levels=[dx.HistoryLevel.DATE, dx.HistoryLevel.SECURITY],
+    @classmethod
+    def setUpClass(cls):
+        cls.strategy = RsiStrategy(window=1)
+
+        cls.security_manager = dx.SecurityManager.from_list(["AAPL", "MSFT"])
+        cls.schema = dx.Schema(
+            levels=[dx.SchemaLevel.DATE, dx.SchemaLevel.SECURITY],
             fields=["close"],
-            security_manager=self.security_manager,
+            security_manager=cls.security_manager,
         )
 
-        self.inventory = dx.Inventory({security: 0 for security in self.security_manager.values()})
-        self.executor = dx.Executor(self.strategy, self.inventory, self.scheme)
+        cls.inventory = dx.Inventory({security: 0 for security in cls.security_manager.values()})
+        cls.executor = dx.Executor(cls.strategy, cls.inventory)
 
-        self.interface = dx.ExecutorHTTPInterface(self.executor)
+        cls.interface = dx.ExecutorInterface(cls.executor, "http://localhost:8000")
+        cls.server = dx.HTTPServer(port=8000)
+        cls.server.add_interface(cls.interface)
+        cls.server.start()
+
+        while not cls.server.alive:
+            time.sleep(0.1)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.stop()
 
     def test_run(self):
-        server = dx.HTTPServer(port=8000)
-        server.add_interface(self.interface)
-        server.start()
-
         history = dx.History(
             {
                 (pd.Timestamp("2021-01-01"), "AAPL"): {"close": 100},
@@ -40,59 +53,44 @@ class TestExecutorInterface(unittest.TestCase):
                 (pd.Timestamp("2021-01-03"), "AAPL"): {"close": 120},
                 (pd.Timestamp("2021-01-03"), "MSFT"): {"close": 220},
             },
-            self.scheme,
+            self.schema,
         )
 
         run_params = {
             "obj": history.to_dict(serializable=True),
-            "in_place": False
         }
 
-        while not server.alive:
-            time.sleep(0.1)
+        response = self.interface.request(self.interface.run, json=run_params)
 
-        response = requests.post("http://localhost:8000/run", json.dumps(run_params))
+        data = response["data"]
 
-        data = response.json()["data"]
-
-        signal_scheme = SignalSchema(security_manager=self.security_manager)
-        signal_history = dx.History.from_dict(signal_scheme, serialized=True, **data)
+        signal_history = dx.History.from_dict(**data, serialized=True, )
+        signal_dict = signal_history.to_dict()['df']
 
         self.assertEqual(
-            signal_history.to_dict(),
-            {'df': {
-                ('2021-01-01T00:00:00', (('ticker', 'AAPL'), ('security_type', (('value', 'equity'),)))): {
-                    'signal': (('side', (('value', 0),)), ('quantity', None), ('price', None))},
-                ('2021-01-01T00:00:00', (('ticker', 'MSFT'), ('security_type', (('value', 'equity'),)))): {
-                    'signal': (('side', (('value', 0),)), ('quantity', None), ('price', None))},
-                ('2021-01-02T00:00:00', (('ticker', 'AAPL'), ('security_type', (('value', 'equity'),)))): {
-                    'signal': (('side', (('value', 0),)), ('quantity', None), ('price', None))},
-                ('2021-01-02T00:00:00', (('ticker', 'MSFT'), ('security_type', (('value', 'equity'),)))): {
-                    'signal': (('side', (('value', 0),)), ('quantity', None), ('price', None))},
-                ('2021-01-03T00:00:00', (('ticker', 'AAPL'), ('security_type', (('value', 'equity'),)))): {
-                    'signal': (('side', (('value', 0),)), ('quantity', None), ('price', None))},
-                ('2021-01-03T00:00:00', (('ticker', 'MSFT'), ('security_type', (('value', 'equity'),)))): {
-                    'signal': (('side', (('value', 0),)), ('quantity', None), ('price', None))}
-            }}
+            signal_dict,
+            {('2021-01-01T00:00:00', (('ticker', 'AAPL'), ('security_type', (('value', 'equity'),)))): {
+                'signal': (('side', (('value', 0),)), ('quantity', None), ('price', None))},
+             ('2021-01-01T00:00:00', (('ticker', 'MSFT'), ('security_type', (('value', 'equity'),)))): {
+                 'signal': (('side', (('value', 0),)), ('quantity', None), ('price', None))},
+             ('2021-01-02T00:00:00', (('ticker', 'AAPL'), ('security_type', (('value', 'equity'),)))): {
+                 'signal': (('side', (('value', -1),)), ('quantity', 1), ('price', None))},
+             ('2021-01-02T00:00:00', (('ticker', 'MSFT'), ('security_type', (('value', 'equity'),)))): {
+                 'signal': (('side', (('value', -1),)), ('quantity', 1), ('price', None))},
+             ('2021-01-03T00:00:00', (('ticker', 'AAPL'), ('security_type', (('value', 'equity'),)))): {
+                 'signal': (('side', (('value', -1),)), ('quantity', 1), ('price', None))},
+             ('2021-01-03T00:00:00', (('ticker', 'MSFT'), ('security_type', (('value', 'equity'),)))): {
+                 'signal': (('side', (('value', -1),)), ('quantity', 1), ('price', None))}}
         )
 
-        server.stop()
-
     def test_set_position(self):
-        server = dx.HTTPServer(port=8001)
-        server.add_interface(self.interface)
-        server.start()
-
         position = dx.Inventory({security: 100 for security in self.security_manager.values()})
 
         position_params = {
             "obj": position.to_dict(serializable=True)
         }
 
-        while not server.alive:
-            time.sleep(0.1)
-
-        response = requests.post("http://localhost:8001/position", json.dumps(position_params))
+        response = requests.post("http://localhost:8000/position", json.dumps(position_params))
         status = response.json()["status"]
 
         self.assertEqual(
@@ -100,17 +98,8 @@ class TestExecutorInterface(unittest.TestCase):
             "success"
         )
 
-        server.stop()
-
     def test_get_position(self):
-        server = dx.HTTPServer(port=8002)
-        server.add_interface(self.interface)
-        server.start()
-
-        while not server.alive:
-            time.sleep(0.1)
-
-        response = requests.get("http://localhost:8002/position")
+        response = requests.get("http://localhost:8000/position")
 
         data = response.json()["data"]
 
@@ -120,8 +109,6 @@ class TestExecutorInterface(unittest.TestCase):
             position,
             self.executor.position
         )
-
-        server.stop()
 
 
 if __name__ == '__main__':

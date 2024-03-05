@@ -4,7 +4,7 @@ from typing import Dict
 import pandas as pd
 
 from .history import History
-from .schema import Schema, StandardLevel, StandardSchema
+from .schema import Schema, SchemaLevel
 from ..inventory import Inventory
 from ...trading import OrderData
 
@@ -37,8 +37,8 @@ class InventoryHistory(History):
 
         df = pd.DataFrame(df.stack(), columns=["quantity"])
 
-        schema = StandardSchema(
-            levels=[StandardLevel.DATE, StandardLevel.SECURITY],
+        schema = Schema(
+            levels=[SchemaLevel.DATE, SchemaLevel.SECURITY],
             fields=["quantity"],
             security_manager=self.schema.security_manager
         )
@@ -59,14 +59,14 @@ class InventoryHistory(History):
     def stack(cls, df: pd.DataFrame, schema: Schema) -> "InventoryHistory":
         # Stack the dataframe into a single column
         # This is useful for running a strategy
-        inventory_schema = StandardSchema(
-            levels=[StandardLevel.DATE],
+        inventory_schema = Schema(
+            levels=[SchemaLevel.DATE],
             fields=["inventory"],
             security_manager=schema.security_manager
         )
 
-        security_index = schema.levels.index(StandardLevel.SECURITY)
-        df_group = df.groupby(StandardLevel.DATE.value).apply(cls._stack, security_index)
+        security_index = schema.levels.index(SchemaLevel.SECURITY)
+        df_group = df.groupby(SchemaLevel.DATE.value).apply(cls._stack, security_index)
         return cls(df_group, inventory_schema)
 
     @classmethod

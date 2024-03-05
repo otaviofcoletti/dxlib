@@ -2,35 +2,56 @@ import asyncio
 import threading
 
 import websockets
-from websockets.exceptions import ConnectionClosedError
+from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 
-from .server import Server, ServerStatus
 from dxlib.interfaces.servers.handlers import WebsocketHandler
+from .endpoint import EndpointType
+from .server import Server, ServerStatus
 
 
 class WebsocketServer(Server):
-    def __init__(self, handler: WebsocketHandler, port=None, logger=None):
+    def __init__(self, handler: WebsocketHandler = None, port=None, logger=None):
         super().__init__(logger)
-        self.handler = handler
-        self.port = port if port else 8765
+        self.handler = handler or WebsocketHandler()
+        self.port = port if port else self._get_free_port()
 
         self._thread = None
         self._server = None
         self._running = threading.Event()
         self._stop_event = asyncio.Event()
+        self.loop = asyncio.get_event_loop()
+
+    def add_interface(self, interface):
+        self.handler.add_interface(interface, endpoint_type=EndpointType.WEBSOCKET)
+
+    def listen(self, func, *args, **kwargs):
+        func = self.handler.listen(func, *args, **kwargs)
+
+        asyncio.run_coroutine_threadsafe(func(), self.loop)
 
     async def websocket_handler(self, websocket, endpoint):
-        self.logger.info("New websocket connection")
-        self.handler.connect(websocket, endpoint)
+        try:
+            if endpoint == "/":
+                self.logger.info("Websocket connection established")
+            else:
+                self.handler.on_connect(websocket, endpoint)
+        except Exception as e:
+            self.logger.error(f"Error while handling websocket connection: {e}")
+            return
 
         try:
             async for message in websocket:
-                if self.handler:
-                    await self.handler.handle(websocket, endpoint, message)
-        except ConnectionClosedError:
-            self.logger.warning("Websocket connection closed")
+                try:
+                    await self.handler.on_message(websocket, endpoint, message)
+                except ValueError as e:
+                    self.logger.error(f"Error while handling message: {e}")
+                    await websocket.send(str(e))
+        except ConnectionClosedOK:
+            self.logger.info("Websocket connection closed")
+        except ConnectionClosedError as e:
+            self.logger.warning(f"Websocket connection closed with error: {e}")
 
-        self.handler.disconnect(websocket, endpoint)
+        self.handler.on_disconnect(websocket, endpoint)
 
     @classmethod
     async def send_message_async(cls, websocket, message):
@@ -54,8 +75,9 @@ class WebsocketServer(Server):
         self.logger.info(f"Starting websocket on port {self.port}")
         self._running.set()
         self._thread = threading.Thread(
-            target=asyncio.run, args=(self._serve(),)
+            target=self.loop.run_until_complete, args=(self._serve(),)
         )
+
         self._thread.start()
         self.logger.info("Websocket started. Press Ctrl+C to stop...")
         return ServerStatus.STARTED
@@ -74,6 +96,8 @@ class WebsocketServer(Server):
         if self._thread is not None and self._thread.is_alive():
             self._thread.join()
             self._thread = None
+
+        self.loop.stop()
 
         self.logger.info("Websocket stopped")
         return ServerStatus.STOPPED

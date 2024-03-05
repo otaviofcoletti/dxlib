@@ -7,13 +7,13 @@ import dxlib as dx
 class TestInventoryHistory(unittest.TestCase):
     def setUp(self):
         self.security_manager = dx.SecurityManager.from_list(["AAPL", "MSFT"])
-        self.schema = dx.StandardSchema(
-            levels=dx.StandardLevel.levels(),
+        self.schema = dx.Schema(
+            levels=[dx.SchemaLevel.DATE, dx.SchemaLevel.SECURITY],
             security_manager=self.security_manager
         )
 
-        self.quantity_scheme = self.schema + dx.StandardSchema(fields=["quantity"])
-        self.value_scheme = self.schema + dx.StandardSchema(fields=["value"])
+        self.quantity_scheme = self.schema + dx.Schema(fields=["quantity"])
+        self.value_scheme = self.schema + dx.Schema(fields=["value"])
 
         aapl = self.security_manager.get("AAPL")
         msft = self.security_manager.get("MSFT")

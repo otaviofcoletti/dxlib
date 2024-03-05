@@ -2,38 +2,35 @@ from __future__ import annotations
 
 import inspect
 import json
-import socket
 import threading
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
-from .endpoint import EndpointWrapper, Method
+from .endpoint import EndpointWrapper, Method, EndpointType
 from .handlers import HTTPHandler
 from .server import ServerStatus, handle_exceptions_decorator, Server
-from ..internal.internal_interface import InternalInterface
 
 
 class HTTPServer(Server):
     def __init__(
-        self, handler: HTTPHandler = None, port=None, logger=None
+        self, handler: HTTPHandler = None, host=None, port=None, logger=None
     ):
         super().__init__(logger)
         self.handler = handler or HTTPHandler()
         self.port = port if port else self._get_free_port()
+        self.host = host if host else "localhost"
 
         self._thread = None
         self._server: ThreadingHTTPServer | None = None
         self._error = threading.Event()
         self._running = threading.Event()
 
-    def add_interface(self, interface: InternalInterface):
-        self.handler.add_interface(interface)
+    @property
+    def url(self):
+        return f"http://{self.host}:{self.port}"
 
-    @staticmethod
-    def _get_free_port():
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(("", 0))
-            return s.getsockname()[1]
+    def add_interface(self, interface):
+        self.handler.add_interface(interface, endpoint_type=EndpointType.HTTP)
 
     @property
     def formatted_endpoints(self):
@@ -184,6 +181,14 @@ class HTTPServer(Server):
 
             @handle_exceptions_decorator
             def do_POST(self):
+                if self.path == "/":
+                    response = self.formatted_endpoints
+                    self.send_response(200)
+                    self.send_header("Content-type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(response.encode())
+                    return
+
                 route_name, params = self.parse_route()
                 if route_name is None:
                     return
@@ -214,7 +219,7 @@ class HTTPServer(Server):
 
         try:
             with ThreadingHTTPServer(
-                ("", self.port), HTTPRequestHandler
+                (self.host, self.port), HTTPRequestHandler
             ) as self._server:
                 self.logger.info(f"Server started. Press Ctrl+C to stop...")
                 self._server.timeout = 1
@@ -229,7 +234,7 @@ class HTTPServer(Server):
             self.logger.info("Server stopped by user")
 
     def start(self) -> ServerStatus:
-        self.logger.info(f"Server starting on port {self.port}")
+        self.logger.info(f"Server starting on http://{self.host}:{self.port}")
         self._running.set()
         self._thread = threading.Thread(target=self._serve)
         self._thread.start()

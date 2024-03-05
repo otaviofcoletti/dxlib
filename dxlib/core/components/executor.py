@@ -4,10 +4,10 @@ from typing import Generator, AsyncGenerator
 
 import pandas as pd
 
-from .history import History, Schema, SignalSchema
+from .history import History, Schema
 from .inventory import Inventory
 from .strategy import Strategy
-from ...logger import LoggerMixin
+from ..logger import LoggerMixin
 
 
 class Executor(LoggerMixin):
@@ -51,7 +51,7 @@ class Executor(LoggerMixin):
 
         if output_history is None:
             schema = obj.schema if isinstance(obj, History) else input_schema
-            output_schema = SignalSchema(
+            output_schema = Schema(
                 levels=schema.levels,
                 fields=["signal"],
                 security_manager=schema.security_manager

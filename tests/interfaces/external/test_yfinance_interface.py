@@ -13,7 +13,7 @@ class TestYFinanceApi(unittest.TestCase):
     def test_quotes(self):
         today = dx.Date.today()
         last_week = dx.Date.prevdays(6)
-        quotes = self.api.quote_tickers(["AAPL", "MSFT"], last_week, today)
+        quotes = self.api.quote(["AAPL", "MSFT"], last_week, today)
 
         self.assertEqual(len(quotes), 10)
         self.assertEqual(set(quotes.df.index.names), {"date", "security"})
@@ -21,10 +21,11 @@ class TestYFinanceApi(unittest.TestCase):
     def test_async_quotes(self):
         today = dx.Date.today()
         last_week = dx.Date.prevdays(6)
-        quotes = self.api.quote_tickers(["AAPL", "MSFT"], last_week, today, async_=True)
+        quotes = self.api.quote(["AAPL", "MSFT"], last_week, today, async_=True)
 
         self.assertEqual(len(quotes), 10)
         self.assertEqual(set(quotes.df.index.names), {"date", "security"})
+
 
 if __name__ == '__main__':
     unittest.main()

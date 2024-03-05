@@ -3,16 +3,16 @@ from ..servers.endpoint import Endpoint, Method
 from ...core import Executor, History, Inventory
 
 
-class ExecutorHTTPInterface(InternalInterface):
-    def __init__(self, executor: Executor = None, url = None):
-        super().__init__(url)
-        if executor is None and url is None:
+class ExecutorInterface(InternalInterface):
+    def __init__(self, executor: Executor = None, interface_url: str = None, headers: dict = None):
+        super().__init__(interface_url, headers)
+        if executor is None and interface_url is None:
             raise ValueError("Executor or URL must be provided")
         self.executor = executor
 
     @Endpoint.http(Method.POST,
                    "/run",
-                   "Executes a single observation and returns the result")
+                   "Executes a single history and returns the result")
     def run(self, obj: any):
         try:
             history = History.from_dict(serialized=True, **obj)

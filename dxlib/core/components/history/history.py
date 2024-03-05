@@ -5,7 +5,7 @@ from typing import List, Dict
 
 import pandas as pd
 
-from .schema import Schema, LevelEnum, StandardSchema, StandardLevel
+from .schema import Schema, SchemaLevel
 from ..security import SecurityManager
 
 
@@ -33,13 +33,28 @@ class History:
             raise ValueError(f"Invalid type {type(df)} for df")
 
         if schema is None:
-            schema = StandardSchema()
+            schema = Schema()
         elif not isinstance(schema, Schema):
             raise ValueError(f"Invalid type {type(schema)} for schema")
 
         self._schema = schema
 
         if not df.empty:
+            # if len of df.index names is < len of schema levels, raise error
+            if len(df.index.names) < len(schema.levels):
+                raise ValueError(
+                    f"Invalid number of levels in index {len(df.index.names)} for schema {len(schema.levels)}"
+                )
+            elif len(df.index.names) > len(schema.levels):
+                # drop extra levels that are not schema levels .value
+                df.index = df.index.droplevel(
+                    list(
+                        set(df.index.names).difference(
+                            [level.value for level in schema.levels]
+                        )
+                    )
+                )
+
             df.index = pd.MultiIndex.from_tuples(
                 df.index if isinstance(df.index, pd.MultiIndex) else [(i,) for i in df.index],
                 names=[level.value for level in schema.levels],
@@ -60,21 +75,21 @@ class History:
         index = pd.MultiIndex.from_tuples(
             index, names=[level.value for level in self._schema.levels]
         )
-        if StandardLevel.SECURITY in self.schema.levels and not index.empty:
+        if SchemaLevel.SECURITY in self.schema.levels and not index.empty:
             try:
-                security_level = index.names.index(StandardLevel.SECURITY.value)
+                security_level = index.names.index(SchemaLevel.SECURITY.value)
                 index = index.set_levels(
                     index.levels[security_level].map(self.schema.security_manager.get),
-                    level=StandardLevel.SECURITY.value
+                    level=SchemaLevel.SECURITY.value
                 )
             except ValueError as e:
                 raise ValueError(f"Perhaps you forgot to set a valid security manager for the history schema?") from e
-        if StandardLevel.DATE in self.schema.levels:
+        if SchemaLevel.DATE in self.schema.levels:
             # convert to datetime
-            date_level = index.names.index(StandardLevel.DATE.value)
+            date_level = index.names.index(SchemaLevel.DATE.value)
             index = index.set_levels(
                 pd.to_datetime(index.levels[date_level]),
-                level=StandardLevel.DATE.value
+                level=SchemaLevel.DATE.value
             )
         return index
 
@@ -95,20 +110,20 @@ class History:
             raise ValueError(f"Invalid type {type(other)} for other")
 
         securities = set(
-            self.level_unique(StandardLevel.SECURITY)
-            + other.level_unique(StandardLevel.SECURITY)
+            self.level_unique(SchemaLevel.SECURITY)
+            + other.level_unique(SchemaLevel.SECURITY)
         )
         security_manager = SecurityManager.from_list(list(securities))
 
         return History(
             pd.concat([self.df, other.df]),
-            schema=StandardSchema(security_manager=security_manager),
+            schema=Schema(security_manager=security_manager),
         )
 
     @classmethod
     def from_df(cls, df: pd.DataFrame, schema: Schema | None = None):
         if schema is None:
-            schema = StandardSchema()
+            schema = Schema()
         df = df.explode(list(df.columns))
 
         for level in schema.levels:
@@ -123,13 +138,13 @@ class History:
         for idx, bar in self.df.iterrows():
             df_dict[serialize(idx)] = {serialize(k): serialize(v) for k, v in bar.items()}
         return {
-            "df": {str(k): v for k, v in df_dict.items()} if serializable else df_dict
+            "df": {str(k): v for k, v in df_dict.items()} if serializable else df_dict,
+            "schema": self.schema.to_dict(),
         }
 
     @classmethod
-    def from_dict(cls, schema: Schema = None, serialized=False, **kwargs):
-        if schema is None:
-            schema = StandardSchema()
+    def from_dict(cls, serialized=False, **kwargs):
+        schema = Schema.from_dict(**kwargs.get("schema", {}))
 
         to_key = eval if serialized else lambda x: x
 
@@ -156,12 +171,12 @@ class History:
     def shape(self):
         return self.df.shape
 
-    def level_unique(self, level: LevelEnum = StandardLevel.SECURITY):
+    def level_unique(self, level: SchemaLevel = SchemaLevel.SECURITY):
         return self.df.index.get_level_values(level.value).unique().tolist()
 
     def levels_unique(
-            self, levels: List[LevelEnum] = None
-    ) -> Dict[LevelEnum, list]:
+            self, levels: List[SchemaLevel] = None
+    ) -> Dict[SchemaLevel, list]:
         if levels is None:
             levels = self._schema.levels
         return {
@@ -208,7 +223,7 @@ class History:
         self.df = pd.concat([self.df, df])
 
     def get(
-            self, levels: Dict[LevelEnum, list] = None, fields: List[str] = None
+            self, levels: Dict[SchemaLevel, list] = None, fields: List[str] = None
     ) -> History:
         """
         Get historical data for a given security, field and date
@@ -221,7 +236,7 @@ class History:
         return History(self.get_df(levels, fields), self._schema)
 
     def get_df(
-            self, levels: Dict[LevelEnum, list] = None, fields: List[str] = None
+            self, levels: Dict[SchemaLevel, list] = None, fields: List[str] = None
     ) -> pd.DataFrame:
         if self.df.empty:
             return pd.DataFrame()
@@ -278,7 +293,7 @@ class History:
 
     def set_df(
             self,
-            levels: Dict[LevelEnum, list] = None,
+            levels: Dict[SchemaLevel, list] = None,
             fields: List[str] = None,
             values: pd.DataFrame | dict = None,
     ):
@@ -302,7 +317,7 @@ class History:
         df.index = self.convert_index(df.index)
         self.df = df
 
-    def apply_df(self, func: Dict[LevelEnum, callable] | callable, *args, **kwargs):
+    def apply_df(self, func: Dict[SchemaLevel, callable] | callable, *args, **kwargs):
         if isinstance(func, dict):
             df = self.df
 
@@ -315,7 +330,7 @@ class History:
         else:
             raise ValueError(f"Invalid type {type(func)} for by")
 
-    def apply(self, func: Dict[LevelEnum, callable] | callable, schema: Schema = None, *args, **kwargs):
+    def apply(self, func: Dict[SchemaLevel, callable] | callable, schema: Schema = None, *args, **kwargs):
         return History(self.apply_df(func, *args, **kwargs), schema or self._schema)
 
     def apply_on_df(self, other: pd.DataFrame, func: callable):

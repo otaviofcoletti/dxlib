@@ -6,12 +6,11 @@ from typing import List
 import pandas as pd
 import requests
 
-from ..external_interface import MarketInterface
-from .... import SecurityManager
-from ....core import History
+from ..external_interface import MarketApi
+from ....core import History, SecurityManager, Schema, SchemaLevel
 
 
-class YFinanceAPI(MarketInterface):
+class YFinanceAPI(MarketApi):
     def __init__(self, base_url="https://query1.finance.yahoo.com/v8/finance/chart/"):
         super().__init__()
         self.base_url = base_url
@@ -28,7 +27,7 @@ class YFinanceAPI(MarketInterface):
 
     @property
     def header(self):
-        return {'User-Agent': self.user_agent,}
+        return {'User-Agent': self.user_agent}
 
     @property
     def keepalive_header(self):
@@ -48,29 +47,78 @@ class YFinanceAPI(MarketInterface):
 
     @classmethod
     def format_response_data(cls, data):
-        trades = data["chart"]["result"][0]["timestamp"]
-        prices = data["chart"]["result"][0]["indicators"]["quote"][0]
-        trade_data = {
-            "date": [datetime.datetime.fromtimestamp(ts) for ts in trades],
-            "open": prices["open"],
-            "high": prices["high"],
-            "low": prices["low"],
-            "close": prices["close"],
-            "volume": prices["volume"],
-        }
+        result = data["chart"]["result"][0]
+
+        trade_data = {}
+
+        if result:
+            trades = result["timestamp"]
+            prices = result["indicators"]["quote"][0]
+            trade_data = {
+                "date": [datetime.datetime.fromtimestamp(ts) for ts in trades],
+                "open": prices["open"],
+                "high": prices["high"],
+                "low": prices["low"],
+                "close": prices["close"],
+                "volume": prices["volume"],
+            }
 
         return trade_data
 
-    def get_trades(self, ticker):
-        url = f"{self.base_url}{ticker}?range=1d&interval=1m"
-        response = requests.get(url)
+    @classmethod
+    def format_quote(cls, data):
+        result_data = data["chart"]["result"]
+
+        quotes = {}
+
+        if result_data:
+            timestamp = result_data[0]["meta"]["regularMarketTime"]
+            price = result_data[0]["meta"]["regularMarketPrice"]
+
+            quotes = {
+                "date": datetime.datetime.fromtimestamp(timestamp),
+                "price": price
+            }
+
+        return quotes
+
+    def quote_ticker(self, ticker, range_in="1d", interval="1m"):
+        url = f"{self.base_url}{ticker}?range={range_in}&interval={interval}"
+        response = self.session.get(url, headers=self.header)
         data = response.json()
         if "chart" in data:
-            return self.format_response_data(data)
+            return self.format_quote(data)
         else:
             return None
 
-    def _quote_tickers(
+    def quote(
+            self,
+            tickers: List[str] | str,
+            start: datetime | str = None,
+            end: datetime | str = None,
+            interval="1m",
+            security_manager=None,
+            cache=False,
+    ) -> History:
+        interval = "1m"
+        range_in = "3m"
+
+        quotes = {}
+
+        tickers = [tickers] if isinstance(tickers, str) else tickers
+
+        for ticker in tickers:
+            data = self.quote_ticker(ticker, range_in, interval)
+            quotes[(data.pop("date"), ticker)] = data
+
+        df = pd.DataFrame.from_dict(quotes, orient="index")
+        return History(df, schema=Schema(
+            levels=[SchemaLevel.DATE, SchemaLevel.SECURITY],
+            fields=["price"],
+            security_manager=security_manager if security_manager else SecurityManager.from_list(tickers)
+        ))
+
+    def _historical(
             self, tickers, timeframe, start: datetime.datetime, end: datetime.datetime
     ) -> dict:
         formatted_data = {}
@@ -101,7 +149,7 @@ class YFinanceAPI(MarketInterface):
         history.schema.levels.reverse()
         return history
 
-    def quote_tickers(
+    def historical(
             self,
             tickers: List[str] | str,
             start: datetime.datetime | str,
@@ -124,7 +172,7 @@ class YFinanceAPI(MarketInterface):
             df = pd.read_json(obj)
             return self.to_history(df)
 
-        obj = self._quote_tickers(tickers, timeframe, start, end)
+        obj = self._historical(tickers, timeframe, start, end)
         df = pd.DataFrame.from_dict(obj, orient="index")
 
         if cache:
@@ -132,10 +180,12 @@ class YFinanceAPI(MarketInterface):
 
         return self.to_history(df)
 
-    def _listen_tickers(self, tickers: List[str], callback: callable, start: datetime.datetime, end: datetime.datetime, timeframe="1s"):
+    def _listen_tickers(self, tickers: List[str], callback: callable, start: datetime.datetime, end: datetime.datetime,
+                        timeframe="1s"):
         while True:
-            data = self._quote_tickers(tickers, timeframe, start, end)
+            data = self.quote(tickers, start, end, timeframe)
             callback(data)
 
-    def listen_tickers(self, tickers: List[str], callback: callable, start: datetime.datetime, end: datetime.datetime, timeframe="1s"):
+    def listen_tickers(self, tickers: List[str], callback: callable, start: datetime.datetime, end: datetime.datetime,
+                       timeframe="1s"):
         pass
