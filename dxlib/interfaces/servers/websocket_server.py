@@ -23,6 +23,11 @@ class WebsocketServer(Server):
     def add_interface(self, interface):
         self.handler.add_interface(interface, endpoint_type=EndpointType.WEBSOCKET)
 
+    def listen(self, func, *args, **kwargs):
+        coroutine = self.handler.listen(func, *args, **kwargs)
+
+        asyncio.create_task(coroutine)
+
     async def websocket_handler(self, websocket, endpoint):
         try:
             if endpoint == "/":
@@ -35,8 +40,11 @@ class WebsocketServer(Server):
 
         try:
             async for message in websocket:
-                if self.handler:
+                try:
                     await self.handler.on_message(websocket, endpoint, message)
+                except ValueError as e:
+                    self.logger.error(f"Error while handling message: {e}")
+                    await websocket.send(str(e))
         except ConnectionClosedError:
             self.logger.warning("Websocket connection closed")
 

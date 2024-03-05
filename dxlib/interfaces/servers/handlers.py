@@ -1,3 +1,4 @@
+import json
 import logging
 from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple
@@ -47,7 +48,7 @@ class WebsocketHandler(Handler):
     def __init__(self, endpoints: Dict[str, Tuple[EndpointWrapper, callable]] = None):
         super().__init__(endpoints)
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.websockets = {}
+        self.websockets: Dict[str, any] = {}
 
     @property
     def endpoints(self) -> Dict[str, Tuple[EndpointWrapper, callable]]:
@@ -59,6 +60,17 @@ class WebsocketHandler(Handler):
 
     def add_interface(self, interface, endpoint_type: EndpointType = EndpointType.WEBSOCKET):
         self.set_endpoints(interface.get_endpoints(endpoint_type))
+
+    def listen(self, func, *args, **kwargs):
+        route_name = func.endpoint.route_name
+        generator = func(*args, **kwargs)
+
+        async def _listen():
+            async for message in generator:
+                for websocket in self.websockets[route_name]:
+                    await websocket.send(json.dumps(message))
+
+        return _listen
 
     def on_connect(self, websocket: any, endpoint: str):
         if not hasattr(websocket, "send"):
