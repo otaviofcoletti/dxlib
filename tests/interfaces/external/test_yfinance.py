@@ -14,7 +14,7 @@ class TestYFinanceApi(unittest.TestCase):
     def test_quotes(self):
         today = dx.Date.today()
         last_week = dx.Date.prevdays(6)
-        quotes = self.api.quote(["AAPL", "MSFT"], last_week, today)
+        quotes = self.api.quote(["AAPL", "MSFT"])
 
         self.assertEqual(len(quotes), 2)
         self.assertEqual(set(quotes.df.index.names), {"date", "security"})

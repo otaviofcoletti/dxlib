@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from functools import lru_cache
-from typing import Dict, Union
+from typing import Dict, Union, List
 
+from ..trading import Order
 from .security import Security, SecurityManager
 
 
@@ -140,3 +141,12 @@ class Inventory(dict[Security, Union[float, int]]):
         }
 
         return self
+
+    @classmethod
+    def from_orders(cls, orders: List[Order]):
+        return cls(
+            securities={
+                order.data.security: (order.data.quantity or 0) * order.data.side.value
+                for order in orders
+            }
+        )

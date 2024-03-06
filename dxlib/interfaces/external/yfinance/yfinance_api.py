@@ -188,4 +188,4 @@ class YFinanceAPI(MarketApi):
 
     def listen_tickers(self, tickers: List[str], callback: callable, start: datetime.datetime, end: datetime.datetime,
                        timeframe="1s"):
-        pass
+        t = threading.Thread(target=self._listen_tickers, args=(tickers, callback, start, end, timeframe))

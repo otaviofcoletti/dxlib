@@ -56,6 +56,7 @@ class Portfolio(LoggerMixin):
         self.history.df = self.history.df.apply(
             lambda x: x.securities
         ).unstack().stack()
+
         # add security index level to df and schema
         self.history.df.index = self.history.df.index.set_names(["date", "security"])
         self.history.schema.levels = ["date", "security"] + self.history.schema.levels

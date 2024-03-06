@@ -78,7 +78,10 @@ class OrderInterface(ExternalInterface):
         return order_data
 
     @classmethod
-    def execute_signals(cls, signals: Dict[Security, Signal]) -> List[Order]:
+    def execute_signals(cls, signals: Dict[Security, Signal] | pd.Series) -> List[Order]:
+        if isinstance(signals, pd.Series):
+            signals = signals.to_dict()
+
         orders_data = cls.map_signals(signals)
         return cls.execute_orders(orders_data)
 
