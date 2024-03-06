@@ -28,6 +28,12 @@ class Schema:
     fields: List[str]
     security_manager: SecurityManager
 
+    def __repr__(self):
+        return f"Schema(levels={self.levels}, fields={self.fields}, security_manager={self.security_manager})"
+
+    def __str__(self):
+        return f"Schema(levels={self.levels}, fields={self.fields}, security_manager={self.security_manager})"
+
     def __init__(
             self,
             levels: List[SchemaLevel] = None,

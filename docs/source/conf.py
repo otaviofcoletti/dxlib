@@ -24,16 +24,24 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.autosummary",
-    "sphinx_copybutton",
+    # "sphinx_copybutton",
+    'sphinx_exec_code',
 ]
 
 templates_path = ["_templates"]
 exclude_patterns = []
 
-
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
-
-html_theme = "sphinx_material"
+html_title = 'dxlib'
+html_theme = 'sphinxawesome_theme'
+extensions += ["sphinxawesome_theme.highlighting"]
 html_static_path = ["_static"]
 html_favicon = "_static/favicon.ico"
+html_sidebars = {
+    '**': [
+        'globaltoc.html',
+    ],
+}
+
+exec_code_working_dir = '../..'

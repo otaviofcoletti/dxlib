@@ -14,7 +14,7 @@ Perform backtests on historical data, and analyze the results, as well as live
 trading with multiple brokers. Develop and test your own trading strategies,
 and deploy them as a fully automated trading system.
 
-Check out the :doc:`quickstart` section for further information.
+Check out the :doc:`` section for further information.
 
 .. note::
 
@@ -24,6 +24,7 @@ Check out the :doc:`quickstart` section for further information.
 Contents:
 ==================
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
 
-   quickstart
+   get_started/index
+   core_modules/index
