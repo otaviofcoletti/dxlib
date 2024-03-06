@@ -27,4 +27,4 @@ Contents:
    :maxdepth: 3
 
    get_started/index
-   core_modules/index
+   src/index

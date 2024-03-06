@@ -276,10 +276,9 @@ class History:
                     }
                 )
             >>> history.get(securities='AAPL', fields='close', dates='2024-01-01')
-            # Output:
-            # date        security
-            # 2024-01-01  AAPL      155
-            # Name: close, dtype: int64
+            date        security
+            2024-01-01  AAPL      155
+            Name: close, dtype: int64
         """
         if values is None:
             values = pd.DataFrame()
