@@ -11,6 +11,10 @@ class Inventory(dict[Security, Union[float, int]]):
         super().__init__()
         self._securities: Dict[Security, Union[float, int]] = securities if securities else {}
 
+    @property
+    def securities(self):
+        return self._securities
+
     def __repr__(self):
         securities = {str(security): quantity for security, quantity in self._securities.items()}
         return f"Inventory({securities})"

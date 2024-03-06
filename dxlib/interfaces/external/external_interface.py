@@ -94,6 +94,10 @@ class OrderInterface(ExternalInterface):
         orders = orders_data.apply(lambda x: pd.Series({"order": cls.execute_order(x['order_data'])}), schema=schema, axis=1)
         return orders
 
+    @staticmethod
+    def executed_quantity(order_history: History):
+        return order_history.apply(lambda x: (x['order'].quantity or 0) * x['order'].side.value, axis=1)
+
 
 class PortfolioInterface(ExternalInterface, ABC):
     def get(self, identifier=None):
