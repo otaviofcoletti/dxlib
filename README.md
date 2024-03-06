@@ -1,5 +1,7 @@
 # dxlib - a Quantitative Analysis Framework
 [![Publish Package](https://github.com/delphos-quant/dxlib/actions/workflows/publish-package.yml/badge.svg?branch=main&event=release)](https://github.com/delphos-quant/dxlib/actions/workflows/publish-package.yml)
+![PyPI - Downloads](https://img.shields.io/pypi/dm/dxlib)
+
 
 
 > `dxlib` offers a rich set of tools tailored for traders, researchers, and quantitative analysts, covering everything from basic statistical methods to comprehensive trading simulations.
