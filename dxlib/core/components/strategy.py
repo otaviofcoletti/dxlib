@@ -15,6 +15,6 @@ class Strategy(ABC):
 
     @abstractmethod
     def execute(
-        self, observation: any, position: Inventory, history: History
+        self, observation: any, history: History, position: Inventory
     ) -> pd.Series:
         pass

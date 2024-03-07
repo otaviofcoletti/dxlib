@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ..components import Security, Inventory, History, Schema
+from ..components import Security, Inventory, History, Schema, SchemaLevel
 from ..logger import LoggerMixin
 
 
@@ -81,3 +81,11 @@ class Portfolio(LoggerMixin):
         self.history.add(history)
         # cumulate inventory from history
         self.inventory += history.df["inventory"].sum()
+
+    @classmethod
+    def from_orders(cls, orders: History):
+        # aggregate orders into inventory for each date
+        inventories = orders.apply({
+            SchemaLevel.DATE: lambda x: pd.Series({"inventory": Inventory.from_orders(x["order"].values)})
+        })
+        return inventories

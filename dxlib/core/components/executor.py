@@ -62,7 +62,7 @@ class Executor(LoggerMixin):
 
     def _consume_observation(self, observation, output_history, log_history):
         log_history.add(observation)
-        signals = self.strategy.execute(observation, self.position, log_history)
+        signals = self.strategy.execute(observation, log_history, self.position)
         output_history.add(signals)
         return signals
 
