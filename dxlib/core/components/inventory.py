@@ -3,8 +3,8 @@ from __future__ import annotations
 from functools import lru_cache
 from typing import Dict, Union, List
 
-from ..trading import Order
 from .security import Security, SecurityManager
+from ..trading import Order
 
 
 class Inventory(dict[Security, Union[float, int]]):
@@ -40,11 +40,6 @@ class Inventory(dict[Security, Union[float, int]]):
     def __iadd__(self, other: Inventory):
         self._securities = (self + other)._securities
         return self
-
-    def __eq__(self, other: Inventory):
-        return all([
-            self.get(security) == other.get(security) for security in set(self) | set(other)
-        ])
 
     def items(self):
         return self._securities.items()

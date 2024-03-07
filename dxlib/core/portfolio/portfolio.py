@@ -1,48 +1,45 @@
 from __future__ import annotations
 
-from typing import Dict
+import pandas as pd
 
-from ..components import Security, Inventory, History, Schema, SchemaLevel, SecurityManager
+from ..components import Security, Inventory, History, Schema
 from ..logger import LoggerMixin
 
 
 class Portfolio(LoggerMixin):
     def __init__(
             self,
-            inventories: Dict[str, Inventory] | Inventory | None = None,
-            security_manager: SecurityManager = None,
+            inventory: Inventory | None = None,
+            schema: Schema | None = None,
             logger=None
     ):
         super().__init__(logger)
-
-        if isinstance(inventories, Inventory):
-            inventories = {hash(inventories): inventories}
-
-        self._inventories: Dict[str, Inventory] = inventories if inventories else {}
-        self.history = History(Schema(
-            levels=[SchemaLevel.DATE, SchemaLevel.SECURITY],
-            fields=["quantity"],
-            security_manager=security_manager if security_manager else SecurityManager()
-        ))
+        self.inventory = inventory if inventory else Inventory()
+        self.history = History(schema=schema)
 
     def __repr__(self):
-        return f"Portfolio({len(self._inventories)})"
+        return f"Portfolio({len(self.inventory)})"
 
     def __add__(self, other: Portfolio):
-        return Portfolio(self._inventories | other._inventories)
+        return Portfolio(
+            self.inventory + other.inventory,
+        )
 
     def __iadd__(self, other: Portfolio):
-        self._inventories = (self + other)._inventories
+        self.inventory += other.inventory
         return self
 
     def __iter__(self):
-        return iter(self._inventories.values())
+        return iter(self.inventory)
 
     def __getitem__(self, item):
-        return self._inventories[item]
+        return self.inventory[item]
 
     def __len__(self):
-        return len(self._inventories)
+        return len(self.inventory)
+
+    def get(self, security: Security, default: float | int = None):
+        return self.inventory.get(security, default)
 
     def stack(self):
         self.history.df = self.history.df.stack().groupby(level=0).apply(
@@ -62,27 +59,25 @@ class Portfolio(LoggerMixin):
         self.history.schema.levels = ["date", "security"] + self.history.schema.levels
         return self
 
-    def to_dict(self):
+    def to_dict(self, serializable: bool = False):
         return {
-            "inventories": {
-                identifier: inventory.to_dict()
-                for identifier, inventory in self._inventories.items()
-            }
+            "inventory": self.inventory.to_dict(serializable=serializable),
+            "history": self.history.to_dict(serializable=serializable)
         }
 
-    def accumulate(self) -> Inventory:
-        inventory = Inventory()
-        for identifier in self._inventories:
-            inventory += self._inventories[identifier]
-        return inventory
+    def add(self, inventory: Inventory, idx: any = None):
+        self.inventory += inventory
 
-    def value(self, prices: dict[Security, float] | None = None):
-        return sum(
-            [inventory.value(prices) for inventory in self._inventories.values()]
-        )
+        if idx is not None:
+            self.history.add(
+                pd.DataFrame({
+                    "inventory": [inventory],
+                }, index=[idx])
+            )
 
-    def add(self, inventory: Inventory, identifier: str = None):
-        self.logger.debug(f"Adding inventory {inventory} to portfolio")
-        if identifier is None:
-            identifier = hash(inventory)
-        self._inventories[identifier] = inventory
+    def add_history(self, history: History | pd.DataFrame | dict):
+        if isinstance(history, (dict, pd.DataFrame)):
+            history = History(history, self.history.schema)
+        self.history.add(history)
+        # cumulate inventory from history
+        self.inventory += history.df["inventory"].sum()

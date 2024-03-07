@@ -215,7 +215,9 @@ class History:
         elif isinstance(data, tuple):
             bar, idx = data
             df = pd.DataFrame([idx], index=pd.MultiIndex.from_tuples([bar]))
-        elif isinstance(data, dict) or isinstance(data, pd.Series):
+        elif isinstance(data, dict):
+            df = pd.DataFrame.from_dict(data, orient="index", columns=self._schema.fields)
+        elif isinstance(data, pd.Series):
             df = pd.DataFrame(data, columns=self._schema.fields)
         else:
             raise ValueError(f"Invalid type {type(data)} for data")
