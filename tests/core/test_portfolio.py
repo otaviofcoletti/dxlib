@@ -24,6 +24,30 @@ class TestPortfolio(unittest.TestCase):
             cls.security_manager.get("MSFT"): 600
         })
 
+        schema = dx.Schema(
+                levels=[dx.SchemaLevel.DATE],
+                fields=["inventory"],
+                security_manager=cls.security_manager
+            )
+
+        cls.history1 = dx.History(
+            {
+                (datetime.datetime(2021, 1, 1),): {
+                    "inventory": cls.inventory1
+                },
+            },
+            schema=schema
+        )
+
+        cls.history2 = dx.History(
+            {
+                (datetime.datetime(2021, 1, 2),): {
+                    "inventory": cls.inventory2
+                },
+            },
+            schema=schema
+        )
+
     def test_portfolio(self):
         portfolio = Portfolio()
         self.assertIsInstance(portfolio, Portfolio)
@@ -31,14 +55,14 @@ class TestPortfolio(unittest.TestCase):
         self.assertEqual(len(portfolio.inventory), 0)
 
     def test_init(self):
-        portfolio = Portfolio(self.inventory1)
+        portfolio = Portfolio(self.history1)
         self.assertIsInstance(portfolio, Portfolio)
         self.assertIsInstance(portfolio.inventory, dx.Inventory)
         self.assertEqual(len(portfolio.inventory), 3)
 
     def test_add(self):
-        portfolio1 = Portfolio(self.inventory1)
-        portfolio2 = Portfolio(self.inventory2)
+        portfolio1 = Portfolio(self.history1)
+        portfolio2 = Portfolio(self.history2)
         portfolio3 = portfolio1 + portfolio2
         self.assertIsInstance(portfolio3, Portfolio)
         self.assertEqual(len(portfolio3.inventory), 3)
@@ -48,8 +72,8 @@ class TestPortfolio(unittest.TestCase):
         self.assertEqual(len(portfolio3.inventory), 3)
 
     def test_iadd(self):
-        portfolio1 = Portfolio(self.inventory1)
-        portfolio2 = Portfolio(self.inventory2)
+        portfolio1 = Portfolio()
+        portfolio2 = Portfolio()
         portfolio1 += portfolio2
         self.assertEqual(len(portfolio1.inventory), 3)
         self.assertEqual(portfolio1.inventory.get(self.security_manager.get("AAPL")), 500)

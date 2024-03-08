@@ -2,38 +2,43 @@ from __future__ import annotations
 
 import pandas as pd
 
-from ..components import Security, Inventory, History, Schema, SchemaLevel
+from ..components import Security, Inventory, History, SchemaLevel
 from ..logger import LoggerMixin
 
 
 class Portfolio(LoggerMixin):
     def __init__(
             self,
-            inventory: Inventory | None = None,
-            schema: Schema | None = None,
+            history: History = None,
             logger=None
     ):
         super().__init__(logger)
-        self.inventory = inventory if inventory else Inventory()
-        self.history = History(schema=schema)
+        self.history = history or History()
+
+    @property
+    def inventory(self):
+        # get last inventory from history
+        if len(self.history):
+            return self.history.df["inventory"].iloc[-1]
+        return Inventory()
 
     def __repr__(self):
         return f"Portfolio({len(self.inventory)})"
 
     def __add__(self, other: Portfolio):
         return Portfolio(
-            self.inventory + other.inventory,
+            self.history + other.history
         )
 
     def __iadd__(self, other: Portfolio):
-        self.inventory += other.inventory
+        self.history += other.history
         return self
 
     def __iter__(self):
-        return iter(self.inventory)
+        return iter(self.history)
 
     def __getitem__(self, item):
-        return self.inventory[item]
+        return self.history[item]
 
     def __len__(self):
         return len(self.inventory)
@@ -66,21 +71,16 @@ class Portfolio(LoggerMixin):
         }
 
     def add(self, inventory: Inventory, idx: any = None):
-        self.inventory += inventory
-
-        if idx is not None:
-            self.history.add(
-                pd.DataFrame({
-                    "inventory": [inventory],
-                }, index=[idx])
-            )
+        self.history.add(
+            pd.DataFrame({
+                "inventory": [inventory],
+            }, index=[idx])
+        )
 
     def add_history(self, history: History | pd.DataFrame | dict):
         if isinstance(history, (dict, pd.DataFrame)):
             history = History(history, self.history.schema)
         self.history.add(history)
-        # cumulate inventory from history
-        self.inventory += history.df["inventory"].sum()
 
     @classmethod
     def from_orders(cls, orders: History):
@@ -88,4 +88,8 @@ class Portfolio(LoggerMixin):
         inventories = orders.apply({
             SchemaLevel.DATE: lambda x: pd.Series({"inventory": Inventory.from_orders(x["order"].values)})
         })
-        return inventories
+        inventories.df = inventories.df.cumsum()
+
+        return cls(
+            history=inventories
+        )
