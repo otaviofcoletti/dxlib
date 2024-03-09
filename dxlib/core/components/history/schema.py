@@ -134,3 +134,10 @@ class Schema:
             )
 
         return df
+
+    def copy(self):
+        return Schema(
+            levels=self.levels.copy(),
+            fields=self.fields.copy(),
+            security_manager=self.security_manager.copy()
+        )

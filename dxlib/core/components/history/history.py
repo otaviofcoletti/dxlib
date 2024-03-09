@@ -6,7 +6,6 @@ from typing import List, Dict
 import pandas as pd
 
 from .schema import Schema, SchemaLevel
-from ..security import SecurityManager
 
 
 class History:
@@ -138,6 +137,12 @@ class History:
 
         return self
 
+    def __neg__(self):
+        return History(-self.df, self.schema)
+
+    def __eq__(self, other: History):
+        return self.df.equals(other.df) and self.schema == other.schema
+
     @classmethod
     def from_df(cls, df: pd.DataFrame, schema: Schema | None = None):
         if schema is None:
@@ -202,6 +207,9 @@ class History:
             for level in levels
             if level in self._schema.levels
         }
+
+    def copy(self):
+        return History(self.df.copy(), self._schema.copy())
 
     def add(self, data: History | pd.DataFrame | pd.Series | tuple | dict):
         """

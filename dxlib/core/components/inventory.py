@@ -41,6 +41,33 @@ class Inventory(dict[Security, Union[float, int]]):
         self._securities = (self + other)._securities
         return self
 
+    def __sub__(self, other: Inventory):
+        return Inventory(
+            {
+                key: self.get(key, 0) - other.get(key, 0)
+                for key in set(self) | set(other)
+            }
+        )
+
+    def __isub__(self, other: Inventory):
+        self._securities = (self - other)._securities
+        return self
+
+    def __rsub__(self, other: Inventory):
+        return Inventory(
+            {
+                key: other.get(key, 0) - self.get(key, 0)
+                for key in set(self) | set(other)
+            }
+        )
+
+    def __eq__(self, other: Inventory):
+        return self._securities == other._securities
+
+    @property
+    def empty(self):
+        return len(self._securities) == 0
+
     def items(self):
         return self._securities.items()
 

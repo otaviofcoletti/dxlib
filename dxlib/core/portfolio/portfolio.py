@@ -64,6 +64,24 @@ class Portfolio(LoggerMixin):
         self.history.schema.levels = ["date", "security"] + self.history.schema.levels
         return self
 
+    def cumsum(self) -> Portfolio:
+        return Portfolio(
+            History(
+                self.history.df.cumsum(),
+                schema=self.history.schema
+            )
+        )
+
+    def diff(self) -> Portfolio:
+        df = self.history.df.diff()
+        df.iloc[0] = self.history.df.iloc[0]
+        return Portfolio(
+            History(
+                df,
+                schema=self.history.schema
+            )
+        )
+
     def to_dict(self, serializable: bool = False):
         return {
             "inventory": self.inventory.to_dict(serializable=serializable),

@@ -128,8 +128,12 @@ class SecurityManager(dict[str, Security]):
 
     def get(self, item: Security | str, default: Security | str | None = None):
         if isinstance(item, Security):
+            if item.ticker.upper() == "CASH":
+                return self._cash
             return self._securities.get(item.ticker, default)
         elif isinstance(item, str):
+            if item.upper() == "CASH":
+                return self._cash
             return self._securities.get(item, default)
         else:
             raise ValueError(f"Invalid type {type(item)} for item")
@@ -181,4 +185,10 @@ class SecurityManager(dict[str, Security]):
 
         return SecurityManager(
             {security.ticker: security for security in securities}, cash=cash
+        )
+
+    def copy(self):
+        return SecurityManager(
+            securities={**self._securities},
+            cash=self._cash
         )
