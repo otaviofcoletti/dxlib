@@ -87,8 +87,20 @@ class TestPortfolioMetrics(unittest.TestCase):
         portfolio = dx.Portfolio(self.history)
 
         metrics = dx.metrics.PortfolioMetrics()
-        equity = metrics.equity(portfolio, self.price_history)
-        print(equity)
+        equity, final, peak = metrics.equity(portfolio, self.price_history)
+        self.assertEqual(
+            final, 50
+        )
+        self.assertEqual(
+            peak, 50
+        )
+
+    def test(self):
+        portfolio = dx.Portfolio(self.history)
+
+        print(
+            dx.PortfolioMetrics.metrics(portfolio, self.price_history)
+        )
 
 
 if __name__ == '__main__':
