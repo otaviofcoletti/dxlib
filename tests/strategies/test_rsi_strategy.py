@@ -11,8 +11,8 @@ class TestRSIStrategy(unittest.TestCase):
         self.strategy = RsiStrategy(window=1)
 
     def test_execute(self):
-        schema = dx.HistorySchema(
-            levels=[dx.HistoryLevel.DATE, dx.HistoryLevel.SECURITY],
+        schema = dx.Schema(
+            levels=[dx.SchemaLevel.DATE, dx.SchemaLevel.SECURITY],
             fields=["close"],
             security_manager=dx.SecurityManager.from_list(["AAPL", "MSFT"]),
         )
@@ -31,7 +31,7 @@ class TestRSIStrategy(unittest.TestCase):
             schema,
         )
 
-        executor = dx.Executor(self.strategy, inventory, schema)
+        executor = dx.Executor(self.strategy, inventory)
         signals = executor.run(history)
 
         # date       security
@@ -42,11 +42,11 @@ class TestRSIStrategy(unittest.TestCase):
         # 2021-01-03 AAPL (equity)      SELL: 1 @ 120
         #            MSFT (equity)      SELL: 1 @ 220
         self.assertEqual(
-            signals.df.iloc[-1].to_dict()[0],
+            signals.df.iloc[-1].to_dict()["signal"],
             dx.Signal(dx.Side.SELL, 1))
 
         self.assertEqual(
-            signals.df.iloc[-2].to_dict()[0],
+            signals.df.iloc[-2].to_dict()["signal"],
             dx.Signal(dx.Side.SELL, 1))
 
 
