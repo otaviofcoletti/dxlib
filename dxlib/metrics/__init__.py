@@ -37,12 +37,4 @@ _strategy              SmaCross(n1=10, n2=20)
 _equity_curve                          Equ...
 _trades                       Size  EntryB...
 """
-from dxlib import History
-
-
-class Metrics:
-    def __init__(self, trade_history: History):
-        self.trade_history = trade_history
-
-    def volatility(self):
-        pass
+from .portfolio_metrics import *
