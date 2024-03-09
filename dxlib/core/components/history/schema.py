@@ -57,6 +57,12 @@ class Schema:
         self.extend(other)
         return self
 
+    def __eq__(self, other: Schema) -> bool:
+        return (
+            self.levels == other.levels
+            and self.fields == other.fields
+        )
+
     def extend(self, other: Schema) -> Schema:
         self.levels += other.levels
         self.fields += other.fields

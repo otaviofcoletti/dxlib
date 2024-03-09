@@ -61,71 +61,30 @@ class TestPortfolio(unittest.TestCase):
         self.assertEqual(len(portfolio.inventory), 3)
 
     def test_add(self):
-        portfolio1 = Portfolio(self.history1)
+        portfolio1 = Portfolio()
         portfolio2 = Portfolio(self.history2)
         portfolio3 = portfolio1 + portfolio2
         self.assertIsInstance(portfolio3, Portfolio)
         self.assertEqual(len(portfolio3.inventory), 3)
-        self.assertEqual(portfolio3.inventory.get(self.security_manager.get("AAPL")), 500)
+        self.assertEqual(portfolio3.inventory.get(self.security_manager.get("AAPL")), 400)
 
-        portfolio3.add(self.inventory1)
+        portfolio3.add(datetime.datetime(2021, 1, 2), self.inventory2)
         self.assertEqual(len(portfolio3.inventory), 3)
 
     def test_iadd(self):
         portfolio1 = Portfolio()
-        portfolio2 = Portfolio()
+        portfolio2 = Portfolio(self.history2)
         portfolio1 += portfolio2
         self.assertEqual(len(portfolio1.inventory), 3)
-        self.assertEqual(portfolio1.inventory.get(self.security_manager.get("AAPL")), 500)
+        self.assertEqual(portfolio1.inventory.get(self.security_manager.get("AAPL")), 400)
 
     def test_iter(self):
-        portfolio = Portfolio(self.inventory1)
-        for security in portfolio:
-            self.assertIsInstance(security, dx.Security)
-
-
-class TestPortfolioHistory(unittest.TestCase):
-    security_manager = None
-    inventory1 = None
-    inventory2 = None
-    portfolio1 = None
-    portfolio2 = None
-
-    @classmethod
-    def setUpClass(cls):
-        cls.security_manager = dx.SecurityManager.from_list(["AAPL", "GOOGL"])
-        cls.inventory1 = dx.Inventory({
-            cls.security_manager.get("AAPL"): 100,
-            cls.security_manager.get("GOOGL"): 200,
-        })
-        cls.inventory2 = dx.Inventory({
-            cls.security_manager.get("AAPL"): 400,
-            cls.security_manager.get("GOOGL"): 500,
-        })
-        cls.portfolio1 = dx.Portfolio(cls.inventory1)
-        cls.portfolio2 = dx.Portfolio(cls.inventory2)
-
-    def test(self):
-        portfolio = Portfolio(
-            schema=dx.Schema(
-                levels=[dx.SchemaLevel.DATE],
-                fields=["inventory"],
-                security_manager=self.security_manager
-            )
-        )
-
-        history = {
-            (datetime.datetime(2021, 1, 1),): {
-                "inventory": self.inventory1
-            },
-            (datetime.datetime(2021, 1, 2), ): {
-                "inventory": self.inventory2
-            }
-        }
-
-        portfolio.add_history(history)
-        self.assertEqual(len(portfolio.history), 2)
-        self.assertEqual(portfolio.get(self.security_manager.get("AAPL")), 500)
+        portfolio = Portfolio(self.history1)
+        for row in portfolio:
+            self.assertIsInstance(row, tuple)
+            idx, value = row
+            self.assertIsInstance(idx[0], datetime.datetime)
+            self.assertIsInstance(value['inventory'], dx.Inventory)
 
 
 if __name__ == '__main__':

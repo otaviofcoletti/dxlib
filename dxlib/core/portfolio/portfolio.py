@@ -70,11 +70,15 @@ class Portfolio(LoggerMixin):
             "history": self.history.to_dict(serializable=serializable)
         }
 
-    def add(self, inventory: Inventory, idx: any = None):
-        self.history.add(
-            pd.DataFrame({
-                "inventory": [inventory],
-            }, index=[idx])
+    def add(self, idx: any | tuple, inventory: Inventory):
+        if not isinstance(idx, tuple):
+            idx = (idx,)
+        self.add_history(
+            {
+                idx: {
+                    "inventory": inventory
+                }
+            }
         )
 
     def add_history(self, history: History | pd.DataFrame | dict):

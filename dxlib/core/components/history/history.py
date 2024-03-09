@@ -69,7 +69,8 @@ class History:
     @schema.setter
     def schema(self, value: Schema):
         self._schema = value
-        self.df.index = self.convert_index(self.df.index)
+        if not self.df.empty:
+            self.df.index = self.convert_index(self.df.index)
 
     def convert_index(self, index: pd.MultiIndex) -> pd.MultiIndex:
         index = pd.MultiIndex.from_tuples(
@@ -109,16 +110,33 @@ class History:
         if not isinstance(other, History):
             raise ValueError(f"Invalid type {type(other)} for other")
 
-        securities = set(
-            self.level_unique(SchemaLevel.SECURITY)
-            + other.level_unique(SchemaLevel.SECURITY)
-        )
-        security_manager = SecurityManager.from_list(list(securities))
+        # if other is not empty and schema different
+        if not (other.df.empty or self.df.empty) and self.schema != other.schema:
+            raise ValueError(f"Invalid schema for other {other.schema}")
+
+        security_manager = self.schema.security_manager + other.schema.security_manager
 
         return History(
             pd.concat([self.df, other.df]),
-            schema=Schema(security_manager=security_manager),
+            schema=Schema(
+                levels=other.schema.levels if self.df.empty else self.schema.levels,
+                fields=other.schema.fields if self.df.empty else self.schema.fields,
+                security_manager=security_manager),
         )
+
+    def __iadd__(self, other: History):
+        if not isinstance(other, History):
+            raise ValueError(f"Invalid type {type(other)} for other")
+
+        if not (other.df.empty or self.df.empty) and self.schema != other.schema:
+            raise ValueError(f"Invalid schema for other {other.schema}")
+
+        if self.df.empty:
+            self.schema = other.schema
+
+        self.df = pd.concat([self.df, other.df])
+
+        return self
 
     @classmethod
     def from_df(cls, df: pd.DataFrame, schema: Schema | None = None):
