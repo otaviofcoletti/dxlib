@@ -10,9 +10,10 @@ from .server import Server, ServerStatus
 
 
 class WebsocketServer(Server):
-    def __init__(self, handler: WebsocketHandler = None, port=None, logger=None):
+    def __init__(self, handler: WebsocketHandler = None, host="localhost", port=None, logger=None):
         super().__init__(logger)
         self.handler = handler or WebsocketHandler()
+        self.host = host
         self.port = port if port else self._get_free_port()
 
         self._thread = None
@@ -63,7 +64,7 @@ class WebsocketServer(Server):
 
     async def _serve(self):
         self._server = await websockets.serve(
-            self.websocket_handler, "", self.port
+            self.websocket_handler, self.host, self.port
         )
         try:
             while self._running.is_set():
