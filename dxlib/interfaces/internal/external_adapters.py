@@ -34,12 +34,10 @@ class MarketInterface(InternalInterface):
                         "Stream quotes for a list of securities",
                         )
     def quote_stream(self,
-                     tickers: List[str],
-                     ) -> AsyncGenerator:
+                     *args, **kwargs) -> AsyncGenerator:
         async def quote_stream():
-            async for quote in self.market_api.quote_stream(tickers):
+            async for quote in self.market_api.quote_stream(*args, **kwargs):
                 yield quote.to_dict(serializable=True)
-                await asyncio.sleep(60)
 
         return quote_stream()
 
