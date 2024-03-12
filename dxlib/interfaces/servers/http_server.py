@@ -221,10 +221,9 @@ class HTTPServer(Server):
             with ThreadingHTTPServer(
                 (self.host, self.port), HTTPRequestHandler
             ) as self._server:
-                self.logger.info(f"Server started. Press Ctrl+C to stop...")
+                self.logger.info(f"HTTP server started. Press Ctrl+C to stop...")
                 self._server.timeout = 1
                 while self._running.is_set():
-                    self.logger.debug(f"Handling request on port {self.port}")
                     self._server.handle_request()
         except Exception as e:
             self.logger.error(f"Server error: {e}")
@@ -234,7 +233,7 @@ class HTTPServer(Server):
             self.logger.info("Server stopped by user")
 
     def start(self) -> ServerStatus:
-        self.logger.info(f"Server starting on http://{self.host}:{self.port}")
+        self.logger.info(f"HTTP server starting on address http://{self.host}:{self.port}")
         self._running.set()
         self._thread = threading.Thread(target=self._serve)
         self._thread.start()

@@ -22,12 +22,16 @@ class WebsocketServer(Server):
         self._stop_event = asyncio.Event()
         self.loop = asyncio.get_event_loop()
 
+    @property
+    def base_url(self):
+        return f"ws://{self.host}:{self.port}"
+
     def add_interface(self, interface):
         self.handler.add_interface(interface, endpoint_type=EndpointType.WEBSOCKET)
 
     def listen(self, func, *args, **kwargs):
         func = self.handler.listen(func, *args, **kwargs)
-
+        self.logger.info(f"Listening to {func.__name__}")
         asyncio.run_coroutine_threadsafe(func(), self.loop)
 
     async def websocket_handler(self, websocket, endpoint):
@@ -73,7 +77,7 @@ class WebsocketServer(Server):
             self.exception_queue.put(e)
 
     def start(self):
-        self.logger.info(f"Starting websocket on port {self.port}")
+        self.logger.info(f"Websocket server starting on address {self.base_url}")
         self._running.set()
         self._thread = threading.Thread(
             target=self.loop.run_until_complete, args=(self._serve(),)

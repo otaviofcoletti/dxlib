@@ -1,6 +1,8 @@
 import time
 import unittest
 
+import websocket
+
 import dxlib as dx
 
 
@@ -34,20 +36,23 @@ class TestYFinanceInterface(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.server = dx.servers.HTTPServer()
-        cls.websocket = dx.servers.WebsocketServer()
+        logger = dx.DebugLogger()
+        cls.server = dx.servers.HTTPServer(logger=logger)
+        cls.websocket = dx.servers.WebsocketServer(logger=logger)
         cls.interface = dx.interfaces.MarketInterface(dx.YFinanceAPI(), interface_url=cls.server.url)
         cls.server.add_interface(cls.interface)
         cls.websocket.add_interface(cls.interface)
 
         cls.server.start()
-        while not cls.server.alive:
+        cls.websocket.start()
+        while not (cls.server.alive and cls.websocket.alive):
             time.sleep(0.1)
 
     @classmethod
     def tearDownClass(cls) -> None:
         cls.server.stop()
-        while cls.server.alive:
+        cls.websocket.stop()
+        while cls.server.alive or cls.websocket.alive:
             time.sleep(0.1)
 
     def test_quote(self):
@@ -64,6 +69,16 @@ class TestYFinanceInterface(unittest.TestCase):
 
         self.assertEqual(len(quotes), 2)
         self.assertEqual(set(quotes.df.index.names), {"date", "security"})
+
+    def test_stream_quote(self):
+        ws = websocket.create_connection(self.websocket.base_url + "/quote")
+        while not ws.connected:
+            time.sleep(0.1)
+        self.websocket.listen(self.interface.quote_stream, tickers=["BTC-USD"])
+        msg = ws.recv()
+
+        print(msg)
+        ws.close()
 
 
 if __name__ == '__main__':

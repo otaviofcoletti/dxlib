@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+import asyncio
 import datetime
-from typing import List
+from typing import List, AsyncGenerator
 
 import pandas as pd
 import requests
@@ -180,12 +181,8 @@ class YFinanceAPI(MarketApi):
 
         return self.to_history(df)
 
-    def _listen_tickers(self, tickers: List[str], callback: callable, start: datetime.datetime, end: datetime.datetime,
-                        timeframe="1s"):
+    async def quote_stream(self, tickers: List[str], interval: int = 60) -> AsyncGenerator:
         while True:
-            data = self.quote(tickers, start, end, timeframe)
-            callback(data)
-
-    def listen_tickers(self, tickers: List[str], callback: callable, start: datetime.datetime, end: datetime.datetime,
-                       timeframe="1s"):
-        t = threading.Thread(target=self._listen_tickers, args=(tickers, callback, start, end, timeframe))
+            quotes = self.quote(tickers)
+            yield quotes
+            await asyncio.sleep(interval)

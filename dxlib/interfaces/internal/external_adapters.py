@@ -34,12 +34,11 @@ class MarketInterface(InternalInterface):
                         "Stream quotes for a list of securities",
                         )
     def quote_stream(self,
-                     websocket: any,
+                     tickers: List[str],
                      ) -> AsyncGenerator:
         async def quote_stream():
-            async for quote in self.market_api.quote_stream():
+            async for quote in self.market_api.quote_stream(tickers):
                 yield quote.to_dict(serializable=True)
-                # async sleep 1 minute
                 await asyncio.sleep(60)
 
         return quote_stream()
