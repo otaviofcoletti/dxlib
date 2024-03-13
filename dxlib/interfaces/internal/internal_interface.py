@@ -1,7 +1,8 @@
 from abc import ABC
-from typing import List, Tuple
+from typing import List, Tuple, AsyncGenerator
 
 import requests
+import websocket
 
 from ..servers.endpoint import EndpointType, EndpointWrapper, Method
 
@@ -49,17 +50,16 @@ class InternalInterface(ABC):
 
         return endpoints
 
-    def request(self, function: any, **kwargs):
+    def request(self, function: any, *args, **kwargs):
         if self.interface_url is None:
             raise ValueError("URL for interfacing must be provided on interface creation")
 
-        wrapper = function.endpoint
+        wrapper: EndpointWrapper = function.endpoint
 
         route = wrapper.route_name
-        method = wrapper.method
-
         url = self.interface_url + route
 
+        method = wrapper.method
         if method == Method.GET:
             request = requests.get
         elif method == Method.POST:
@@ -69,7 +69,7 @@ class InternalInterface(ABC):
         else:
             raise ValueError(f"Method {method} not supported")
 
-        response = request(url, headers=self.headers, **kwargs)
+        response = request(url, headers=self.headers, *args, **kwargs)
 
         if response.status_code != 200:
             raise ValueError(f"Request failed with status code {response.text}")
@@ -78,3 +78,27 @@ class InternalInterface(ABC):
             return wrapper.output(response.json())
         else:
             return response.json()
+
+    def listen(self, function: any, *args, **kwargs) -> AsyncGenerator:
+        if self.interface_url is None:
+            raise ValueError("URL for interfacing must be provided on interface creation")
+
+        wrapper: EndpointWrapper = function.endpoint
+
+        route = wrapper.route_name
+        url = self.interface_url + route
+
+        # no method since this is a socket
+        if wrapper.endpoint_type == EndpointType.WEBSOCKET:
+            # return an async generator using the websocket with recv
+            ws = websocket.create_connection(url)
+
+            async def websocket_recv():
+                while True:
+                    yield ws.recv()
+
+            return websocket_recv()
+        elif wrapper.endpoint_type == EndpointType.TCP:
+            raise NotImplementedError("TCP not supported yet")
+        else:
+            raise ValueError(f"Endpoint type {wrapper.endpoint_type} not supported")
