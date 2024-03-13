@@ -60,10 +60,11 @@ class Executor(LoggerMixin):
 
         return self._run(obj, output_history, input_schema, log_history)
 
-    def _consume_observation(self, observation, output_history, log_history):
+    def _consume_observation(self, observation: any, log_history: History, output_history: History = None):
         log_history.add(observation)
         signals = self.strategy.execute(observation, log_history, self.position)
-        output_history.add(signals)
+        if output_history is not None:
+            output_history.add(signals)
         return signals
 
     def _consume(self, input_history: History, output_history: History, log_history: History = None) -> History:
@@ -83,7 +84,7 @@ class Executor(LoggerMixin):
             log_history = History(schema=input_schema)
         try:
             for observation in input_generator:
-                yield self._consume_observation(observation, log_history, log_history)
+                yield self._consume_observation(observation, log_history)
         except Exception as e:
             self.logger.exception(e)
             raise e
@@ -95,7 +96,7 @@ class Executor(LoggerMixin):
             log_history = History(schema=input_schema)
         try:
             async for observation in input_generator:
-                yield self._consume_observation(observation, log_history, log_history)
+                yield self._consume_observation(observation, log_history)
         except Exception as e:
             self.logger.exception(e)
             raise e
