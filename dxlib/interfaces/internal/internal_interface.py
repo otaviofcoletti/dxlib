@@ -91,7 +91,7 @@ class InternalInterface(ABC):
                 ws = websocket.create_connection(url)
                 break
             except ConnectionRefusedError:
-                pass
+                time.sleep(5)
 
         if ws is None:
             raise ConnectionRefusedError(f"Could not connect to {url}")
