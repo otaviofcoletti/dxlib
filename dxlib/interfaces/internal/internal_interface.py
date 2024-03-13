@@ -1,16 +1,19 @@
+import asyncio
+import json
 from abc import ABC
+from socket import socket
 from typing import List, Tuple, AsyncGenerator
 
 import requests
 import websocket
 
-from ..servers.endpoint import EndpointType, EndpointWrapper, Method
+from ..servers.endpoint import EndpointScheme, EndpointWrapper, Method
 
 
 class InternalInterface(ABC):
 
-    def __init__(self, interface_url: str = None, headers: dict = None):
-        self.interface_url = interface_url
+    def __init__(self, host: str = None, headers: dict = None):
+        self.host = host
         self.headers = headers or {}
 
         self.endpoints = {
@@ -18,14 +21,14 @@ class InternalInterface(ABC):
             for endpoint_wrapper, _ in self.get_endpoints()
         }
 
-    def get_endpoints(self, endpoint_type: EndpointType = None) -> List[Tuple[EndpointWrapper, callable]]:
+    def get_endpoints(self, endpoint_scheme: EndpointScheme = None) -> List[Tuple[EndpointWrapper, callable]]:
         endpoints = []
 
         for func_name in dir(self):
             attr = self.__class__.__dict__.get(func_name)
 
             if callable(attr) and hasattr(attr, "endpoint") and (
-                    endpoint_type is None or attr.endpoint.endpoint_type == endpoint_type):
+                    endpoint_scheme is None or attr.endpoint.endpoint_scheme == endpoint_scheme):
                 endpoint = attr.endpoint
                 # noinspection PyUnresolvedReferences
                 func = attr.__get__(self)
@@ -34,7 +37,7 @@ class InternalInterface(ABC):
             elif isinstance(attr, property):
                 if hasattr(attr.fget, "endpoint"):
                     endpoint = attr.fget.endpoint
-                    if endpoint_type is not None and endpoint.endpoint_type != endpoint_type:
+                    if endpoint_scheme is not None and endpoint.endpoint_scheme != endpoint_scheme:
                         continue
                     # noinspection PyUnresolvedReferences
                     func = attr.fget.__get__(self, self.__class__)
@@ -42,7 +45,7 @@ class InternalInterface(ABC):
 
                 if hasattr(attr.fset, "endpoint"):
                     endpoint = attr.fset.endpoint
-                    if endpoint_type is not None and endpoint.endpoint_type != endpoint_type:
+                    if endpoint_scheme is not None and endpoint.endpoint_scheme != endpoint_scheme:
                         continue
                     # noinspection PyUnresolvedReferences
                     func = attr.fset.__get__(self, self.__class__)
@@ -50,14 +53,15 @@ class InternalInterface(ABC):
 
         return endpoints
 
-    def request(self, function: any, *args, **kwargs):
-        if self.interface_url is None:
+    def make_url(self, wrapper: EndpointWrapper, port: int):
+        return f"{wrapper.endpoint_scheme.value}://{self.host}:{port}{wrapper.route_name}"
+
+    def request(self, function: any, port: int, *args, **kwargs):
+        if self.host is None:
             raise ValueError("URL for interfacing must be provided on interface creation")
 
         wrapper: EndpointWrapper = function.endpoint
-
-        route = wrapper.route_name
-        url = self.interface_url + route
+        url = self.make_url(wrapper, port)
 
         method = wrapper.method
         if method == Method.GET:
@@ -79,26 +83,41 @@ class InternalInterface(ABC):
         else:
             return response.json()
 
-    def listen(self, function: any, *args, **kwargs) -> AsyncGenerator:
-        if self.interface_url is None:
+    @staticmethod
+    def _listen_websocket(wrapper: EndpointWrapper, url: str) -> Tuple[websocket.WebSocket, AsyncGenerator]:
+        ws = websocket.create_connection(url)
+
+        async def websocket_recv():
+            while not ws.connected:
+                await asyncio.sleep(0.1)
+
+            try:
+                if wrapper and wrapper.output is not None:
+                    while ws.connected:
+                        yield wrapper.output(json.loads(ws.recv()))
+                else:
+                    while ws.connected:
+                        yield ws.recv()
+                return
+            except Exception as e:
+                raise e
+            except KeyboardInterrupt:
+                pass
+            finally:
+                ws.close()
+
+        return ws, websocket_recv()
+
+    def listen(self, function: any, port: int) -> Tuple[socket | websocket.WebSocket, AsyncGenerator]:
+        if self.host is None:
             raise ValueError("URL for interfacing must be provided on interface creation")
 
         wrapper: EndpointWrapper = function.endpoint
+        url = self.make_url(wrapper, port)
 
-        route = wrapper.route_name
-        url = self.interface_url + route
-
-        # no method since this is a socket
-        if wrapper.endpoint_type == EndpointType.WEBSOCKET:
-            # return an async generator using the websocket with recv
-            ws = websocket.create_connection(url)
-
-            async def websocket_recv():
-                while True:
-                    yield ws.recv()
-
-            return websocket_recv()
-        elif wrapper.endpoint_type == EndpointType.TCP:
+        if wrapper.endpoint_scheme == EndpointScheme.WEBSOCKET:
+            return self._listen_websocket(wrapper, url)
+        elif wrapper.endpoint_scheme == EndpointScheme.TCP:
             raise NotImplementedError("TCP not supported yet")
         else:
-            raise ValueError(f"Endpoint type {wrapper.endpoint_type} not supported")
+            raise ValueError(f"Endpoint type {wrapper.endpoint_scheme} not supported")

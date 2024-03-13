@@ -4,10 +4,10 @@ from functools import wraps
 from inspect import signature
 
 
-class EndpointType(enum.Enum):
-    HTTP = "HTTP"
-    WEBSOCKET = "WEBSOCKET"
-    TCP = "TCP"
+class EndpointScheme(enum.Enum):
+    HTTP = "http"
+    WEBSOCKET = "ws"
+    TCP = "tcp"
 
 
 class Method(enum.Enum):
@@ -21,14 +21,14 @@ class Method(enum.Enum):
 class EndpointWrapper:
 
     def __init__(self,
-                 endpoint_type: EndpointType,
+                 endpoint_scheme: EndpointScheme,
                  route_name: str,
                  method: Method = None,
                  description: str = None,
                  params: dict = None,
                  func: callable = None,
                  output: any = None):
-        self.endpoint_type = endpoint_type
+        self.endpoint_scheme = endpoint_scheme
         self.route_name = route_name
         self.method = method
         self.description = description
@@ -36,7 +36,7 @@ class EndpointWrapper:
         self.func = func
         self.output = output
 
-    endpoint_type: EndpointType
+    endpoint_scheme: EndpointScheme
     route_name: str
     method: Method = None
     description: str = None
@@ -48,7 +48,7 @@ class EndpointWrapper:
 class Endpoint:
 
     @staticmethod
-    def http(method: Method, route_name: str, description: str = None, output: any = None):
+    def http(method: Method, route_name: str, description: str = None, output: callable = None):
         def decorator(func):  # Do note, here func is class bound, not instance bound
             @wraps(func)  # This helps preserve function metadata
             def wrapper(*args, **kwargs):
@@ -57,7 +57,7 @@ class Endpoint:
             params = signature(func).parameters
 
             wrapper.endpoint = EndpointWrapper(
-                EndpointType.HTTP,
+                EndpointScheme.HTTP,
                 route_name,
                 method=method,
                 params=dict(params),
@@ -71,7 +71,7 @@ class Endpoint:
         return decorator
 
     @staticmethod
-    def websocket(route_name: str, description: str = None):
+    def websocket(route_name: str, description: str = None, output: callable = None):
         def decorator(func):  # Do note, here func is class bound, not instance bound
             @wraps(func)  # This helps preserve function metadata
             def wrapper(*args, **kwargs):
@@ -80,10 +80,10 @@ class Endpoint:
             params = signature(func).parameters
 
             wrapper.endpoint = EndpointWrapper(
-                EndpointType.WEBSOCKET,
+                EndpointScheme.WEBSOCKET,
                 route_name,
                 params=dict(params),
-                output=None,
+                output=output,
             )
             if description is not None:
                 wrapper.endpoint.description = description

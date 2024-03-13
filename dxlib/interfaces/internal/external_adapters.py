@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime
 from typing import List, AsyncGenerator
 
@@ -8,9 +7,9 @@ from ... import History
 
 
 class MarketInterface(InternalInterface):
-    def __init__(self, market_api=None, interface_url: str = None, headers: dict = None):
-        super().__init__(interface_url, headers)
-        if market_api is None and interface_url is None:
+    def __init__(self, market_api=None, host: str = None, headers: dict = None):
+        super().__init__(host, headers)
+        if market_api is None and host is None:
             raise ValueError("Executor or URL must be provided")
         self.market_api = market_api
 
@@ -30,17 +29,6 @@ class MarketInterface(InternalInterface):
 
         return response
 
-    @Endpoint.websocket("/quote",
-                        "Stream quotes for a list of securities",
-                        )
-    def quote_stream(self,
-                     *args, **kwargs) -> AsyncGenerator:
-        async def quote_stream():
-            async for quote in self.market_api.quote_stream(*args, **kwargs):
-                yield quote.to_dict(serializable=True)
-
-        return quote_stream()
-
     @Endpoint.http(Method.POST,
                    "/historical",
                    "Get historical data for a list of securities",
@@ -56,3 +44,15 @@ class MarketInterface(InternalInterface):
         }
 
         return response
+
+    @Endpoint.websocket("/quote",
+                        "Stream quotes for a list of securities",
+                        output=lambda response: History.from_dict(serialized=True, **response)
+                        )
+    def quote_stream(self,
+                     *args, **kwargs) -> AsyncGenerator:
+        async def quote_stream():
+            async for quote in self.market_api.quote_stream(*args, **kwargs):
+                yield quote.to_dict(serializable=True)
+
+        return quote_stream()

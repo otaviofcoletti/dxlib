@@ -1,7 +1,6 @@
+import asyncio
 import time
 import unittest
-
-import websocket
 
 import dxlib as dx
 
@@ -14,8 +13,6 @@ class TestYFinanceApi(unittest.TestCase):
         self.assertEqual(self.api.version, "1.0")
 
     def test_quotes(self):
-        today = dx.Date.today()
-        last_week = dx.Date.prevdays(6)
         quotes = self.api.quote(["AAPL", "MSFT"])
 
         self.assertEqual(len(quotes), 2)
@@ -39,7 +36,7 @@ class TestYFinanceInterface(unittest.TestCase):
         logger = dx.DebugLogger()
         cls.server = dx.servers.HTTPServer(logger=logger)
         cls.websocket = dx.servers.WebsocketServer(logger=logger)
-        cls.interface = dx.interfaces.MarketInterface(dx.YFinanceAPI(), interface_url=cls.server.url)
+        cls.interface = dx.interfaces.MarketInterface(dx.YFinanceAPI(), host=cls.server.host)
         cls.server.add_interface(cls.interface)
         cls.websocket.add_interface(cls.interface)
 
@@ -52,7 +49,7 @@ class TestYFinanceInterface(unittest.TestCase):
     def tearDownClass(cls) -> None:
         cls.server.stop()
         cls.websocket.stop()
-        while cls.server.alive or cls.websocket.alive:
+        while cls.server.alive or not cls.websocket.stopped:
             time.sleep(0.1)
 
     def test_quote(self):
@@ -63,7 +60,7 @@ class TestYFinanceInterface(unittest.TestCase):
             "start": last_week.strftime("%Y-%m-%d"),
             "end": today.strftime("%Y-%m-%d"),
         }
-        quotes = self.interface.request(self.interface.quote, json=args)
+        quotes = self.interface.request(self.interface.quote, port=self.server.port, json=args)
         data = quotes["data"]
         quotes = dx.History.from_dict(serialized=True, **data)
 
@@ -71,14 +68,32 @@ class TestYFinanceInterface(unittest.TestCase):
         self.assertEqual(set(quotes.df.index.names), {"date", "security"})
 
     def test_stream_quote(self):
-        ws = websocket.create_connection(self.websocket.base_url + "/quote")
-        while not ws.connected:
-            time.sleep(0.1)
-        self.websocket.listen(self.interface.quote_stream, tickers=["BTC-USD"])
-        msg = ws.recv()
+        args = {
+            "tickers": ["BTC-USD"],
+            "interval": 5
+        }
 
-        print(msg)
+        self.websocket.listen(self.interface.quote_stream, **args)
+        ws, quotes = self.interface.listen(self.interface.quote_stream, port=self.websocket.port)
+
+        # quotes is an async generator
+        # print accordingly (async loop)
+        async def print_quotes():
+            # asyncio wait for next
+            quote = await quotes.__anext__()
+            self.assertIsInstance(quote, dx.History)
+            return
+
+        # asyncio run
+        asyncio.run(print_quotes())
         ws.close()
+
+        # stop future
+        # future.cancel()
+        #
+        # wait for future
+        # while not future.done():
+        #     time.sleep(0.1)
 
 
 if __name__ == '__main__':

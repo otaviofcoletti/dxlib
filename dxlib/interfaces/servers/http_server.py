@@ -6,7 +6,7 @@ import threading
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
-from .endpoint import EndpointWrapper, Method, EndpointType
+from .endpoint import EndpointWrapper, Method, EndpointScheme
 from .handlers import HTTPHandler
 from .server import ServerStatus, handle_exceptions_decorator, Server
 
@@ -30,7 +30,7 @@ class HTTPServer(Server):
         return f"http://{self.host}:{self.port}"
 
     def add_interface(self, interface):
-        self.handler.add_interface(interface, endpoint_type=EndpointType.HTTP)
+        self.handler.add_interface(interface, endpoint_scheme=EndpointScheme.HTTP)
 
     @property
     def formatted_endpoints(self):

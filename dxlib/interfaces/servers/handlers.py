@@ -1,9 +1,8 @@
-import json
 import logging
 from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple
 
-from .endpoint import EndpointWrapper, Method, EndpointType
+from .endpoint import EndpointWrapper, Method, EndpointScheme
 
 
 class Handler(ABC):
@@ -40,8 +39,8 @@ class HTTPHandler(Handler, ABC):
         self.endpoints[route_name] = self.endpoints.get(route_name, {})
         self.endpoints[route_name][method] = (endpoint, func)
 
-    def add_interface(self, interface, endpoint_type: EndpointType = EndpointType.HTTP):
-        self.set_endpoints(interface.get_endpoints(endpoint_type))
+    def add_interface(self, interface, endpoint_scheme: EndpointScheme = EndpointScheme.HTTP):
+        self.set_endpoints(interface.get_endpoints(endpoint_scheme))
 
 
 class WebsocketHandler(Handler):
@@ -58,21 +57,8 @@ class WebsocketHandler(Handler):
         route_name = endpoint.route_name
         self.endpoints[route_name] = (endpoint, func)
 
-    def add_interface(self, interface, endpoint_type: EndpointType = EndpointType.WEBSOCKET):
-        self.set_endpoints(interface.get_endpoints(endpoint_type))
-
-    def listen(self, func, *args, **kwargs) -> callable:
-        route_name = func.endpoint.route_name
-        generator = func(*args, **kwargs)
-
-        self.set_endpoint(func.endpoint, func)
-
-        async def _listen():
-            async for message in generator:
-                for websocket in self.websockets.get(route_name, []):
-                    await websocket.send(json.dumps(message))
-
-        return _listen
+    def add_interface(self, interface, endpoint_scheme: EndpointScheme = EndpointScheme.WEBSOCKET):
+        self.set_endpoints(interface.get_endpoints(endpoint_scheme))
 
     def on_connect(self, websocket: any, endpoint: str):
         if not hasattr(websocket, "send"):
@@ -91,6 +77,12 @@ class WebsocketHandler(Handler):
         if endpoint not in self.endpoints:
             raise ValueError("Invalid endpoint")
         self.logger.info(f"Received message from {endpoint}: {message}")
+
+    def disconnect(self):
+        for endpoint, websockets in self.websockets.items():
+            for websocket in websockets:
+                websocket.close()
+        self.websockets = {}
 
 
 # class TCPHandler(Handler):

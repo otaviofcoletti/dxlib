@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .internal_interface import InternalInterface
-from ..servers.endpoint import Endpoint, Method, EndpointType
+from ..servers.endpoint import Endpoint, Method, EndpointScheme
 from ...core import Strategy
 
 
@@ -16,5 +16,5 @@ class StrategyInterface(InternalInterface):
         return self.strategy.execute(observation, position, history)
 
     @property
-    def endpoints(self, endpoint_type=EndpointType.HTTP):
-        return self.get_endpoints(endpoint_type)
+    def endpoints(self, endpoint_scheme=EndpointScheme.HTTP):
+        return self.get_endpoints(endpoint_scheme)
