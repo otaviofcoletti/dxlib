@@ -84,8 +84,17 @@ class InternalInterface(ABC):
             return response.json()
 
     @staticmethod
-    def _listen_websocket(wrapper: EndpointWrapper, url: str) -> Tuple[websocket.WebSocket, AsyncGenerator]:
-        ws = websocket.create_connection(url)
+    def _listen_websocket(wrapper: EndpointWrapper, url: str, retry=0) -> Tuple[websocket.WebSocket, AsyncGenerator]:
+        ws = None
+        for _ in range(retry + 1):
+            try:
+                ws = websocket.create_connection(url)
+                break
+            except ConnectionRefusedError:
+                pass
+
+        if ws is None:
+            raise ConnectionRefusedError(f"Could not connect to {url}")
 
         async def websocket_recv():
             while not ws.connected:
@@ -108,7 +117,7 @@ class InternalInterface(ABC):
 
         return ws, websocket_recv()
 
-    def listen(self, function: any, port: int) -> Tuple[socket | websocket.WebSocket, AsyncGenerator]:
+    def listen(self, function: any, port: int, retry=0) -> Tuple[socket | websocket.WebSocket, AsyncGenerator]:
         if self.host is None:
             raise ValueError("URL for interfacing must be provided on interface creation")
 
@@ -116,7 +125,7 @@ class InternalInterface(ABC):
         url = self.make_url(wrapper, port)
 
         if wrapper.endpoint_scheme == EndpointScheme.WEBSOCKET:
-            return self._listen_websocket(wrapper, url)
+            return self._listen_websocket(wrapper, url, retry)
         elif wrapper.endpoint_scheme == EndpointScheme.TCP:
             raise NotImplementedError("TCP not supported yet")
         else:
