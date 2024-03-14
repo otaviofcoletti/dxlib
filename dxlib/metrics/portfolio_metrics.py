@@ -57,8 +57,23 @@ class PortfolioMetrics:
         return 1 - (changes.history.df.apply(lambda x: x['inventory'].empty, axis=1)).sum() / len(changes.history)
 
     @classmethod
-    def cash_value(cls, portfolio: Portfolio, prices: History) -> Portfolio:
+    def cash_value(cls, portfolio: Portfolio, prices: History, fees: dict = None) -> Portfolio:
         cash_usage = -cls.value(cls.changes(portfolio), prices)
+
+        fees = fees or {}
+        fixed_fees = fees.get('fixed', 0)
+        percent_fees = fees.get('percent', 0)
+
+        # for rows in cash usage, calculate the fees
+        for idx, row in cash_usage.df.iterrows():
+            value = row['value']
+            if row['value'] != 0:
+                value = value - fixed_fees
+            if row['value'] > 0:
+                value *= (1 - percent_fees)
+
+            cash_usage.df.loc[idx, 'value'] = value
+
         cash_value = Portfolio(cash_usage).cumsum()
         return cash_value
 

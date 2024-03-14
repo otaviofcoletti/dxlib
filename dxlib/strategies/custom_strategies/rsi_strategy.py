@@ -24,7 +24,8 @@ class RsiStrategy(Strategy):
                  window=14,
                  upper=70,
                  lower=30,
-                 reverse=False):
+                 reverse=False,
+                 ):
         super().__init__()
         self.field = field
         self.window = window
