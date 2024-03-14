@@ -106,7 +106,6 @@ class Portfolio(LoggerMixin):
 
     @classmethod
     def from_orders(cls, orders: History):
-        # aggregate orders into inventory for each date
         inventories = orders.apply({
             SchemaLevel.DATE: lambda x: pd.Series({"inventory": Inventory.from_orders(x["order"].values)})
         })

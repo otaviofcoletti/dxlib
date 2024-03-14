@@ -96,11 +96,23 @@ class TestPortfolioMetrics(unittest.TestCase):
         )
 
     def test(self):
-        portfolio = dx.Portfolio(self.history)
+        api = dx.interfaces.YFinanceAPI()
+        historical = api.historical(["BTC-USD", "ETH-USD"], dx.Date.prevdays(365), dx.Date.today())
 
-        print(
-            dx.PortfolioMetrics.metrics(portfolio, self.price_history)
-        )
+        # fill df na backfill
+        historical.df = historical.df.fillna(method="bfill")
+
+        executor = dx.Executor(dx.strategies.RsiStrategy())
+        signals = executor.run(historical)
+
+        portfolio = dx.Portfolio.from_orders(dx.OrderInterface().execute_history(signals))
+
+        cash_value = dx.PortfolioMetrics.cash_value(portfolio, historical)
+
+        # set starting_value to 1e4
+        cash_value.history.df += 1e5
+
+        print(dx.PortfolioMetrics.metrics(portfolio, cash_value, historical))
 
 
 if __name__ == '__main__':

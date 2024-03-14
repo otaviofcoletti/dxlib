@@ -1,8 +1,6 @@
-from typing import Tuple
-
 import pandas as pd
 
-from ..core import History, Portfolio, Inventory, Security, SchemaLevel
+from ..core import History, Portfolio, SchemaLevel
 
 """
 Start                     2004-08-19 00:00:00
@@ -24,7 +22,7 @@ Calmar Ratio                             0.77
 class PortfolioMetrics:
     @classmethod
     def apply_value(cls, row, prices):
-        price = prices[row.name[0]]['close']
+        price = prices[row.name[0]]['close'].to_dict()
         return pd.Series(
             {
                 "value": row['inventory'].value(price),
@@ -37,6 +35,10 @@ class PortfolioMetrics:
             lambda row: cls.apply_value(row, prices),
             axis=1
         )
+
+    @classmethod
+    def return_pct(cls, history: History) -> float:
+        return (cls._finalized(history) - cls._starting(history)) / cls._starting(history)
 
     @classmethod
     def changes(cls, portfolio: Portfolio) -> Portfolio:
@@ -55,15 +57,19 @@ class PortfolioMetrics:
         return 1 - (changes.history.df.apply(lambda x: x['inventory'].empty, axis=1)).sum() / len(changes.history)
 
     @classmethod
-    def equity(cls, portfolio: Portfolio, prices: History) -> Tuple[History, float, float]:
-        cash_usage = -cls.value(portfolio, prices)
+    def cash_value(cls, portfolio: Portfolio, prices: History) -> Portfolio:
+        cash_usage = -cls.value(cls.changes(portfolio), prices)
         cash_value = Portfolio(cash_usage).cumsum()
-        value = cls.value(portfolio.cumsum(), prices)
+        return cash_value
+
+    @classmethod
+    def equity(cls, portfolio: Portfolio, cash_value: Portfolio, prices: History) -> History:
+        value = cls.value(portfolio, prices)
         equity = History(
             value.df + cash_value.history.df,
             schema=value.schema
         )
-        return equity, cls._final(equity), cls._peak(equity)
+        return equity
 
     @classmethod
     def _start(cls, history: History) -> pd.Timestamp:
@@ -86,21 +92,16 @@ class PortfolioMetrics:
         return history.df.max()[0]
 
     @classmethod
-    def get_return(cls, equity: History) -> float:
-        return (cls._finalized(equity) - cls._starting(equity)) / cls._starting(equity)
-
-    @classmethod
-    def metrics(cls, portfolio: Portfolio, prices: History):
-        equity, final, peak = cls.equity(portfolio, prices)
-        returns = cls.get_return(equity)
+    def metrics(cls, portfolio: Portfolio, cash_value: Portfolio, prices: History):
+        equity = cls.equity(portfolio, cash_value, prices)
         return {
             "Start": cls._start(equity),
             "End": cls._final(equity),
             "Duration": cls.duration(portfolio),
             "Exposure Time [%]": cls.exposure_time(portfolio),
-            "Equity Final [$]": final,
-            "Equity Peak [$]": peak,
-            "Return [%]": returns * 100,
+            "Equity Final [$]": cls._finalized(equity),
+            "Equity Peak [$]": cls._peak(equity),
+            "Return [%]": cls.return_pct(equity) * 100,
             # "Buy & Hold Return [%]": cls.get_return(prices) * 100,
             # "Return (Ann.) [%]": cls.get_return(equity) / cls.duration(portfolio).days * 365 * 100,
             # "Volatility (Ann.) [%]": cls.volatility(equity) * 100,
