@@ -1,12 +1,10 @@
 import asyncio
 import json
-import time
 from abc import ABC
-from socket import socket
 from typing import List, Tuple, AsyncGenerator
 
 import requests
-import websocket
+import websockets
 
 from ..servers.endpoint import EndpointScheme, EndpointWrapper, Method
 
@@ -85,40 +83,37 @@ class InternalInterface(ABC):
             return response.json()
 
     @staticmethod
-    def _listen_websocket(wrapper: EndpointWrapper, url: str, retry=0) -> Tuple[websocket.WebSocket, AsyncGenerator]:
-        ws = None
-        for _ in range(retry + 1):
+    async def _listen_websocket(wrapper: EndpointWrapper, url: str, retries=3, delay=5) -> AsyncGenerator:
+        attempt = 0
+        while attempt <= retries:
             try:
-                ws = websocket.create_connection(url)
-                break
-            except (ConnectionRefusedError, OSError):
-                time.sleep(5)
+                async with websockets.connect(url) as ws:
+                    print("Connected to", url)
+                    while True:
+                        try:
+                            message = await ws.recv()
 
-        if ws is None:
-            raise ConnectionRefusedError(f"Could not connect to {url}")
-
-        async def websocket_recv():
-            while not ws.connected:
-                await asyncio.sleep(0.1)
-
-            try:
-                if wrapper and wrapper.output is not None:
-                    while ws.connected:
-                        yield wrapper.output(json.loads(ws.recv()))
+                            if wrapper and wrapper.output is not None:
+                                yield wrapper.output(json.loads(message))
+                            else:
+                                yield message
+                        except websockets.ConnectionClosed:
+                            print("Connection closed unexpectedly")
+                            break
+                print("Connection closed")
+            except websockets.ConnectionClosed as e:
+                print(f"Failed to connect to {url}: {e}")
+                attempt += 1
+                if attempt <= retries:
+                    print(f"Retrying in {delay} seconds...")
+                    await asyncio.sleep(delay)
                 else:
-                    while ws.connected:
-                        yield ws.recv()
-                return
+                    raise ConnectionRefusedError(f"Could not connect to {url} after {retries} attempts")
             except Exception as e:
-                raise e
-            except KeyboardInterrupt:
-                pass
-            finally:
-                ws.close()
+                print(f"Failed to connect to {url}: {e}")
+                raise
 
-        return ws, websocket_recv()
-
-    def listen(self, function: any, port: int, retry=0) -> Tuple[socket | websocket.WebSocket, AsyncGenerator]:
+    def listen(self, function: any, port: int, retry=0) -> AsyncGenerator:
         if self.host is None:
             raise ValueError("URL for interfacing must be provided on interface creation")
 
@@ -126,6 +121,7 @@ class InternalInterface(ABC):
         url = self.make_url(wrapper, port)
 
         if wrapper.endpoint_scheme == EndpointScheme.WEBSOCKET:
+            # self._listen_websocket(wrapper, url, retry)
             return self._listen_websocket(wrapper, url, retry)
         elif wrapper.endpoint_scheme == EndpointScheme.TCP:
             raise NotImplementedError("TCP not supported yet")

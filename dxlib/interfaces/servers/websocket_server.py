@@ -37,11 +37,19 @@ class WebsocketServer(Server):
         self.handler.set_endpoint(func.endpoint, func)
 
         async def _listen():
-            async for message in generator:
-                if not self._running.is_set():
-                    break
-                for websocket in self.handler.websockets.get(route_name, []):
-                    await websocket.send(json.dumps(message))
+            async def send_message(websocket, message):
+                await websocket.send(json.dumps(message))
+
+            async def listen_messages():
+                while True:
+                    try:
+                        message = await generator.__anext__()
+                    except StopIteration:
+                        break
+                    for websocket in self.handler.websockets.get(route_name, []):
+                        asyncio.create_task(send_message(websocket, message))
+
+            await asyncio.wait([listen_messages()])
 
         self.logger.info(f"Listening to {func.__name__}")
 
